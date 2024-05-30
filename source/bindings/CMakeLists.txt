@@ -1,4 +1,10 @@
 target_sources(stream-triggering
 	PRIVATE
-		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Test.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_entry.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_waitall.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Prepare_all.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_entry_free_all.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_free.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_host_wait.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_init.cc"
 )
