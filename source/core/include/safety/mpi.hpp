@@ -8,17 +8,17 @@
 #define check_mpi(function)                                                                        \
 	{                                                                                              \
 		int err = function;                                                                        \
-		check_error(err, __FILE__, __LINE__);                                                      \
+		check_mpi_error(err, __FILE__, __LINE__);                                                  \
 	}
 
 #define force_mpi(function)                                                                        \
 	{                                                                                              \
 		int err = function;                                                                        \
-		check_error<true>(err, __FILE__, __LINE__);                                                \
+		check_mpi_error<true>(err, __FILE__, __LINE__);                                            \
 	}
 
 template<bool shouldThrow = false>
-void check_error(const int err, const char *filename, const int line)
+void check_mpi_error(const int err, const char *filename, const int line)
 {
 	if(err != MPI_SUCCESS)
 	{

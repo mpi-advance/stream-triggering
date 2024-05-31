@@ -1,6 +1,14 @@
 #include "abstract/queue.hpp"
-#include "queues/ThreadQueue.hpp"
 #include "stream-triggering.h"
+
+#include <exception>
+
+#ifdef USE_THREADS
+#include "queues/ThreadQueue.hpp"
+#endif
+#ifdef USE_CUDA
+#include "queues/CudaQueue.hpp"
+#endif
 
 extern "C" {
 
@@ -9,12 +17,19 @@ int MPIX_Queue_init(MPIX_Queue *queue, MPIX_Queue_type type)
 	Queue *the_queue;
 	switch(type)
 	{
+#ifdef USE_CUDA
+		case CUDA:
+			the_queue = new CudaQueue();
+			break;
+#endif
+#ifdef USE_THREADS
 		case THREAD:
 			the_queue = new ThreadQueue<false>();
 			break;
 		case THREAD_SERIALIZED:
 			the_queue = new ThreadQueue<true>();
 			break;
+#endif
 		default:
 			throw std::runtime_error("Queue type not enabled");
 	}
