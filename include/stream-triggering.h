@@ -15,10 +15,11 @@ const int MPIX_QUEUE_ENTRY_NULL = 0;
 enum MPIX_Queue_type
 {
     THREAD = 0,
-    CUDA = 1,
-    AMD = 2,
-    HPE = 3,
-    MPICH = 4
+    THREAD_SERIALIZED = 1,
+    CUDA = 2,
+    AMD = 3,
+    HPE = 4,
+    MPICH = 5
 };
 
 int MPIX_Queue_host_wait(MPIX_Queue);
