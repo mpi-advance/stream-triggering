@@ -23,10 +23,12 @@ void CudaQueueEntry::prepare()
 
 void CudaQueueEntry::start()
 {
-	std::cout << "Starting" << std::endl;
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::cout << rank << " starting" << std::endl;
 	while((*start_location) != 1)
 	{
-		// Do nothing
+		std::this_thread::yield();
 	}
 	check_mpi(MPI_Start(&my_request));
 	std::cout << "Done: " << *start_location << std::endl;
@@ -65,18 +67,16 @@ void CudaQueueEntry::launch_wait_kernel(CUstream the_stream)
 	force_cuda(cuStreamWaitValue64(the_stream, wait_dev, 1, 0));
 }
 
-CudaQueue::CudaQueue() : thr(&CudaQueue::progress, this)
+CudaQueue::CudaQueue(cudaStream_t *stream) : thr(&CudaQueue::progress, this), my_stream(stream)
 {
 	force_cuda(cuInit(0));
 	force_cuda(cudaSetDevice(0));
-	force_cuda(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
 }
 
 CudaQueue::~CudaQueue()
 {
 	shutdown = true;
 	thr.join();
-	check_cuda(cudaStreamDestroy(my_stream));
 }
 
 void CudaQueue::progress()
@@ -125,7 +125,7 @@ QueueEntry *CudaQueue::create_entry(MPI_Request req)
 void CudaQueue::enqueue_operation(QueueEntry *qe)
 {
 	CudaQueueEntry *cqe = static_cast<CudaQueueEntry *>(qe);
-	cqe->launch_start_kernel(my_stream);
+	cqe->launch_start_kernel(*my_stream);
 	entries.push_back(qe);
 
 	std::scoped_lock<std::mutex> incoming_lock(queue_guard);
@@ -138,7 +138,7 @@ void CudaQueue::enqueue_waitall()
 	for(QueueEntry *entry : entries)
 	{
 		CudaQueueEntry *cqe = static_cast<CudaQueueEntry *>(entry);
-		cqe->launch_wait_kernel(my_stream);
+		cqe->launch_wait_kernel(*my_stream);
 	}
 	entries.clear();
 }

@@ -23,7 +23,7 @@ enum MPIX_Queue_type
 };
 
 int MPIX_Queue_host_wait(MPIX_Queue);
-int MPIX_Queue_init(MPIX_Queue*, MPIX_Queue_type);
+int MPIX_Queue_init(MPIX_Queue*, MPIX_Queue_type, void* extra_address);
 int MPIX_Queue_free(MPIX_Queue*);
 int MPIX_Prepare_all(int, MPI_Request[], MPIX_Queue, MPIX_Queue_entry[]);
 int MPIX_Enqueue_entry(MPIX_Queue, MPIX_Queue_entry);

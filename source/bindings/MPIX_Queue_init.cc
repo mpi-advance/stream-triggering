@@ -7,19 +7,20 @@
 #include "queues/ThreadQueue.hpp"
 #endif
 #ifdef USE_CUDA
+#include "cuda.h"
 #include "queues/CudaQueue.hpp"
 #endif
 
 extern "C" {
 
-int MPIX_Queue_init(MPIX_Queue *queue, MPIX_Queue_type type)
+int MPIX_Queue_init(MPIX_Queue *queue, MPIX_Queue_type type, void* extra_address)
 {
 	Queue *the_queue;
 	switch(type)
 	{
 #ifdef USE_CUDA
 		case CUDA:
-			the_queue = new CudaQueue();
+			the_queue = new CudaQueue((cudaStream_t *) (extra_address));
 			break;
 #endif
 #ifdef USE_THREADS
