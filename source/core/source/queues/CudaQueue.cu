@@ -4,14 +4,22 @@
 
 CudaQueueEntry::CudaQueueEntry(MPI_Request req) : QueueEntry(req)
 {
-	force_cuda(cuMemHostAlloc((void **) &start_location, sizeof(int), CU_MEMHOSTALLOC_PORTABLE));
+	std::cout << "Entry being created!" << std::endl;
+	force_cuda(cuMemHostAlloc((void **) &start_location,
+	                          sizeof(int64_t),
+	                          CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
+	*start_location = 0;
 	force_cuda(cuMemHostGetDevicePointer(&start_dev, start_location, 0));
-	force_cuda(cudaHostAlloc((void **) &wait_location, sizeof(int), CU_MEMHOSTALLOC_PORTABLE));
+	force_cuda(cudaHostAlloc((void **) &wait_location,
+	                         sizeof(int64_t),
+	                         CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
+	*wait_location = 0;
 	force_cuda(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
 
 CudaQueueEntry::~CudaQueueEntry()
 {
+	std::cout << "Entry going away!" << std::endl;
 	check_cuda(cudaFreeHost(start_location));
 	check_cuda(cudaFreeHost(wait_location));
 }
@@ -30,6 +38,7 @@ void CudaQueueEntry::start()
 	{
 		std::this_thread::yield();
 	}
+	std::cout << rank << " what are we doing? " << std::endl;
 	check_mpi(MPI_Start(&my_request));
 	std::cout << "Done: " << *start_location << std::endl;
 }

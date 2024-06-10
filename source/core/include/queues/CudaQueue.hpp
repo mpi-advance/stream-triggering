@@ -28,8 +28,8 @@ public:
 	void launch_start_kernel(CUstream);
 
 protected:
-	int *start_location;
-	int *wait_location;
+	int64_t *start_location;
+	int64_t *wait_location;
 
 	CUdeviceptr start_dev;
 	CUdeviceptr wait_dev;

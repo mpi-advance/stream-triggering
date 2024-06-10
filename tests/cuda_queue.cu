@@ -57,6 +57,8 @@ __global__ void thread_process_iteration(int iter, int *send_buf, int *recv_buf)
 
 int main()
 {
+	check_cuda(cudaSetDevice(0));
+
 	int mode;
 	MPI_Init_thread(nullptr, nullptr, MPI_THREAD_MULTIPLE, &mode);
 
