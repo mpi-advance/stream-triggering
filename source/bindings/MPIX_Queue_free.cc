@@ -3,12 +3,12 @@
 
 extern "C" {
 
-int MPIX_Queue_free(MPIX_Queue *queue)
+int MPIX_ST_Queue_free(MPIX_ST_Queue *queue)
 {
 	Queue *the_queue = (Queue *) (*queue);
 	delete the_queue;
 
-	*queue = MPIX_QUEUE_NULL;
+	*queue = MPIX_ST_Queue_NULL;
 	return MPIX_SUCCESS;
 }
 }

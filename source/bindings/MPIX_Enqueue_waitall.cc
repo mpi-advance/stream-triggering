@@ -3,7 +3,7 @@
 
 extern "C" {
 
-int MPIX_Enqueue_waitall(MPIX_Queue queue)
+int MPIX_Enqueue_waitall(MPIX_ST_Queue queue)
 {
 	Queue *the_queue = (Queue *) (queue);
 	the_queue->enqueue_waitall();

@@ -90,10 +90,10 @@ int main()
 	}
 
 	// Make queue and queue entries
-	MPIX_Queue my_queue;
-	MPIX_Queue_init(&my_queue, CUDA, &my_stream);
+	MPIX_ST_Queue my_queue;
+	MPIX_ST_Queue_init(&my_queue, CUDA, &my_stream);
 
-	MPIX_Queue_entry my_entries[2];
+	MPIX_ST_Queue_entry my_entries[2];
 	MPIX_Prepare_all(2, my_reqs, my_queue, my_entries);
 
 	for(int i = 0; i < num_iters; ++i)
@@ -110,10 +110,10 @@ int main()
 	}
 
 	std::cout << "Waiting on queue!" << std::endl;
-	MPIX_Queue_host_wait(my_queue);
+	MPIX_ST_Queue_host_wait(my_queue);
 
 	// Cleanup
-	MPIX_Queue_entry_free_all(2, my_entries);
+	MPIX_ST_Queue_entry_free_all(2, my_entries);
 
 	MPI_Request_free(&my_reqs[0]);
 	MPI_Request_free(&my_reqs[1]);
@@ -121,7 +121,7 @@ int main()
 	check_cuda(cudaFree(send_buf));
 	check_cuda(cudaFree(recv_buf));
 
-	MPIX_Queue_free(&my_queue);
+	MPIX_ST_Queue_free(&my_queue);
 
 	MPI_Finalize();
 }

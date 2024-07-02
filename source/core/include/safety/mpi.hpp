@@ -25,7 +25,7 @@ void check_mpi_error(const int err, const char *filename, const int line)
 		std::cout << "(" << err << ") in " << filename << " on line " << line << std::endl;
 		if constexpr(shouldThrow)
 		{
-			throw std::runtime_error(err);
+			throw std::runtime_error(std::to_string(err));
 		}
 	}
 }

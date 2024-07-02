@@ -8,4 +8,9 @@ elseif(USE_IMPLEMENTATION STREQUAL CUDA)
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/CudaQueue.cu"
 	)
+elseif(USE_IMPLEMENTATION STREQUAL HPE)
+	target_sources(stream-triggering
+		PRIVATE
+			"${CMAKE_CURRENT_SOURCE_DIR}/HPEQueue.cc"
+	)
 endif()

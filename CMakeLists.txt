@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.17 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.21 FATAL_ERROR)
 
 # set project
 project(stream-triggering VERSION 0.1 LANGUAGES C CXX)
@@ -16,9 +16,12 @@ elseif(USE_IMPLEMENTATION STREQUAL CUDA)
     set(NEED_CUDA ON)
     add_definitions( -DUSE_CUDA )
 elseif(USE_IMPLEMENTATION STREQUAL MPICH)
-    message(STATUS "Using HPE's stream triggering as the underlying implementation.")
-elseif(USE_IMPLEMENTATION STREQUAL HPE)
     message(STATUS "Using MPICH's stream triggering as the underlying implementation.")
+elseif(USE_IMPLEMENTATION STREQUAL HPE)
+    message(STATUS "Using HPE's stream triggering as the underlying implementation.")
+    #enable_language( HIP )
+    set(NEED_HIP ON)
+    add_definitions( -DUSE_HPE )
 else()
     message(FATAL_ERROR "Invalid implementation selected.")
 endif()
@@ -29,13 +32,18 @@ set_target_properties(stream-triggering PROPERTIES PUBLIC_HEADER include/stream-
 
 # Deal with extra libraries:
 find_package(MPI REQUIRED)
-target_link_libraries(stream-triggering MPI::MPI_C)
+target_link_libraries(stream-triggering MPI::MPI_CXX)
 
 if(NEED_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     target_link_libraries(stream-triggering CUDA::cudart)
     target_link_libraries(stream-triggering CUDA::cuda_driver)
+endif()
+
+if(NEED_HIP)
+    find_package(hip REQUIRED)
+    target_link_libraries(stream-triggering hip::host)
 endif()
 
 add_subdirectory(include)

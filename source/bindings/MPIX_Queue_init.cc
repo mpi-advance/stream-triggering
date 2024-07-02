@@ -1,7 +1,4 @@
-#include "abstract/queue.hpp"
 #include "stream-triggering.h"
-
-#include <exception>
 
 #ifdef USE_THREADS
 #include "queues/ThreadQueue.hpp"
@@ -10,19 +7,20 @@
 #include "cuda.h"
 #include "queues/CudaQueue.hpp"
 #endif
+#ifdef USE_HPE
+#include <hip/hip_runtime.h>
+#include "queues/HPEQueue.hpp"
+#endif
+
+#include <stdexcept>
 
 extern "C" {
 
-int MPIX_Queue_init(MPIX_Queue *queue, MPIX_Queue_type type, void* extra_address)
+int MPIX_ST_Queue_init(MPIX_ST_Queue *queue, MPIX_ST_Queue_type type, void* extra_address)
 {
 	Queue *the_queue;
 	switch(type)
 	{
-#ifdef USE_CUDA
-		case CUDA:
-			the_queue = new CudaQueue((cudaStream_t *) (extra_address));
-			break;
-#endif
 #ifdef USE_THREADS
 		case THREAD:
 			the_queue = new ThreadQueue<false>();
@@ -31,10 +29,20 @@ int MPIX_Queue_init(MPIX_Queue *queue, MPIX_Queue_type type, void* extra_address
 			the_queue = new ThreadQueue<true>();
 			break;
 #endif
+#ifdef USE_CUDA
+		case CUDA:
+			the_queue = new CudaQueue((cudaStream_t *) (extra_address));
+			break;
+#endif
+#ifdef USE_HPE
+		case HPE:
+			the_queue = new HPEQueue((hipStream_t *) (extra_address));
+			break;
+#endif
 		default:
 			throw std::runtime_error("Queue type not enabled");
 	}
-	*queue = (MPIX_Queue) the_queue;
+	*queue = (MPIX_ST_Queue) the_queue;
     
 	return MPIX_SUCCESS;
 }
