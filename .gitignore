@@ -1,3 +1,8 @@
 build/
 
 **/.vscode/
+
+# Files from testing
+/tests/test
+/tests/flux-*
+/tests/slurm_script.sh

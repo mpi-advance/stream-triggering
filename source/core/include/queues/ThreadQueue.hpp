@@ -8,19 +8,17 @@
 #include <queue>
 #include <thread>
 
-class ThreadQueueEntry : public QueueEntry
+class ThreadRequest
 {
 public:
-	ThreadQueueEntry(MPI_Request req) : QueueEntry(req) {}
-	~ThreadQueueEntry() = default;
+	ThreadRequest(Communication::Request *req);
 
-	void prepare() override;
+	void start();
+	void progress();
+	bool done();
 
-	void start() override;
-
-	bool done() override;
-
-	void progress() override;
+protected:
+	MPI_Request my_request;
 };
 
 template<bool isSerialized>
@@ -34,15 +32,10 @@ public:
 		thr.join();
 	}
 
-	QueueEntry *create_entry(MPI_Request req) override
-	{
-		return new ThreadQueueEntry(req);
-	}
-
-	void enqueue_operation(QueueEntry *qe) override
+	void enqueue_operation(Communication::Request *qe) override
 	{
 		std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-		entries.push_back(qe);
+		entries.push_back(ThreadRequest(qe));
 	}
 
 	void enqueue_waitall() override
@@ -72,9 +65,11 @@ protected:
 
 	std::mutex queue_guard;
 
-	std::queue<size_t>        stop_counts;
-	std::vector<QueueEntry *> pending;
-	std::vector<QueueEntry *> ongoing;
+	using RequestIterator = std::vector<ThreadRequest>::iterator;
+	std::vector<ThreadRequest> entries;
+	std::vector<ThreadRequest> pending;
+	std::vector<ThreadRequest> ongoing;
+	std::queue<size_t>         stop_counts;
 
 	void progress()
 	{
@@ -114,20 +109,18 @@ protected:
 	void progress_options_all(size_t &amount_to_do)
 	{
 		// Start operations
-		for(std::vector<QueueEntry *>::iterator entry = ongoing.begin(); entry != ongoing.end();
-		    entry++)
+		for(RequestIterator entry = ongoing.begin(); entry != ongoing.end(); entry++)
 		{
-			(*entry)->start();
+			(*entry).start();
 		}
 
 		// Progress them and watch out for shutdown (just in case)
 		while(amount_to_do != 0 && !shutdown)
 		{
-			for(std::vector<QueueEntry *>::iterator entry = ongoing.begin(); entry != ongoing.end();
-			    entry++)
+			for(RequestIterator entry = ongoing.begin(); entry != ongoing.end(); entry++)
 			{
-				(*entry)->progress();
-				if((*entry)->done())
+				(*entry).progress();
+				if((*entry).done())
 				{
 					ongoing.erase(entry);
 					amount_to_do--;
@@ -141,13 +134,12 @@ protected:
 	void progress_options_serial(size_t &amount_to_do)
 	{
 		// Start and progress operations one at a time
-		for(std::vector<QueueEntry *>::iterator entry = ongoing.begin(); entry != ongoing.end();
-		    entry++)
+		for(RequestIterator entry = ongoing.begin(); entry != ongoing.end(); entry++)
 		{
-			(*entry)->start();
-			while(!(*entry)->done())
+			(*entry).start();
+			while(!(*entry).done())
 			{
-				(*entry)->progress();
+				(*entry).progress();
 			}
 			amount_to_do--;
 			busy--;

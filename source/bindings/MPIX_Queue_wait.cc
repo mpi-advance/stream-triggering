@@ -3,10 +3,10 @@
 
 extern "C" {
 
-int MPIX_ST_Queue_host_wait(MPIX_ST_Queue queue)
+int MPIS_Queue_wait(MPIS_Queue queue)
 {
 	Queue *the_queue = (Queue *) (queue);
 	the_queue->host_wait();
-	return MPIX_SUCCESS;
+	return MPIS_SUCCESS;
 }
 }

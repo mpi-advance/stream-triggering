@@ -3,10 +3,10 @@
 
 extern "C" {
 
-int MPIX_Enqueue_waitall(MPIX_ST_Queue queue)
+int MPIS_Enqueue_waitall(MPIS_Queue queue)
 {
 	Queue *the_queue = (Queue *) (queue);
 	the_queue->enqueue_waitall();
-	return MPIX_SUCCESS;
+	return MPIS_SUCCESS;
 }
 }

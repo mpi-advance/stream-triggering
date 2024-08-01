@@ -1,3 +1,4 @@
+#include "abstract/queue.hpp"
 #include "stream-triggering.h"
 
 #ifdef USE_THREADS
@@ -16,7 +17,7 @@
 
 extern "C" {
 
-int MPIX_ST_Queue_init(MPIX_ST_Queue *queue, MPIX_ST_Queue_type type, void* extra_address)
+int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address)
 {
 	Queue *the_queue;
 	switch(type)
@@ -39,11 +40,16 @@ int MPIX_ST_Queue_init(MPIX_ST_Queue *queue, MPIX_ST_Queue_type type, void* extr
 			the_queue = new HPEQueue((hipStream_t *) (extra_address));
 			break;
 #endif
+#ifdef USE_LIBFABRIC
+		case LIBFABRIC:
+			the_queue = new LibfabricQueue();
+			break;
+#endif
 		default:
 			throw std::runtime_error("Queue type not enabled");
 	}
-	*queue = (MPIX_ST_Queue) the_queue;
+	*queue = (MPIS_Queue) the_queue;
     
-	return MPIX_SUCCESS;
+	return MPIS_SUCCESS;
 }
 }
