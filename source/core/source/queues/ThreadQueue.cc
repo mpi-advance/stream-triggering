@@ -41,8 +41,3 @@ bool ThreadRequest::done()
 	check_mpi(MPI_Test(&my_request, &value, MPI_STATUS_IGNORE));
 	return value;
 }
-
-void ThreadRequest::progress()
-{
-	done();
-}

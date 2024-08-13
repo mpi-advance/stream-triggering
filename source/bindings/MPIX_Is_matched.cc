@@ -3,11 +3,12 @@
 
 extern "C" {
 
-int MPIS_Prepare(MPIS_Request* request)
+int MPIS_Is_matched(MPIS_Request* request, int* matched)
 {
     using namespace Communication;
 	Request *the_request = (Request *) (*request);
-    the_request->prepare();
+    (*matched) = the_request->is_matched();
+
 	return MPIS_SUCCESS;
 }
 }

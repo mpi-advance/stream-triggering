@@ -9,7 +9,10 @@ extern "C" {
 typedef uintptr_t MPIS_Queue;
 typedef uintptr_t MPIS_Request;
 
+/* Errors */
 const int MPIS_SUCCESS      = 0;
+const int MPIX_NOT_READY    = -1;
+
 const int MPIS_QUEUE_NULL   = 0;
 const int MPIS_REQUEST_NULL = 0;
 
@@ -51,19 +54,21 @@ int MPIS_Enqueue_start(MPIS_Queue, MPIS_Request);
 int MPIS_Enqueue_waitall(MPIS_Queue);
 
 /* New Matching Functions */
-// int MPIS_Match();
+int MPIS_Match(MPIS_Request*);
 // int MPIS_Matchall();
 // int MPIS_Imatch();
-// int MPIS_Is_matched();
+int MPIS_Is_matched(MPIS_Request*, int*);
 
 /* New Preparation Functions */
 int MPIS_Prepare_all(int, MPIS_Request[]);
 int MPIS_Prepare(MPIS_Request *);
+int MPIS_Ready_all(int, MPIS_Request[]);
+int MPIS_Ready(MPIS_Request *);
 
 /*        Custom MPIS Override Funtions          */
 /* These have minimal, if any, new functionality */
 int MPIS_Request_free(MPIS_Request *);
-int MPIS_Wait();
+// int MPIS_Wait();
 
 // End APIs from 7/25/24
 

@@ -14,7 +14,6 @@ public:
 	ThreadRequest(Communication::Request *req);
 
 	void start();
-	void progress();
 	bool done();
 
 protected:
@@ -119,7 +118,6 @@ protected:
 		{
 			for(RequestIterator entry = ongoing.begin(); entry != ongoing.end(); entry++)
 			{
-				(*entry).progress();
 				if((*entry).done())
 				{
 					ongoing.erase(entry);
@@ -139,7 +137,7 @@ protected:
 			(*entry).start();
 			while(!(*entry).done())
 			{
-				(*entry).progress();
+				// Do nothing
 			}
 			amount_to_do--;
 			busy--;

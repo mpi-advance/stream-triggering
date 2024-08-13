@@ -9,6 +9,11 @@ int MPIS_Enqueue_start(MPIS_Queue queue, MPIS_Request request)
 	Queue   *the_queue   = (Queue *) (queue);
 	Request *the_request = (Request *) (request);
 
+	if(!the_request->is_ready())
+	{
+		return MPIX_NOT_READY;
+	}
+
 	the_queue->enqueue_operation(the_request);
 
 	return MPIS_SUCCESS;
