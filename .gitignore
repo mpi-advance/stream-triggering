@@ -5,4 +5,5 @@ build/
 # Files from testing
 /tests/test
 /tests/flux-*
+/tests/*.core
 /tests/slurm_script.sh

@@ -2,7 +2,7 @@
 
 #include "safety/mpi.hpp"
 
-ThreadRequest::ThreadRequest(Communication::Request *req)
+ThreadRequest::ThreadRequest(Communication::Request *req) : original_request(req)
 {
 	switch(req->operation)
 	{
@@ -13,7 +13,7 @@ ThreadRequest::ThreadRequest(Communication::Request *req)
 			                        req->peer,
 			                        req->tag,
 			                        req->comm,
-			                        &my_request));
+			                        &mpi_request));
 			break;
 		case Communication::Operation::RECV:
 			check_mpi(MPI_Recv_init(req->buffer,
@@ -22,7 +22,7 @@ ThreadRequest::ThreadRequest(Communication::Request *req)
 			                        req->peer,
 			                        req->tag,
 			                        req->comm,
-			                        &my_request));
+			                        &mpi_request));
 			break;
 		default:
 			throw std::runtime_error("Invalid Request");
@@ -32,12 +32,17 @@ ThreadRequest::ThreadRequest(Communication::Request *req)
 
 void ThreadRequest::start()
 {
-	check_mpi(MPI_Start(&my_request));
+	check_mpi(MPI_Start(&mpi_request));
+}
+
+bool ThreadRequest::canGo()
+{
+	return original_request->is_ready();
 }
 
 bool ThreadRequest::done()
 {
 	int value = 0;
-	check_mpi(MPI_Test(&my_request, &value, MPI_STATUS_IGNORE));
+	check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
 	return value;
 }

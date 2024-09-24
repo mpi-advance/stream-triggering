@@ -3,11 +3,11 @@
 
 extern "C" {
 
-int MPIS_Ready(MPIS_Request* request)
+int MPIS_Ready(MPIS_Request request)
 {
     using namespace Communication;
-	Request *the_request = (Request *) (*request);
+    Request* the_request = (Request*)(request);
     the_request->ready();
-	return MPIS_SUCCESS;
+    return MPIS_SUCCESS;
 }
 }

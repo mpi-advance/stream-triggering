@@ -3,13 +3,12 @@
 
 extern "C" {
 
-int MPIS_Match(MPIS_Request* request)
+int MPIS_Match(MPIS_Request request)
 {
     using namespace Communication;
-	Request *the_request = (Request *) (*request);
-    MatchPair& the_mp = the_request->match();
-    the_mp.wait();
+    Request* the_request = (Request*)(request);
+    the_request->match();
 
-	return MPIS_SUCCESS;
+    return MPIS_SUCCESS;
 }
 }

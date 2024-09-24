@@ -1,7 +1,6 @@
 #ifndef ST_ABSTRACT_QUEUE
 #define ST_ABSTRACT_QUEUE
 
-#include "mpi.h"
 #include "request.hpp"
 
 #include <stdint.h>
@@ -18,6 +17,9 @@ public:
 	virtual void enqueue_waitall() = 0;
 
 	virtual void host_wait() = 0;
+
+	virtual void match(Communication::Request *qe) = 0;
+	virtual void prepare(Communication::Request *qe) = 0;
 
 	operator uintptr_t() const
 	{
