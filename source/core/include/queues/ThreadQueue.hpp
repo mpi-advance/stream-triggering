@@ -13,15 +13,20 @@
 class ThreadRequest
 {
 public:
-    ThreadRequest(Communication::Request* req);
+    ThreadRequest(std::shared_ptr<Request> qe);
 
     void start();
+    void prepare();
     bool canGo();
     bool done();
 
 protected:
-    MPI_Request mpi_request;
-    Communication::Request* original_request;
+    static const int THREAD_PREPARE_TAG = 12999;
+
+    MPI_Request            mpi_request;
+    int                    prepare_request_buffer = -1;
+    MPI_Request            prepare_request;
+    std::weak_ptr<Request> original_request;
 };
 
 template <bool isSerialized>
@@ -35,20 +40,25 @@ public:
         thr.join();
     }
 
-    void enqueue_operation(Communication::Request* qe) override
+    void enqueue_operation(std::shared_ptr<Request> request) override
     {
-        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        entries.push_back(ThreadRequest(qe));
+        enqueue_aciton<Bundle::ThreadRequestAction::START>(request);
+    }
+
+    void enqueue_prepare(std::shared_ptr<Request> request) override
+    {
+        enqueue_aciton<Bundle::ThreadRequestAction::PREPARE>(request);
     }
 
     void enqueue_waitall() override
     {
         std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        size_t                       amt = entries.size();
-        stop_counts.push(amt);
-        pending.insert(pending.begin(), entries.begin(), entries.end());
-        busy += amt;
-        entries.clear();
+        // Move Bundle (entries) to the queue of work
+        pending.push(std::move(entries));
+        // Add one to busy counter
+        busy += 1;
+        // Remake entries
+        entries = Bundle();
     }
 
     void host_wait() override
@@ -61,7 +71,7 @@ public:
         }
     }
 
-    void match(Communication::Request* request) override
+    void match(std::shared_ptr<Request> request) override
     {
         // Normal matching
         request->match();
@@ -69,148 +79,147 @@ public:
         auto match_info = request->getMatch();
         if (std::nullopt == match_info)
             throw std::runtime_error("Request was not matched properly!");
-        remote_partner_to_local[std::make_tuple(request->peer, *match_info)] = request;
-    }
-
-    void prepare(Communication::Request* request) override
-    {
-        if (Communication::Operation::RECV == request->operation)
-        {
-            int partner_id = request->getID();
-            // TODO: Not use MPI_COMM_WORLD (in Recv mostly)
-            force_mpi(MPI_Send(&partner_id, 1, MPI_INT, request->peer,
-                               THREAD_PREPARE_TAG, MPI_COMM_WORLD));
-            request->ready();
-        }
+        remote_partner_to_local[std::make_tuple(request->peer, *match_info)] =
+            request;
     }
 
 protected:
-    static const int THREAD_PREPARE_TAG = 12999;
+    class Bundle
+    {
+    public:
+        enum ThreadRequestAction
+        {
+            START   = 0,
+            PREPARE = 1,
+        };
 
+        using RequestIterator = std::vector<
+            std::tuple<ThreadRequestAction, ThreadRequest&>>::iterator;
+
+        // No fancy constructor
+        Bundle() {};
+
+        void add_to_bundle(ThreadRequestAction operation,
+                           ThreadRequest&      request)
+        {
+            items.emplace_back(operation, request);
+        }
+
+        void progress_serial()
+        {
+            // Start and progress operations one at a time
+            for (RequestIterator entry = items.begin(); entry != items.end();
+                 entry++)
+            {
+                ThreadRequestAction action = std::get<0>(*entry);
+                ThreadRequest&      req    = std::get<1>(*entry);
+                if (ThreadRequestAction::START == action)
+                {
+                    req.start();
+                    while (!req.done())
+                    {
+                        // Do nothing
+                    }
+                }
+                else if (ThreadRequestAction::PREPARE == action)
+                {
+                    req.prepare();
+                }
+            }
+        }
+        void progress_all()
+        {
+            // Start all actions
+            for (RequestIterator entry = items.begin(); entry != items.end();
+                 entry++)
+            {
+                ThreadRequestAction action = std::get<0>(*entry);
+                ThreadRequest&      req    = std::get<1>(*entry);
+                if (ThreadRequestAction::START == action)
+                {
+                    req.start();
+                }
+                else if (ThreadRequestAction::PREPARE == action)
+                {
+                    req.prepare();
+                }
+            }
+
+            // Wait for "starts" to complete:
+            for (RequestIterator entry = items.begin(); entry != items.end();
+                 entry++)
+            {
+                ThreadRequestAction action = std::get<0>(*entry);
+                ThreadRequest&      req    = std::get<1>(*entry);
+                if (ThreadRequestAction::START == action)
+                {
+                    while (!req.done())
+                    {
+                        // Do nothing
+                    }
+                }
+            }
+        }
+
+    private:
+        std::vector<std::tuple<ThreadRequestAction, ThreadRequest&>> items;
+    };
+
+    // Thread control variables
     std::atomic<int> busy;
     std::thread      thr;
     bool             shutdown = false;
+    std::mutex       queue_guard;
 
-    std::mutex queue_guard;
+    // Bundle variables
+    using BundleIterator = std::vector<Bundle>::iterator;
+    Bundle                          entries;
+    std::queue<Bundle>              pending;
+    std::map<size_t, ThreadRequest> request_cache;
 
-    using RequestIterator = std::vector<ThreadRequest>::iterator;
-    std::vector<ThreadRequest> entries;
-    std::vector<ThreadRequest> pending;
-    std::vector<ThreadRequest> ongoing;
-    std::queue<size_t>         stop_counts;
-
-    // <rank, request ID>
-    using MessageID = std::tuple<int, int>;
-    std::map<MessageID, Communication::Request*> remote_partner_to_local;
+    // Matching related variables
+    using MessageID = std::tuple<int, int>;  //  <rank, request ID>
+    std::map<MessageID, std::shared_ptr<Request>> remote_partner_to_local;
 
     void progress()
     {
-        // Thread specific variables
-        size_t amount_to_do = 0;
-
         while (!shutdown)
         {
-            if (amount_to_do == 0 && stop_counts.size() > 0)
+            if (pending.size() > 0)
             {
-                // Determine how much we need to do
+                Bundle the_bundle = std::move(pending.front());
                 {  // Scope of the lock
                     std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-                    amount_to_do = stop_counts.front();
-                    stop_counts.pop();
-                    ongoing.insert(ongoing.begin(), pending.begin(),
-                                   pending.begin() + amount_to_do);
-                    pending.erase(pending.begin(),
-                                  pending.begin() + amount_to_do);
+                    pending.pop();
                 }
 
                 if constexpr (isSerialized)
                 {
-                    progress_options_serial(amount_to_do);
+                    the_bundle.progress_serial();
                 }
                 else
                 {
-                    progress_options_all(amount_to_do);
+                    the_bundle.progress_all();
                 }
+                busy--;
             }
             else
             {
-                //progress_prepares();
                 std::this_thread::yield();
             }
         }
     }
 
-    void progress_options_all(size_t& amount_to_do)
+    template <Bundle::ThreadRequestAction TA>
+    void enqueue_aciton(std::shared_ptr<Request> request)
     {
-        // Start operations
-        for (RequestIterator entry = ongoing.begin(); entry != ongoing.end();
-             entry++)
+        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
+        size_t                       request_id = request->getID();
+        if (!request_cache.contains(request_id))
         {
-            while(!(*entry).canGo())
-            {
-                progress_prepares();
-            }
-            (*entry).start();
+            request_cache.emplace(request_id, request);
         }
-
-        // Progress them and watch out for shutdown (just in case)
-        while (amount_to_do != 0 && !shutdown)
-        {
-            for (RequestIterator entry = ongoing.begin();
-                 entry != ongoing.end(); entry++)
-            {
-                if ((*entry).done())
-                {
-                    ongoing.erase(entry);
-                    amount_to_do--;
-                    busy--;
-                    break;
-                }
-                else
-                {
-                    progress_prepares();
-                }
-            }
-        }
-    }
-
-    void progress_options_serial(size_t& amount_to_do)
-    {
-        // Start and progress operations one at a time
-        for (RequestIterator entry = ongoing.begin(); entry != ongoing.end();
-             entry++)
-        {
-            while(!(*entry).canGo())
-            {
-                progress_prepares();
-            }
-            (*entry).start();
-            while (!(*entry).done())
-            {
-                progress_prepares();
-            }
-            amount_to_do--;
-            busy--;
-        }
-        ongoing.clear();
-    }
-
-    void progress_prepares()
-    {
-        MPI_Status incoming_message;
-        int        isThere = 0;
-        force_mpi(MPI_Iprobe(MPI_ANY_SOURCE, THREAD_PREPARE_TAG, MPI_COMM_WORLD,
-                             &isThere, &incoming_message));
-        if (isThere)
-        {
-            int peer = incoming_message.MPI_SOURCE;
-            int remoteRequestID = -1;
-            force_mpi(MPI_Recv(&remoteRequestID, 1, MPI_INT,
-                               peer, THREAD_PREPARE_TAG,
-                               MPI_COMM_WORLD, MPI_STATUS_IGNORE));
-            std::cout << "Looking up: " << peer << " " << remoteRequestID << std::endl;
-            remote_partner_to_local[std::make_tuple(peer,remoteRequestID)]->ready();
-        }
+        entries.add_to_bundle(TA, request_cache.at(request_id));
     }
 };
 

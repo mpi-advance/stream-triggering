@@ -1,30 +1,33 @@
 #ifndef ST_ABSTRACT_QUEUE
 #define ST_ABSTRACT_QUEUE
 
+#include <stdint.h>
+
+#include <memory>
+#include <vector>
+
 #include "request.hpp"
 
-#include <stdint.h>
-#include <vector>
+using namespace Communication;
 
 class Queue
 {
-
 public:
-	virtual ~Queue() = default;
+    virtual ~Queue() = default;
 
-	virtual void enqueue_operation(Communication::Request *qe) = 0;
+    virtual void enqueue_operation(std::shared_ptr<Request> qe) = 0;
+    virtual void enqueue_prepare(std::shared_ptr<Request> qe)   = 0;
 
-	virtual void enqueue_waitall() = 0;
+    virtual void enqueue_waitall() = 0;
 
-	virtual void host_wait() = 0;
+    virtual void host_wait() = 0;
 
-	virtual void match(Communication::Request *qe) = 0;
-	virtual void prepare(Communication::Request *qe) = 0;
+    virtual void match(std::shared_ptr<Request> qe) = 0;
 
-	operator uintptr_t() const
-	{
-		return (uintptr_t) (*this);
-	}
+    operator uintptr_t() const
+    {
+        return (uintptr_t)(*this);
+    }
 };
 
 #endif

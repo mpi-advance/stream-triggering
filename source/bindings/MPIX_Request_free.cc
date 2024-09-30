@@ -1,15 +1,14 @@
-#include "abstract/request.hpp"
-#include "stream-triggering.h"
+#include "helpers.hpp"
 
 extern "C" {
 
-int MPIS_Request_free(MPIS_Request *req)
+int MPIS_Request_free(MPIS_Request *request)
 {
     using namespace Communication;
-	Request *the_req = (Request *) (*req);
-	delete the_req;
+	std::shared_ptr<Request>* the_request = convert_request(request);
+	delete the_request;
 
-	*req = MPIS_REQUEST_NULL;
+	*request = MPIS_REQUEST_NULL;
 	return MPIS_SUCCESS;
 }
 }
