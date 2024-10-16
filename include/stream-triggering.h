@@ -24,7 +24,7 @@ enum MPIS_Queue_type
     AMD               = 3,
     HPE               = 4,
     MPICH_IMPL        = 5,
-    LIBFABRIC         = 6
+    CXI               = 6
 };
 
 // APIs from 7/25/24

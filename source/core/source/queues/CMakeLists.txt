@@ -13,4 +13,9 @@ elseif(USE_IMPLEMENTATION STREQUAL HPE)
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/HPEQueue.cc"
 	)
+elseif(USE_IMPLEMENTATION STREQUAL CXI)
+	target_sources(stream-triggering
+		PRIVATE
+			"${CMAKE_CURRENT_SOURCE_DIR}/CXIQueue.cc"
+	)
 endif()

@@ -12,6 +12,10 @@
 #include <hip/hip_runtime.h>
 #include "queues/HPEQueue.hpp"
 #endif
+#ifdef USE_CXI
+#include <hip/hip_runtime.h>
+#include "queues/CXIQueue.hpp"
+#endif
 
 #include <stdexcept>
 
@@ -40,9 +44,9 @@ int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address
 			the_queue = new HPEQueue((hipStream_t *) (extra_address));
 			break;
 #endif
-#ifdef USE_LIBFABRIC
-		case LIBFABRIC:
-			the_queue = new LibfabricQueue();
+#ifdef USE_CXI
+		case CXI:
+			the_queue = new CXIQueue((hipStream_t *) (extra_address));
 			break;
 #endif
 		default:

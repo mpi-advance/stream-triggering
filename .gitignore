@@ -6,4 +6,4 @@ build/
 /tests/test
 /tests/flux-*
 /tests/*.core
-/tests/slurm_script.sh
+/tests/*.sh
