@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.21 FATAL_ERROR)
 # set project
 project(stream-triggering VERSION 0.1 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(BUILD_SHARED_LIBS ON)
 set(USE_IMPLEMENTATION NONE CACHE STRING "Pick the underlying implementation to use for stream triggering")
 set_property(CACHE USE_IMPLEMENTATION PROPERTY STRINGS NONE CUDA MPICH HPE CXI)
@@ -53,6 +53,7 @@ if(NEED_CUDA)
 endif()
 
 if(NEED_HIP)
+    enable_language(HIP)
     find_package(hip REQUIRED)
     target_link_libraries(stream-triggering hip::host)
 endif()

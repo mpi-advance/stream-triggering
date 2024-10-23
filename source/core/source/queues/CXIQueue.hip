@@ -1,5 +1,4 @@
 #include "queues/CXIQueue.hpp"
-
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 
@@ -67,25 +66,6 @@ void CXIQueue::libfabric_setup()
     // Get our "cxi address"
     size_t _array_size = name_array_len;
     check_libfabric(fi_getname(&(ep)->fid, name, &_array_size));
-
-    // End out of band setup
-
-    /* Make counters
-    struct fi_cntr_attr cntr_attr = {
-        .events   = FI_CNTR_EVENTS_COMP,
-        .wait_obj = FI_WAIT_UNSPEC,  // for using libfabric waits (can also
-                                     // use FI_WAIT_NONE for no waits)
-    };
-    check_libfabric(fi_cntr_open(domain, &cntr_attr, &send_ctr, NULL));
-    check_libfabric(fi_cntr_open(domain, &cntr_attr, &recv_ctr, NULL));
-    check_libfabric(
-        fi_cntr_open(domain, &cntr_attr, &completion_counter, NULL));
-    check_libfabric(
-        fi_cntr_open(domain, &cntr_attr, &completion_counter2, NULL));*/
-
-    // Bind the counters
-    // check_libfabric(fi_ep_bind(ep, &(send_ctr)->fid, FI_SEND));
-    // check_libfabric(fi_ep_bind(ep, &(recv_ctr)->fid, FI_RECV));
 }
 
 void CXIQueue::peer_setup(int rank)
@@ -115,4 +95,94 @@ void CXIQueue::peer_setup(int rank)
     // Try to connect to peer?
     fi_addr_t* partner = &peers[rank];
     check_libfabric(fi_av_insert(av, othername, 1, partner, 0, 0));
+}
+
+struct fid_cntr* CXIQueue::alloc_counter()
+{
+    struct fid_cntr* new_ctr;
+    // Make counters
+    struct fi_cntr_attr cntr_attr = {
+        .events   = FI_CNTR_EVENTS_COMP,
+        .wait_obj = FI_WAIT_UNSPEC,  // for using libfabric waits (can also
+                                     // use FI_WAIT_NONE for no waits)
+    };
+    force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
+    return new_ctr;
+}
+
+uint64_t CXIQueue::prepare_cxi_mr_key(Request& req)
+{
+    struct fid_mr*   my_mr           = nullptr;
+    struct fid_cntr* triggering_cntr = alloc_counter();
+    struct fid_cntr* completion_cntr = alloc_counter();
+
+    MPI_Datatype the_type = req.datatype;
+    int          size     = -1;
+    check_mpi(MPI_Type_size(the_type, &size));
+    int total_size = size * req.count;
+
+    if (Communication::Operation::RECV == req.operation)
+    {
+        size_t   mr_id              = getMRID();
+        uint64_t recv_key_requested = mr_id;
+
+        force_libfabric(fi_mr_reg(domain, req.buffer, total_size,
+                                  FI_REMOTE_WRITE, 0, recv_key_requested,
+                                  FI_RMA_EVENT, &my_mr, NULL));
+        force_libfabric(fi_mr_bind(my_mr, &(ep)->fid, 0));
+
+        // Bind counter
+        force_libfabric(
+            fi_mr_bind(my_mr, &(completion_cntr)->fid, FI_REMOTE_WRITE));
+        // Enable MR
+        force_libfabric(fi_mr_enable(my_mr));
+    }
+
+    size_t req_id = req.getID();
+    request_map.try_emplace(req_id, my_mr, triggering_cntr, completion_cntr,
+                            ep);
+
+    CXIObjects& cxi_obj = request_map.at(req_id);
+    cxi_obj.fill_message(peers.at(req.peer), req.buffer, total_size);
+    return cxi_obj.get_mr_key();
+}
+
+void CXIQueue::libfabric_teardown() {}
+
+__global__ void add_to_counter(uint64_t* cntr)
+{
+    printf("Adding to counter\n");
+    *cntr = 1;
+}
+
+__global__ void wait_on_counter(volatile uint64_t* cntr_addr, uint64_t value)
+{
+    uint64_t cntr_value = ((*cntr_addr) & ((1ULL << 48) - 1));
+    printf("Waiting for: %lu\n", value);
+    while (cntr_value != value)
+    {
+        cntr_value = ((*cntr_addr) & ((1ULL << 48) - 1));
+    }
+    printf("Done waiting for: %lu\n", cntr_value);
+}
+
+void CXIQueue::gpu_launch(CXIObjects& cxi_objs)
+{
+    uint64_t* cntr_addr = (uint64_t*)cxi_objs.get_gpu_mmio_addr();
+    hipLaunchKernelGGL(add_to_counter, dim3(1), dim3(1), 0, *the_stream,
+                       cntr_addr);
+    std::cout << "Done launching triggering kernel!" << std::endl;
+}
+
+void CXIQueue::enqueue_waitall()
+{
+    for (auto req : active_requests)
+    {
+        CXIObjects& cxi_obj   = request_map.at(req);
+        size_t      threshold = cxi_obj.get_threshold();
+        uint64_t*   cntr_addr = (uint64_t*)cxi_obj.get_gpu_wb_buffer();
+        hipLaunchKernelGGL(wait_on_counter, dim3(1), dim3(1), 0, *the_stream,
+                           cntr_addr, threshold);
+    }
+    active_requests.clear();
 }

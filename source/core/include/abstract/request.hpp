@@ -7,6 +7,9 @@
 
 #include "safety/mpi.hpp"
 
+template <class>
+inline constexpr bool always_false_v = false;
+
 namespace Communication
 {
 
@@ -87,7 +90,13 @@ public:
 
     void match()
     {
-        setMatch(matchMPI(peer, myID));
+        match(myID);
+    }
+
+    template <class T>
+    void match(T thing)
+    {
+        setMatch(matchMPI(peer, thing));
     }
 
     void setMatch(MatchData match_data)
@@ -131,25 +140,37 @@ protected:
 
     static size_t assignID()
     {
-        static size_t ID = 0;
+        static size_t ID = 1;
         return ID++;
     }
 
-    MatchData matchMPI(int peer_rank, int value)
+    template <class T>
+    MatchData matchMPI(int peer_rank, T value)
     {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+        MPI_Datatype type_to_use;
+        if constexpr (4 == sizeof(T))
+        {
+            type_to_use = MPI_INT;
+        }
+        else if constexpr (8 == sizeof(T))
+        {
+            type_to_use = MPI_LONG;
+        }
+        else
+        {
+            static_assert(false, "Type not supported!");
+        }
+
+        T exchange_value = value;
+        T recv_value     = 0;
+
         int MATCH_TAG = 0;
-        if (value < -1)
-            throw std::runtime_error("Exchange value cannot be negative!");
-
-        int exchange_value = value;
-        int recv_value     = -1;
-
         // TODO: Adjust MPI_COMM_WORLD
-        MPI_Sendrecv(&exchange_value, 1, MPI_INT, peer_rank, MATCH_TAG,
-                     &recv_value, 1, MPI_INT, peer_rank, MATCH_TAG,
+        MPI_Sendrecv(&exchange_value, 1, type_to_use, peer_rank, MATCH_TAG,
+                     &recv_value, 1, type_to_use, peer_rank, MATCH_TAG,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         if (0 <= recv_value)
