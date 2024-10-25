@@ -44,7 +44,78 @@ enum Operation
     RECV
 };
 
-using MatchData = std::optional<int>;
+class MatchData
+{
+public:
+    template <typename T>
+    MatchData(T base_value) : data_len(sizeof(T))
+    {
+        my_match_data   = malloc(sizeof(T));
+        peer_match_data = calloc(1, sizeof(T));
+        T* temp_origin  = (T*)my_match_data;
+        temp_origin[0]  = base_value;
+
+        if constexpr (4 == sizeof(T))
+        {
+            my_type = MPI_INT;
+        }
+        else if constexpr (8 == sizeof(T))
+        {
+            my_type = MPI_LONG;
+        }
+        else
+        {
+            static_assert(false, "Type not supported!");
+        }
+    }
+
+    ~MatchData()
+    {
+        free(my_match_data);
+        free(peer_match_data);
+    }
+
+    MatchData(const MatchData&)            = delete;
+    MatchData& operator=(const MatchData&) = delete;
+
+    void* get_original_match_data()
+    {
+        return my_match_data;
+    }
+
+    void* get_peer_match_data() const
+    {
+        return peer_match_data;
+    }
+
+    size_t get_match_size()
+    {
+        return data_len;
+    }
+
+    bool is_matched()
+    {
+        return matched;
+    }
+
+    MPI_Datatype get_match_type()
+    {
+        return my_type;
+    }
+
+    void set_matched()
+    {
+        matched = true;
+    }
+
+private:
+    void*  my_match_data;
+    void*  peer_match_data;
+    size_t data_len;
+    bool   matched = false;
+
+    MPI_Datatype my_type;
+};
 
 class Request
 {
@@ -61,8 +132,6 @@ public:
     int ready_counter;
     int prep_counter;
 
-    static const int NO_VALUE = -1;
-
     Request(Operation _operation, void* _buffer, MPI_Count _count,
             MPI_Datatype _datatype, int _peer, int _tag, MPI_Comm _comm,
             MPI_Info _info)
@@ -76,11 +145,19 @@ public:
           info(_info),
           ready_counter(0),
           prep_counter(0),
+          myMatchData(std::nullopt),
           myID(assignID()) {};
 
     bool is_matched()
     {
-        return isMatched;
+        if (myMatchData)
+        {
+            return myMatchData->is_matched();
+        }
+        else
+        {
+            return false;
+        }
     }
 
     bool is_ready()
@@ -96,16 +173,10 @@ public:
     template <class T>
     void match(T thing)
     {
-        setMatch(matchMPI(peer, thing));
+        matchMPI(peer, thing);
     }
 
-    void setMatch(MatchData match_data)
-    {
-        myMatchData = match_data;
-        isMatched   = true;
-    }
-
-    const MatchData& getMatch()
+    const std::optional<MatchData>& getMatch()
     {
         return myMatchData;
     }
@@ -132,11 +203,9 @@ public:
     }
 
 protected:
-    MatchData myMatchData;
-    bool      isMatched = false;
-
-    ReadyCheck myReadyCheck;
-    size_t     myID;
+    std::optional<MatchData> myMatchData;
+    ReadyCheck               myReadyCheck;
+    size_t                   myID;
 
     static size_t assignID()
     {
@@ -145,38 +214,21 @@ protected:
     }
 
     template <class T>
-    MatchData matchMPI(int peer_rank, T value)
+    void matchMPI(int peer_rank, T value)
     {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        myMatchData.emplace(value);
 
-        MPI_Datatype type_to_use;
-        if constexpr (4 == sizeof(T))
-        {
-            type_to_use = MPI_INT;
-        }
-        else if constexpr (8 == sizeof(T))
-        {
-            type_to_use = MPI_LONG;
-        }
-        else
-        {
-            static_assert(false, "Type not supported!");
-        }
-
-        T exchange_value = value;
-        T recv_value     = 0;
+        MPI_Datatype type_to_use = myMatchData->get_match_type();
+        void*        send_buf    = myMatchData->get_original_match_data();
+        void*        recv_buf    = myMatchData->get_peer_match_data();
 
         int MATCH_TAG = 0;
         // TODO: Adjust MPI_COMM_WORLD
-        MPI_Sendrecv(&exchange_value, 1, type_to_use, peer_rank, MATCH_TAG,
-                     &recv_value, 1, type_to_use, peer_rank, MATCH_TAG,
-                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Sendrecv(send_buf, 1, type_to_use, peer_rank, MATCH_TAG, recv_buf,
+                     1, type_to_use, peer_rank, MATCH_TAG, MPI_COMM_WORLD,
+                     MPI_STATUS_IGNORE);
 
-        if (0 <= recv_value)
-            return recv_value;
-        else
-            return std::nullopt;
+        myMatchData->set_matched();
     }
 };
 

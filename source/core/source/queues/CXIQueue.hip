@@ -97,92 +97,86 @@ void CXIQueue::peer_setup(int rank)
     check_libfabric(fi_av_insert(av, othername, 1, partner, 0, 0));
 }
 
-struct fid_cntr* CXIQueue::alloc_counter()
+void CXIQueue::prepare_cxi_mr_key(Request& req)
 {
-    struct fid_cntr* new_ctr;
-    // Make counters
-    struct fi_cntr_attr cntr_attr = {
-        .events   = FI_CNTR_EVENTS_COMP,
-        .wait_obj = FI_WAIT_UNSPEC,  // for using libfabric waits (can also
-                                     // use FI_WAIT_NONE for no waits)
-    };
-    force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
-    return new_ctr;
-}
-
-uint64_t CXIQueue::prepare_cxi_mr_key(Request& req)
-{
-    struct fid_mr*   my_mr           = nullptr;
-    struct fid_cntr* triggering_cntr = alloc_counter();
-    struct fid_cntr* completion_cntr = alloc_counter();
-
     MPI_Datatype the_type = req.datatype;
     int          size     = -1;
     check_mpi(MPI_Type_size(the_type, &size));
     int total_size = size * req.count;
 
+    size_t req_id = req.getID();
     if (Communication::Operation::RECV == req.operation)
     {
-        size_t   mr_id              = getMRID();
-        uint64_t recv_key_requested = mr_id;
-
-        force_libfabric(fi_mr_reg(domain, req.buffer, total_size,
-                                  FI_REMOTE_WRITE, 0, recv_key_requested,
-                                  FI_RMA_EVENT, &my_mr, NULL));
-        force_libfabric(fi_mr_bind(my_mr, &(ep)->fid, 0));
-
-        // Bind counter
-        force_libfabric(
-            fi_mr_bind(my_mr, &(completion_cntr)->fid, FI_REMOTE_WRITE));
-        // Enable MR
-        force_libfabric(fi_mr_enable(my_mr));
+        std::unique_ptr<CXIRecvOneSided> temp_object =
+            std::make_unique<CXIRecvOneSided>(domain, ep, req.buffer,
+                                              total_size);
+        req.match(temp_object->get_mr_key());
+        request_map.insert(std::make_pair(req_id, std::move(temp_object)));
     }
+    else if (Communication::Operation::SEND == req.operation)
+    {
+        req.match<size_t>(0);
+        const std::optional<MatchData>& match_info = req.getMatch();
+        if (std::nullopt == match_info)
+            throw std::runtime_error("Request was not matched properly!");
+        uint64_t match_value =
+            *((uint64_t*)(match_info->get_peer_match_data()));
+        std::unique_ptr<CXISend<CommunicationType::ONE_SIDED>> temp_object =
+            std::make_unique<CXISend<CommunicationType::ONE_SIDED>>(domain, ep);
+        temp_object->fill_message(peers.at(req.peer), req.buffer, total_size,
+                                  match_value);
 
-    size_t req_id = req.getID();
-    request_map.try_emplace(req_id, my_mr, triggering_cntr, completion_cntr,
-                            ep);
-
-    CXIObjects& cxi_obj = request_map.at(req_id);
-    cxi_obj.fill_message(peers.at(req.peer), req.buffer, total_size);
-    return cxi_obj.get_mr_key();
+        request_map.insert(std::make_pair(req_id, std::move(temp_object)));
+    }
 }
 
 void CXIQueue::libfabric_teardown() {}
 
 __global__ void add_to_counter(uint64_t* cntr)
 {
-    printf("Adding to counter\n");
     *cntr = 1;
 }
 
 __global__ void wait_on_counter(volatile uint64_t* cntr_addr, uint64_t value)
 {
     uint64_t cntr_value = ((*cntr_addr) & ((1ULL << 48) - 1));
-    printf("Waiting for: %lu\n", value);
     while (cntr_value != value)
     {
         cntr_value = ((*cntr_addr) & ((1ULL << 48) - 1));
     }
-    printf("Done waiting for: %lu\n", cntr_value);
 }
 
-void CXIQueue::gpu_launch(CXIObjects& cxi_objs)
+void CXIWait::wait_gpu(hipStream_t* the_stream)
 {
-    uint64_t* cntr_addr = (uint64_t*)cxi_objs.get_gpu_mmio_addr();
+    uint64_t* cntr_addr = (uint64_t*)completion_counter.gpu_wb_buffer;
+    hipLaunchKernelGGL(wait_on_counter, dim3(1), dim3(1), 0, *the_stream,
+                       cntr_addr, threshold);
+}
+
+void CXITrigger::start_gpu(hipStream_t* the_stream)
+{
+    uint64_t* cntr_addr = (uint64_t*)trigger_counter.gpu_mmio_addr;
     hipLaunchKernelGGL(add_to_counter, dim3(1), dim3(1), 0, *the_stream,
                        cntr_addr);
-    std::cout << "Done launching triggering kernel!" << std::endl;
+    force_hip(hipStreamSynchronize(*the_stream));
+}
+
+void CXIWait::wait_host()
+{
+    size_t base  = threshold;
+    size_t value = fi_cntr_read(completion_counter.counter);
+    while (value != base)
+    {
+        value = fi_cntr_read(completion_counter.counter);
+    }
 }
 
 void CXIQueue::enqueue_waitall()
 {
     for (auto req : active_requests)
     {
-        CXIObjects& cxi_obj   = request_map.at(req);
-        size_t      threshold = cxi_obj.get_threshold();
-        uint64_t*   cntr_addr = (uint64_t*)cxi_obj.get_gpu_wb_buffer();
-        hipLaunchKernelGGL(wait_on_counter, dim3(1), dim3(1), 0, *the_stream,
-                           cntr_addr, threshold);
+        request_map.at(req)->wait_gpu(the_stream);
+        request_map.at(req)->wait_host();
     }
     active_requests.clear();
 }

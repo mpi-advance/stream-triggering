@@ -29,7 +29,8 @@ __global__ void print_buffer(volatile int* buffer, int buffer_len,
                              int iteration, int rank)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len) return;
+    if (index >= buffer_len)
+        return;
 
     if (buffer[index] != iteration * 100)
     {
@@ -50,7 +51,8 @@ __global__ void set_buffer(int* buffer, int buffer_len, int value)
 __global__ void pack_buffer(int* buffer, int buffer_len, int iteration)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len) return;
+    if (index >= buffer_len)
+        return;
 
     buffer[index] = iteration * 100;
 }
@@ -58,13 +60,16 @@ __global__ void pack_buffer(int* buffer, int buffer_len, int iteration)
 __global__ void pack_buffer2(int* buffer, int* recvd_buffer, int buffer_len)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len) return;
+    if (index >= buffer_len)
+        return;
 
     buffer[index] = recvd_buffer[index];
 }
 
 int main()
 {
+    force_hip(hipInit(0));
+    force_hip(hipSetDevice(6));
     MPI_Init(nullptr, nullptr);
 
     int rank;
@@ -111,15 +116,14 @@ int main()
     // Match
     MPIS_Queue_match(my_queue, my_reqs[0]);
     MPIS_Queue_match(my_queue, my_reqs[1]);
-    std::cout << "Queue match" << std::endl;
 
-    const int num_iters = 2;
+    const int num_iters = 5;
     for (int i = 0; i < num_iters; ++i)
     {
         if (0 == rank % 2)
         {
-            pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0 , stream>>>((int*)send_buffer,
-                                                    num_items, i);
+            pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
+                (int*)send_buffer, num_items, i);
             MPIS_Enqueue_start(my_queue, my_reqs[0]);
             MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
@@ -127,8 +131,9 @@ int main()
         {
             MPIS_Enqueue_start(my_queue, my_reqs[0]);
             MPIS_Enqueue_waitall(my_queue);
-            pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0 , stream>>>(
+            pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
                 (int*)send_buffer, (int*)recv_buffer, num_items);
+            MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
         MPIS_Enqueue_waitall(my_queue);
     }
@@ -136,8 +141,7 @@ int main()
     MPIS_Queue_wait(my_queue);
     std::cout << "Finished all computation and communication!" << std::endl;
 
-    print_buffer<<<1, 16>>>((int*)recv_buffer, num_items,
-                           num_iters - 1, rank);
+    print_buffer<<<1, 16>>>((int*)recv_buffer, num_items, num_iters - 1, rank);
     force_hip(hipDeviceSynchronize());
 
     // Cleanup

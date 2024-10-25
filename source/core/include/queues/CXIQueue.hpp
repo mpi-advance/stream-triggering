@@ -20,190 +20,290 @@
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
 
-class CXIObjects
+enum CounterFlavor
+{
+    Triggerable = 1,
+    Completable = 2,
+    Both        = 3
+};
+
+template <CounterFlavor MODE>
+class CXICounter
 {
 public:
-    using MMIOAddr = std::tuple<void*, size_t>;
-
-    CXIObjects(struct fid_mr* mem_region, struct fid_cntr* trigger,
-               struct fid_cntr* completion, struct fid_ep* main_ep)
-        : my_mr(mem_region),
-          trigger_cntr(trigger),
-          completion_cntr(completion),
-          trigger_internals(trigger),
-          completion_internals(completion)
+    static struct fid_cntr* alloc_counter(struct fid_domain* domain)
     {
-        rma_work_entry      = {};
+        struct fid_cntr* new_ctr;
+        // Make counters
+        struct fi_cntr_attr cntr_attr = {
+            .events   = FI_CNTR_EVENTS_COMP,
+            .wait_obj = FI_WAIT_UNSPEC,  // for using libfabric waits (can also
+                                         // use FI_WAIT_NONE for no waits)
+        };
+        force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
+        return new_ctr;
+    }
+
+    CXICounter(struct fid_domain* domain) : counter(alloc_counter(domain))
+    {
+        // Open (create) CXI Extension object
+        check_libfabric(fi_open_ops(&(counter->fid), FI_CXI_COUNTER_OPS, 0,
+                                    (void**)&counter_ops, NULL));
+        if constexpr (MODE & CounterFlavor::Triggerable)
+        {
+            // Get the MMIO Address of the counter
+            check_libfabric(counter_ops->get_mmio_addr(
+                &counter->fid, &mmio_addr, &mmio_addr_len));
+            // Register MMIO Address w/ HIP
+            force_hip(hipHostRegister(mmio_addr, mmio_addr_len,
+                                      hipHostRegisterDefault));
+            // Get GPU version of MMIO address
+            force_hip(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
+        }
+
+        if constexpr (MODE & CounterFlavor::Completable)
+        {
+            // Allocate some memory with HIP for the counter to writeback
+            // into
+            force_hip(hipHostMalloc(&wb_buffer, sizeof(uint64_t),
+                                    hipHostMallocDefault));
+            // Set the writeback location to be this buffer
+            check_libfabric(counter_ops->set_wb_buffer(&counter->fid, wb_buffer,
+                                                       sizeof(uint64_t)));
+            // Get GPU version of WB buffer
+            force_hip(hipHostGetDevicePointer(&gpu_wb_buffer, wb_buffer, 0));
+        }
+    }
+
+    ~CXICounter()
+    {
+        // Free counter
+        force_libfabric(fi_close(&counter->fid));
+
+        if constexpr (MODE & CounterFlavor::Triggerable)
+        {
+            force_hip(hipHostUnregister(mmio_addr));
+        }
+
+        if constexpr (MODE & CounterFlavor::Completable)
+        {
+            force_hip(hipHostFree(wb_buffer));
+        }
+    }
+
+    void print()
+    {
+        size_t value = fi_cntr_read(counter);
+        std::cout << "Value: " << value << std::endl;
+    }
+
+    // Libfabric Structs
+    struct fid_cntr*        counter;
+    struct fi_cxi_cntr_ops* counter_ops;
+    // MMIO Pointers
+    void*  mmio_addr;
+    size_t mmio_addr_len;
+    void*  gpu_mmio_addr;
+    // WB Pointers
+    void* wb_buffer;
+    void* gpu_wb_buffer;
+};
+
+class CXIRequest
+{
+public:
+    virtual ~CXIRequest() = default;
+    virtual void start(hipStream_t* the_stream)
+    {
+        threshold++;
+        start_host();
+        start_gpu(the_stream);
+    }
+    virtual void wait_gpu(hipStream_t* the_stream) = 0;
+    virtual void wait_host() = 0;
+
+protected:
+    virtual void start_host()                       = 0;
+    virtual void start_gpu(hipStream_t* the_stream) = 0;
+
+    size_t threshold = 0;
+};
+
+class CXIWait : virtual public CXIRequest
+{
+public:
+    CXIWait(struct fid_domain* domain) : completion_counter(domain) {}
+
+    void wait_gpu(hipStream_t* the_stream) override;
+    void wait_host() override;
+
+    struct fid_cntr* get_libfabric_counter()
+    {
+        return completion_counter.counter;
+    }
+
+    void print_counter()
+    {
+        completion_counter.print();
+    }
+
+private:
+    CXICounter<CounterFlavor::Completable> completion_counter;
+};
+
+class CXITrigger : virtual public CXIRequest
+{
+public:
+    CXITrigger(struct fid_domain* domain) : trigger_counter(domain) {}
+
+    void start_gpu(hipStream_t* the_stream) override;
+
+    struct fid_cntr* get_libfabric_counter()
+    {
+        return trigger_counter.counter;
+    }
+
+    void print_counter()
+    {
+        trigger_counter.print();
+    }
+
+private:
+    CXICounter<CounterFlavor::Triggerable> trigger_counter;
+};
+
+enum CommunicationType
+{
+    ONE_SIDED = 1,
+    TWO_SIDED = 2,
+};
+
+template <CommunicationType MODE>
+class CXISend : public CXITrigger, public CXIWait
+{
+    using FI_DFWQ_TYPE =
+        std::conditional_t<MODE == CommunicationType::ONE_SIDED,
+                           struct fi_op_rma, struct fi_op_msg>;
+
+public:
+    CXISend(struct fid_domain* domain, struct fid_ep* main_ep)
+        : CXITrigger(domain), CXIWait(domain), domain_ptr(domain)
+    {
+        work_entry          = {};
         message_description = {};
         msg_iov             = {};
         msg_rma_iov         = {};
 
-        rma_work_entry.threshold       = 0;
-        rma_work_entry.triggering_cntr = trigger;
-        rma_work_entry.completion_cntr = completion;
-        rma_work_entry.op_type         = FI_OP_WRITE;
-        rma_work_entry.op.rma          = &message_description;
+        work_entry.threshold       = 0;
+        work_entry.triggering_cntr = CXITrigger::get_libfabric_counter();
+        work_entry.completion_cntr = CXIWait::get_libfabric_counter();
+        if constexpr (CommunicationType::ONE_SIDED == MODE)
+        {
+            work_entry.op_type = FI_OP_WRITE;
+        }
+        else
+        {
+            work_entry.op_type = FI_OP_SEND;
+            // TODO
+            static_assert(false, "TWO SIDED not implemented yet");
+        }
+        work_entry.op.rma = &message_description;
 
-        message_description.ep                = main_ep;
-        message_description.msg.msg_iov       = &msg_iov;
-        message_description.msg.iov_count     = 1;
+        message_description.ep            = main_ep;
+        message_description.msg.msg_iov   = &msg_iov;
+        message_description.msg.iov_count = 1;
+        // No harm in doing this if mode is not one_sided
         message_description.msg.rma_iov       = &msg_rma_iov;
         message_description.msg.rma_iov_count = 1;
     }
-    ~CXIObjects()
+
+    void start_host() override
     {
-        // Free MR if present
-        if (my_mr)
-        {
-            force_libfabric(fi_close(&(my_mr)->fid));
-        }
-        // Free Counters
-        force_libfabric(fi_close(&trigger_cntr->fid));
-        force_libfabric(fi_close(&completion_cntr->fid));
+        work_entry.threshold = threshold;
+        force_libfabric(
+            fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
     }
 
-    void fill_message(fi_addr_t peer, void* buffer, size_t size)
+    void fill_message(fi_addr_t peer, void* buffer, size_t size,
+                      uint64_t remote_key)
     {
-        msg_rma_iov                  = {0, size, get_mr_key()};
+        msg_rma_iov                  = {0, size, remote_key};
         msg_iov                      = {buffer, size};
         message_description.msg.addr = peer;
     }
 
-    void bump_threshold()
+private:
+    // Structs for the DFWQ Entry:
+    struct fi_deferred_work work_entry;
+    FI_DFWQ_TYPE            message_description;
+    struct iovec            msg_iov;
+    // Always here, if if not always used.
+    struct fi_rma_iov msg_rma_iov;
+    // Keep the domain pointer for later use
+    struct fid_domain* domain_ptr;
+};
+
+class CXIRecvOneSided : public CXIWait
+{
+public:
+    CXIRecvOneSided(struct fid_domain* domain, struct fid_ep* main_ep,
+                    void* buffer, size_t _total_size)
+        : CXIWait(domain), total_size(_total_size)
     {
-        rma_work_entry.threshold++;
+        size_t   mr_id              = getMRID();
+        uint64_t recv_key_requested = mr_id;
+
+        force_libfabric(fi_mr_reg(domain, buffer, total_size, FI_REMOTE_WRITE,
+                                  0, recv_key_requested, FI_RMA_EVENT, &my_mr,
+                                  NULL));
+        force_libfabric(fi_mr_bind(my_mr, &(main_ep)->fid, 0));
+
+        // Bind counter
+        force_libfabric(fi_mr_bind(my_mr, &(get_libfabric_counter())->fid,
+                                   FI_REMOTE_WRITE));
+        // Enable MR
+        force_libfabric(fi_mr_enable(my_mr));
     }
 
-    size_t get_threshold()
+    ~CXIRecvOneSided()
     {
-        return rma_work_entry.threshold;
+        // Free MR
+        force_libfabric(fi_close(&(my_mr)->fid));
     }
 
-    void queue_work(struct fid_domain* domain)
+    void start_host() override
     {
-        force_libfabric(
-            fi_control(&domain->fid, FI_QUEUE_WORK, &rma_work_entry));
+        // Do nothing
+    }
+
+    void start_gpu(hipStream_t* the_stream) override
+    {
+        // Do nothing
     }
 
     size_t get_mr_key()
     {
-        if (my_mr)
-        {
-            return fi_mr_key(my_mr);
-        }
-        else
-        {
-            return 0;
-        }
-    }
-
-    MMIOAddr get_host_mmio_addr()
-    {
-        return std::make_pair(trigger_internals.mmio_addr,
-                              trigger_internals.mmio_addr_len);
-    }
-
-    void* get_gpu_mmio_addr()
-    {
-        return trigger_internals.gpu_mmio_addr;
-    }
-
-    void* get_wb_buffer()
-    {
-        return completion_internals.wb_buffer;
-    }
-
-    void* get_gpu_wb_buffer()
-    {
-        return completion_internals.gpu_wb_buffer;
+        return fi_mr_key(my_mr);
     }
 
 private:
-    enum CounterFlavor
-    {
-        Triggerable = 1,
-        Complete    = 2,
-        Both        = 3
-    };
-    template <CounterFlavor MODE>
-    class CXICounter
-    {
-    public:
-        CXICounter(struct fid_cntr* ctr) : counter(ctr)
-        {
-            // Open (create) CXI Extension object
-            check_libfabric(fi_open_ops(&(ctr->fid), FI_CXI_COUNTER_OPS, 0,
-                                        (void**)&counter_ops, NULL));
-            if constexpr (MODE & CounterFlavor::Triggerable)
-            {
-                // Get the MMIO Address of the counter
-                check_libfabric(counter_ops->get_mmio_addr(
-                    &counter->fid, &mmio_addr, &mmio_addr_len));
-                // Register MMIO Address w/ HIP
-                force_hip(hipHostRegister(mmio_addr, mmio_addr_len,
-                                          hipHostRegisterDefault));
-                // Get GPU version of MMIO address
-                force_hip(
-                    hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
-            }
-
-            if constexpr (MODE & CounterFlavor::Complete)
-            {
-                // Allocate some memory with HIP for the counter to writeback
-                // into
-                force_hip(hipHostMalloc(&wb_buffer, sizeof(uint64_t),
-                                        hipHostMallocDefault));
-                // Set the writeback location to be this buffer
-                check_libfabric(counter_ops->set_wb_buffer(
-                    &counter->fid, wb_buffer, sizeof(uint64_t)));
-                // Get GPU version of WB buffer
-                force_hip(
-                    hipHostGetDevicePointer(&gpu_wb_buffer, wb_buffer, 0));
-            }
-        }
-
-        ~CXICounter()
-        {
-            if constexpr (MODE & CounterFlavor::Triggerable)
-            {
-                force_hip(hipHostUnregister(mmio_addr));
-            }
-
-            if constexpr (MODE & CounterFlavor::Complete)
-            {
-                force_hip(hipHostFree(wb_buffer));
-            }
-        }
-
-        // Libfabric Structs
-        struct fid_cntr*        counter;
-        struct fi_cxi_cntr_ops* counter_ops;
-        // MMIO Pointers
-        void*  mmio_addr;
-        size_t mmio_addr_len;
-        void*  gpu_mmio_addr;
-        // WB Pointers
-        void* wb_buffer;
-        void* gpu_wb_buffer;
-    };
-
     // Allocated Libfabric Objects
-    struct fid_mr*                         my_mr;
-    struct fid_cntr*                       trigger_cntr;
-    CXICounter<CounterFlavor::Triggerable> trigger_internals;
-    struct fid_cntr*                       completion_cntr;
-    CXICounter<CounterFlavor::Complete>    completion_internals;
+    struct fid_mr* my_mr;
+    size_t         total_size;
 
-    // Structs for the RMA DFWQ Entry:
-    struct fi_deferred_work rma_work_entry;
-    struct fi_op_rma        message_description;
-    struct iovec            msg_iov;
-    struct fi_rma_iov       msg_rma_iov;
+    // MR Management
+    static size_t getMRID()
+    {
+        static size_t ID = 1;
+        return ID++;
+    }
 };
 
 class CXIQueue : public Queue
 {
 public:
+    using CXIObjects = std::unique_ptr<CXIRequest>;
+
     CXIQueue(hipStream_t* stream_addr) : the_stream(stream_addr)
     {
         int size;
@@ -220,12 +320,9 @@ public:
     void enqueue_operation(std::shared_ptr<Request> qe) override
     {
         CXIObjects& cxi_stuff = request_map.at(qe->getID());
-        cxi_stuff.bump_threshold();
-        // CXI Start
-        cxi_stuff.queue_work(domain);
-        // GPU Start
-        gpu_launch(cxi_stuff);
-        // Keep track of active stuff
+        cxi_stuff->start(the_stream);
+
+        // Keep track of active requests
         active_requests.push_back(qe->getID());
     }
     void enqueue_prepare(std::shared_ptr<Request> qe) override {}
@@ -243,17 +340,14 @@ public:
         if (0 == peers.at(peer))
             peer_setup(peer);
 
-        uint64_t key = prepare_cxi_mr_key(*qe);
-        qe->match(key);
+        prepare_cxi_mr_key(*qe);
     }
 
 private:
-    void             libfabric_setup();
-    void             peer_setup(int rank);
-    uint64_t         prepare_cxi_mr_key(Request&);
-    void             libfabric_teardown();
-    struct fid_cntr* alloc_counter();
-    void             gpu_launch(CXIObjects&);
+    void libfabric_setup();
+    void peer_setup(int rank);
+    void prepare_cxi_mr_key(Request&);
+    void libfabric_teardown();
 
     // Persistent Libfabric objects
     struct fi_info*    fi;     /*!< Provider's data and features */
@@ -270,12 +364,6 @@ private:
     char                    name[name_array_len];
     std::vector<fi_addr_t>  peers;
 
-    // MR Management
-    static size_t getMRID()
-    {
-        static size_t ID = 1;
-        return ID++;
-    }
     // Map of Request ID to CXIObject (counters, mr)
     std::map<size_t, CXIObjects> request_map;
     std::vector<size_t>          active_requests;
