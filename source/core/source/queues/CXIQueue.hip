@@ -158,7 +158,6 @@ void CXITrigger::start_gpu(hipStream_t* the_stream)
     uint64_t* cntr_addr = (uint64_t*)trigger_counter.gpu_mmio_addr;
     hipLaunchKernelGGL(add_to_counter, dim3(1), dim3(1), 0, *the_stream,
                        cntr_addr);
-    force_hip(hipStreamSynchronize(*the_stream));
 }
 
 void CXIWait::wait_host()

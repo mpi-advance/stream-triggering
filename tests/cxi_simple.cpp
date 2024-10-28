@@ -66,6 +66,11 @@ __global__ void pack_buffer2(int* buffer, int* recvd_buffer, int buffer_len)
     buffer[index] = recvd_buffer[index];
 }
 
+__global__ void flush_buffer()
+{
+    asm volatile("buffer_wbl2");
+}
+
 int main()
 {
     force_hip(hipInit(0));
@@ -124,6 +129,7 @@ int main()
         {
             pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
                 (int*)send_buffer, num_items, i);
+            flush_buffer<<<1, 1, 0, stream>>>();
             MPIS_Enqueue_start(my_queue, my_reqs[0]);
             MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
@@ -133,6 +139,7 @@ int main()
             MPIS_Enqueue_waitall(my_queue);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
                 (int*)send_buffer, (int*)recv_buffer, num_items);
+            flush_buffer<<<1, 1, 0, stream>>>();
             MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
         MPIS_Enqueue_waitall(my_queue);
