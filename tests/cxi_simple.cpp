@@ -66,11 +66,6 @@ __global__ void pack_buffer2(int* buffer, int* recvd_buffer, int buffer_len)
     buffer[index] = recvd_buffer[index];
 }
 
-__global__ void flush_buffer()
-{
-    asm volatile("buffer_wbl2");
-}
-
 int main()
 {
     force_hip(hipInit(0));
@@ -94,21 +89,26 @@ int main()
     set_buffer<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)recv_buffer, num_items, -1);
     force_hip(hipDeviceSynchronize());
 
+    // Make some MPI_Info
+    MPI_Info gpu_info;
+    MPI_Info_create(&gpu_info);
+    MPI_Info_set(gpu_info, "MPIS_GPU_MEM_TYPE", "COARSE");
+
     // Make requests
     MPIS_Request my_reqs[2];
     if (0 == rank % 2)
     {
         MPIS_Send_init(send_buffer, num_items, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       MPI_INFO_NULL, &my_reqs[0]);
+                       gpu_info, &my_reqs[0]);
         MPIS_Recv_init(recv_buffer, num_items, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       MPI_INFO_NULL, &my_reqs[1]);
+                       gpu_info, &my_reqs[1]);
     }
     else
     {
         MPIS_Recv_init(recv_buffer, num_items, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       MPI_INFO_NULL, &my_reqs[0]);
+                       gpu_info, &my_reqs[0]);
         MPIS_Send_init(recv_buffer, num_items, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       MPI_INFO_NULL, &my_reqs[1]);
+                       gpu_info, &my_reqs[1]);
     }
 
     hipStream_t stream;
@@ -129,7 +129,7 @@ int main()
         {
             pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
                 (int*)send_buffer, num_items, i);
-            flush_buffer<<<1, 1, 0, stream>>>();
+            
             MPIS_Enqueue_start(my_queue, my_reqs[0]);
             MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
@@ -139,7 +139,7 @@ int main()
             MPIS_Enqueue_waitall(my_queue);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, stream>>>(
                 (int*)send_buffer, (int*)recv_buffer, num_items);
-            flush_buffer<<<1, 1, 0, stream>>>();
+
             MPIS_Enqueue_start(my_queue, my_reqs[1]);
         }
         MPIS_Enqueue_waitall(my_queue);
@@ -156,6 +156,7 @@ int main()
     MPIS_Request_free(&my_reqs[1]);
 
     MPIS_Queue_free(&my_queue);
+    MPI_Info_free(&gpu_info);
 
     force_hip(hipStreamDestroy(stream));
 

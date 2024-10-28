@@ -121,12 +121,35 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
             throw std::runtime_error("Request was not matched properly!");
         uint64_t match_value =
             *((uint64_t*)(match_info->get_peer_match_data()));
-        std::unique_ptr<CXISend<CommunicationType::ONE_SIDED>> temp_object =
-            std::make_unique<CXISend<CommunicationType::ONE_SIDED>>(domain, ep);
-        temp_object->fill_message(peers.at(req.peer), req.buffer, total_size,
-                                  match_value);
 
-        request_map.insert(std::make_pair(req_id, std::move(temp_object)));
+        constexpr int string_size = 10;
+        char          info_key[]  = "MPIS_GPU_MEM_TYPE";
+        char          value[string_size];
+        int           string_res = string_size;
+        int           flag       = 0;
+        // Pre MPI-4.0
+        force_mpi(MPI_Info_get(req.info, info_key, string_size, value, &flag));
+
+        if (0 == strcmp(value, "COARSE"))
+        {
+            using SendType =
+                CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::COARSE>;
+            std::unique_ptr<SendType> temp_object =
+                std::make_unique<SendType>(domain, ep);
+            temp_object->fill_message(peers.at(req.peer), req.buffer,
+                                      total_size, match_value);
+            request_map.insert(std::make_pair(req_id, std::move(temp_object)));
+        }
+        else
+        {
+            using SendType =
+                CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::FINE>;
+            std::unique_ptr<SendType> temp_object =
+                std::make_unique<SendType>(domain, ep);
+            temp_object->fill_message(peers.at(req.peer), req.buffer,
+                                      total_size, match_value);
+            request_map.insert(std::make_pair(req_id, std::move(temp_object)));
+        }
     }
 }
 
@@ -146,18 +169,26 @@ __global__ void wait_on_counter(volatile uint64_t* cntr_addr, uint64_t value)
     }
 }
 
+__global__ void flush_buffer()
+{
+    asm volatile("buffer_wbl2");
+}
+
 void CXIWait::wait_gpu(hipStream_t* the_stream)
 {
     uint64_t* cntr_addr = (uint64_t*)completion_counter.gpu_wb_buffer;
-    hipLaunchKernelGGL(wait_on_counter, dim3(1), dim3(1), 0, *the_stream,
-                       cntr_addr, threshold);
+    wait_on_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, threshold);
 }
 
-void CXITrigger::start_gpu(hipStream_t* the_stream)
+template <GPUMemoryType G>
+void CXITrigger<G>::start_gpu(hipStream_t* the_stream)
 {
+    if constexpr (GPUMemoryType::COARSE == G)
+    {
+        flush_buffer<<<1, 1, 0, *the_stream>>>();
+    }
     uint64_t* cntr_addr = (uint64_t*)trigger_counter.gpu_mmio_addr;
-    hipLaunchKernelGGL(add_to_counter, dim3(1), dim3(1), 0, *the_stream,
-                       cntr_addr);
+    add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr);
 }
 
 void CXIWait::wait_host()

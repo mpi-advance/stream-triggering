@@ -151,6 +151,12 @@ private:
     CXICounter<CounterFlavor::Completable> completion_counter;
 };
 
+enum GPUMemoryType
+{
+    COARSE = 1,
+    FINE = 2,
+};
+template<GPUMemoryType G>
 class CXITrigger : virtual public CXIRequest
 {
 public:
@@ -178,8 +184,8 @@ enum CommunicationType
     TWO_SIDED = 2,
 };
 
-template <CommunicationType MODE>
-class CXISend : public CXITrigger, public CXIWait
+template <CommunicationType MODE, GPUMemoryType G>
+class CXISend : public CXITrigger<G>, public CXIWait
 {
     using FI_DFWQ_TYPE =
         std::conditional_t<MODE == CommunicationType::ONE_SIDED,
@@ -187,7 +193,7 @@ class CXISend : public CXITrigger, public CXIWait
 
 public:
     CXISend(struct fid_domain* domain, struct fid_ep* main_ep)
-        : CXITrigger(domain), CXIWait(domain), domain_ptr(domain)
+        : CXITrigger<G>(domain), CXIWait(domain), domain_ptr(domain)
     {
         work_entry          = {};
         message_description = {};
@@ -195,7 +201,7 @@ public:
         msg_rma_iov         = {};
 
         work_entry.threshold       = 0;
-        work_entry.triggering_cntr = CXITrigger::get_libfabric_counter();
+        work_entry.triggering_cntr = CXITrigger<G>::get_libfabric_counter();
         work_entry.completion_cntr = CXIWait::get_libfabric_counter();
         if constexpr (CommunicationType::ONE_SIDED == MODE)
         {
