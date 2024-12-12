@@ -331,7 +331,6 @@ public:
         // Keep track of active requests
         active_requests.push_back(qe->getID());
     }
-    void enqueue_prepare(std::shared_ptr<Request> qe) override {}
 
     void enqueue_waitall() override;
 

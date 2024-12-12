@@ -1,64 +1,67 @@
 #ifndef ST_CUDA_QUEUE
 #define ST_CUDA_QUEUE
 
-#include "abstract/queue.hpp"
-
-#include <atomic>
 #include <cuda.h>
 #include <cuda_runtime.h>
+
+#include <atomic>
 #include <mutex>
 #include <queue>
 #include <thread>
 
-class CudaQueueEntry : public QueueEntry
+#include "abstract/queue.hpp"
+
+class CudaQueueEntry
 {
 public:
-	CudaQueueEntry(MPI_Request req);
-	~CudaQueueEntry();
+    CudaQueueEntry(std::shared_ptr<Request> qe);
+    ~CudaQueueEntry();
 
-	void prepare() override;
+    void prepare();
 
-	void start() override;
+    void start();
 
-	bool done() override;
+    bool done();
 
-	void progress() override;
-
-	void launch_wait_kernel(CUstream);
-	void launch_start_kernel(CUstream);
+    void launch_wait_kernel(CUstream);
+    void launch_start_kernel(CUstream);
 
 protected:
-	int64_t *start_location;
-	int64_t *wait_location;
+    std::shared_ptr<Request> my_request;
+    MPI_Request              mpi_request;
+    int64_t*                 start_location;
+    int64_t*                 wait_location;
 
-	CUdeviceptr start_dev;
-	CUdeviceptr wait_dev;
+    CUdeviceptr start_dev;
+    CUdeviceptr wait_dev;
 };
 
 class CudaQueue : public Queue
 {
 public:
-	CudaQueue(cudaStream_t *);
-	~CudaQueue();
+    CudaQueue(cudaStream_t*);
+    ~CudaQueue();
 
-	QueueEntry *create_entry(MPI_Request) override;
-	void        enqueue_operation(QueueEntry *qe) override;
-	void        enqueue_waitall() override;
-	void        host_wait() override;
+    void enqueue_operation(std::shared_ptr<Request> qe) override;
+    void enqueue_waitall() override;
+    void host_wait() override;
+    void match(std::shared_ptr<Request> qe) override;
 
 protected:
-	cudaStream_t *my_stream;
+    cudaStream_t* my_stream;
 
-	std::atomic<int> busy;
-	std::thread      thr;
-	bool             shutdown = false;
+    std::thread thr;
+    bool        shutdown = false;
 
-	std::mutex queue_guard;
+    std::mutex       queue_guard;
+    std::atomic<int> start_cntr;
+    std::atomic<int> wait_cntr;
 
-	std::vector<CudaQueueEntry *> s_ongoing;
-	std::queue<CudaQueueEntry *>  w_ongoing;
+    std::vector<CudaQueueEntry*> entries;
+    std::vector<CudaQueueEntry*> s_ongoing;
+    std::queue<CudaQueueEntry*>  w_ongoing;
 
-	void progress();
+    void progress();
 };
 
 #endif

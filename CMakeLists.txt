@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.21 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
 # set project
 project(stream-triggering VERSION 0.1 LANGUAGES C CXX)
@@ -50,6 +50,7 @@ if(NEED_CUDA)
     find_package(CUDAToolkit)
     target_link_libraries(stream-triggering CUDA::cudart)
     target_link_libraries(stream-triggering CUDA::cuda_driver)
+    set_target_properties(stream-triggering PROPERTIES CUDA_ARCHITECTURES native)
 endif()
 
 if(NEED_HIP)

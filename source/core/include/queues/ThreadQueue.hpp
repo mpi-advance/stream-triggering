@@ -45,11 +45,6 @@ public:
         enqueue_aciton<Bundle::ThreadRequestAction::START>(request);
     }
 
-    void enqueue_prepare(std::shared_ptr<Request> request) override
-    {
-        enqueue_aciton<Bundle::ThreadRequestAction::PREPARE>(request);
-    }
-
     void enqueue_waitall() override
     {
         std::scoped_lock<std::mutex> incoming_lock(queue_guard);

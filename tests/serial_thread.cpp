@@ -51,8 +51,6 @@ int main()
 	for(int i = 0; i < num_iters; ++i)
 	{
 		//MPIS_Ready_all(2, my_reqs);
-		MPIS_Enqueue_prepare(my_queue, my_reqs[0]);
-		MPIS_Enqueue_prepare(my_queue, my_reqs[1]);
 		MPIS_Enqueue_start(my_queue, my_reqs[0]);
 		MPIS_Enqueue_start(my_queue, my_reqs[1]);
 		MPIS_Enqueue_waitall(my_queue);

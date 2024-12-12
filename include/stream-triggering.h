@@ -44,7 +44,7 @@ int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
                    MPI_Info, MPIS_Request*);
 
 /* Push stuff to Queue */
-// int MPIS_Enqueue_startall();
+int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
 int MPIS_Enqueue_start(MPIS_Queue, MPIS_Request);
 int MPIS_Enqueue_waitall(MPIS_Queue);
 
@@ -60,11 +60,11 @@ int MPIS_Prepare_all(int, MPIS_Request[]);
 int MPIS_Prepare(MPIS_Request);
 int MPIS_Ready_all(int, MPIS_Request[]);
 int MPIS_Ready(MPIS_Request);
-int MPIS_Enqueue_prepare(MPIS_Queue, MPIS_Request);
 
-/*        Custom MPIS Override Funtions          */
+/*        Custom MPIS Override Functions         */
 /* These have minimal, if any, new functionality */
 int MPIS_Request_free(MPIS_Request*);
+int MPIS_Request_freeall(int, MPIS_Request[]);
 // int MPIS_Wait();
 
 // End APIs from 7/25/24

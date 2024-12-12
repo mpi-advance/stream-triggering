@@ -65,7 +65,11 @@ public:
         }
         else
         {
+            #ifdef USE_CUDA
+            throw std::runtime_error("Type not supported for matching!");
+            #else
             static_assert(false, "Type not supported!");
+            #endif
         }
     }
 
@@ -184,17 +188,6 @@ public:
     void ready()
     {
         myReadyCheck.readyUp();
-    }
-
-    void prepare()
-    {
-        static int BASE_PREPARE_TAG = 12888;
-        int        exchange_value   = -1;
-        int        recv_value       = -1;
-        force_mpi(MPI_Sendrecv(&exchange_value, 1, MPI_INT, peer,
-                               BASE_PREPARE_TAG, &recv_value, 1, MPI_INT, peer,
-                               BASE_PREPARE_TAG, comm, MPI_STATUS_IGNORE));
-        ready();
     }
 
     size_t getID()
