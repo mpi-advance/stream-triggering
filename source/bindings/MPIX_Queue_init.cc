@@ -4,9 +4,14 @@
 #ifdef USE_THREADS
 #include "queues/ThreadQueue.hpp"
 #endif
-#ifdef USE_CUDA
+#ifdef USE_MEM_OPS
+#ifdef CUDA_GPUS
 #include "cuda.h"
 #include "queues/CudaQueue.hpp"
+#endif
+#ifdef HIP_GPUS
+#include "queues/HIPQueue.hpp"
+#endif
 #endif
 #ifdef USE_HPE
 #include <hip/hip_runtime.h>
@@ -34,10 +39,16 @@ int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address
 			the_queue = new ThreadQueue<true>();
 			break;
 #endif
-#ifdef USE_CUDA
-		case CUDA:
+#ifdef USE_MEM_OPS
+		case GPU_MEM_OPS:
+	#ifdef CUDA_GPUS
 			the_queue = new CudaQueue((cudaStream_t *) (extra_address));
 			break;
+	#endif
+	#ifdef HIP_GPUS
+			the_queue = new HIPQueue((hipStream_t*) (extra_address));
+			break;
+	#endif
 #endif
 #ifdef USE_HPE
 		case HPE:

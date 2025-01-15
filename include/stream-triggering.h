@@ -20,8 +20,7 @@ enum MPIS_Queue_type
 {
     THREAD            = 0,
     THREAD_SERIALIZED = 1,
-    CUDA              = 2,
-    AMD               = 3,
+    GPU_MEM_OPS       = 3,
     HPE               = 4,
     MPICH_IMPL        = 5,
     CXI               = 6
