@@ -11,6 +11,16 @@ LIBFABRIC_DIR="" # Fill in path to where libfabric is
 cmake -DUSE_IMPLEMENTATION=CXI -DLIBFABRIC_PREFIX=$LIBFABRIC_DIR -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_HIP_COMPILER=CC ..
 ```
 
+Build using just HIP commands (and MPI). Currently, the `GPU_MEM_OPS` implementation also needs `GPU_TYPE` to be specified (`AMD` or `NVIDIA`).
+```bash
+module load craype-accel-amd-gfx90a
+module load rocm
+
+INSTALL_DIR="" # Fill in path to where you want to install library
+cmake -DCMAKE_BUILD_TYPE=RELEASE -DUSE_IMPLEMENTATION=GPU_MEM_OPS -DGPU_TYPE=AMD -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_HIP_COMPILER=CC -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
+```
+
+
 ## Running
 
 Script to compile:
