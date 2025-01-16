@@ -1,4 +1,5 @@
 #include "abstract/queue.hpp"
+#include "misc/print.hpp"
 #include "stream-triggering.h"
 
 #ifdef USE_THREADS
@@ -28,6 +29,13 @@ extern "C" {
 
 int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address)
 {
+#ifndef NDEBUG
+	// Setup printing rank
+	int rank = -1;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	Print::initialize_rank(rank);
+#endif
+
 	Queue *the_queue;
 	switch(type)
 	{

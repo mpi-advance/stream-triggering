@@ -1,38 +1,7 @@
 #include "queues/HIPQueue.hpp"
 #include "safety/hip.hpp"
 #include "safety/mpi.hpp"
-
-namespace Print
-{
-static int rank = -1;
-
-void initialize_rank()
-{
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-}
-
-template <typename T, typename... Args>
-void print_out_r(const T& arg, Args&&... args)
-{
-    std::cout << arg << " ";
-    if constexpr (sizeof...(Args))  // If still have other parameters
-        print_out_r(std::forward<Args>(args)...);
-    else
-        std::cout << std::endl;
-}
-
-template <bool UseRanks = true, typename... Args>
-void out(Args&&... args)
-{
-#ifndef NDEBUG
-    if constexpr (UseRanks)
-    {
-        std::cout << "Rank: " << Print::rank << " - ";
-    }
-    print_out_r(std::forward<Args>(args)...);
-#endif
-}
-}  // namespace Print
+#include "misc/print.hpp"
 
 HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : my_request(req)
 {
@@ -113,9 +82,7 @@ void HIPQueueEntry::launch_wait_kernel(hipStream_t the_stream)
 HIPQueue::HIPQueue(hipStream_t* stream)
     : thr(&HIPQueue::progress, this), my_stream(stream)
 {
-    // force_hip(cuInit(0));
     // force_hip(hipSetDevice(0));
-    Print::initialize_rank();
 }
 
 HIPQueue::~HIPQueue()

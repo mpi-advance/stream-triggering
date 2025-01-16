@@ -1,38 +1,7 @@
 #include "queues/CudaQueue.hpp"
 #include "safety/cuda.hpp"
 #include "safety/mpi.hpp"
-
-namespace Print
-{
-static int rank = -1;
-
-void initialize_rank()
-{
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-}
-
-template <typename T, typename... Args>
-void print_out_r(const T& arg, Args&&... args)
-{
-    std::cout << arg << " ";
-    if constexpr (sizeof...(Args))  // If still have other parameters
-        print_out_r(std::forward<Args>(args)...);
-    else
-        std::cout << std::endl;
-}
-
-template <bool UseRanks = true, typename... Args>
-void out(Args&&... args)
-{
-#ifndef NDEBUG
-    if constexpr (UseRanks)
-    {
-        std::cout << "Rank: " << Print::rank << " - ";
-    }
-    print_out_r(std::forward<Args>(args)...);
-#endif
-}
-}  // namespace Print
+#include "misc/print.hpp"
 
 CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : my_request(req)
 {
@@ -117,7 +86,6 @@ CudaQueue::CudaQueue(cudaStream_t* stream)
 {
     // force_cuda(cuInit(0));
     // force_cuda(cudaSetDevice(0));
-    Print::initialize_rank();
 }
 
 CudaQueue::~CudaQueue()
