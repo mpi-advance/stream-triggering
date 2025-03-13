@@ -180,9 +180,6 @@ void CudaQueue::host_wait()
 void CudaQueue::match(std::shared_ptr<Request> request)
 {
     // Normal matching
-    request->match();
-
-    auto& match_info = request->getMatch();
-    if (std::nullopt == match_info)
-        throw std::runtime_error("Request was not matched properly!");
+    Communication::BlankMatch();
+    request->toggle_match();
 }
