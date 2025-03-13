@@ -1,14 +1,8 @@
 #ifndef ST_REQUEST_QUEUE
 #define ST_REQUEST_QUEUE
 
-#include <unistd.h>
-
-#include <optional>
-
+#include "match.hpp"
 #include "safety/mpi.hpp"
-
-template <class>
-inline constexpr bool always_false_v = false;
 
 namespace Communication
 {
@@ -44,83 +38,6 @@ enum Operation
     RECV
 };
 
-class MatchData
-{
-public:
-    template <typename T>
-    MatchData(T base_value) : data_len(sizeof(T))
-    {
-        my_match_data   = malloc(sizeof(T));
-        peer_match_data = calloc(1, sizeof(T));
-        T* temp_origin  = (T*)my_match_data;
-        temp_origin[0]  = base_value;
-
-        if constexpr (4 == sizeof(T))
-        {
-            my_type = MPI_INT;
-        }
-        else if constexpr (8 == sizeof(T))
-        {
-            my_type = MPI_LONG;
-        }
-        else
-        {
-            #ifdef USE_CUDA
-            throw std::runtime_error("Type not supported for matching!");
-            #else
-            static_assert(false, "Type not supported!");
-            #endif
-        }
-    }
-
-    ~MatchData()
-    {
-        free(my_match_data);
-        free(peer_match_data);
-    }
-
-    MatchData(const MatchData&)            = delete;
-    MatchData& operator=(const MatchData&) = delete;
-
-    void* get_original_match_data()
-    {
-        return my_match_data;
-    }
-
-    void* get_peer_match_data() const
-    {
-        return peer_match_data;
-    }
-
-    size_t get_match_size()
-    {
-        return data_len;
-    }
-
-    bool is_matched()
-    {
-        return matched;
-    }
-
-    MPI_Datatype get_match_type()
-    {
-        return my_type;
-    }
-
-    void set_matched()
-    {
-        matched = true;
-    }
-
-private:
-    void*  my_match_data;
-    void*  peer_match_data;
-    size_t data_len;
-    bool   matched = false;
-
-    MPI_Datatype my_type;
-};
-
 class Request
 {
 public:
@@ -149,19 +66,11 @@ public:
           info(_info),
           ready_counter(0),
           prep_counter(0),
-          myMatchData(std::nullopt),
           myID(assignID()) {};
 
     bool is_matched()
     {
-        if (myMatchData)
-        {
-            return myMatchData->is_matched();
-        }
-        else
-        {
-            return false;
-        }
+        return matched;
     }
 
     bool is_ready()
@@ -169,20 +78,9 @@ public:
         return myReadyCheck.canProceed();
     }
 
-    void match()
+    void toggle_match()
     {
-        match(myID);
-    }
-
-    template <class T>
-    void match(T thing)
-    {
-        matchMPI(peer, thing);
-    }
-
-    const std::optional<MatchData>& getMatch()
-    {
-        return myMatchData;
+        matched = true;
     }
 
     void ready()
@@ -196,32 +94,14 @@ public:
     }
 
 protected:
-    std::optional<MatchData> myMatchData;
-    ReadyCheck               myReadyCheck;
-    size_t                   myID;
+    ReadyCheck myReadyCheck;
+    size_t     myID;
+    bool       matched = false;
 
     static size_t assignID()
     {
         static size_t ID = 1;
         return ID++;
-    }
-
-    template <class T>
-    void matchMPI(int peer_rank, T value)
-    {
-        myMatchData.emplace(value);
-
-        MPI_Datatype type_to_use = myMatchData->get_match_type();
-        void*        send_buf    = myMatchData->get_original_match_data();
-        void*        recv_buf    = myMatchData->get_peer_match_data();
-
-        int MATCH_TAG = 0;
-        // TODO: Adjust MPI_COMM_WORLD
-        MPI_Sendrecv(send_buf, 1, type_to_use, peer_rank, MATCH_TAG, recv_buf,
-                     1, type_to_use, peer_rank, MATCH_TAG, MPI_COMM_WORLD,
-                     MPI_STATUS_IGNORE);
-
-        myMatchData->set_matched();
     }
 };
 

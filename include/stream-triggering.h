@@ -13,8 +13,8 @@ typedef uintptr_t MPIS_Request;
 const int MPIS_SUCCESS   = 0;
 const int MPIX_NOT_READY = -1;
 
-const int MPIS_QUEUE_NULL   = 0;
-const int MPIS_REQUEST_NULL = 0;
+const uintptr_t MPIS_QUEUE_NULL   = 0;
+const uintptr_t MPIS_REQUEST_NULL = 0;
 
 enum MPIS_Queue_type
 {
@@ -25,6 +25,8 @@ enum MPIS_Queue_type
     MPICH_IMPL        = 5,
     CXI               = 6
 };
+
+extern MPIS_Queue ACTIVE_QUEUE;
 
 // APIs from 7/25/24
 

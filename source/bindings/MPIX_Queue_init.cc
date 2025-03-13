@@ -73,6 +73,15 @@ int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address
 	}
 	*queue = (MPIS_Queue) the_queue;
     
+	if(MPIS_QUEUE_NULL == ACTIVE_QUEUE)
+	{
+		ACTIVE_QUEUE = (MPIS_Queue) the_queue;
+	}
+	else
+	{
+		throw std::runtime_error("There is already an active queue");
+	}
+
 	return MPIS_SUCCESS;
 }
 }

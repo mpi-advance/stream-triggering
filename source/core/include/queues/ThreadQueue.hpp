@@ -69,13 +69,8 @@ public:
     void match(std::shared_ptr<Request> request) override
     {
         // Normal matching
-        request->match();
-        // But need to save request for later?
-        auto match_info = request->getMatch();
-        if (std::nullopt == match_info)
-            throw std::runtime_error("Request was not matched properly!");
-        remote_partner_to_local[std::make_tuple(request->peer, *match_info)] =
-            request;
+        Communication::BlankMatch();
+        request->toggle_match();
     }
 
 protected:
@@ -171,10 +166,6 @@ protected:
     Bundle                          entries;
     std::queue<Bundle>              pending;
     std::map<size_t, ThreadRequest> request_cache;
-
-    // Matching related variables
-    using MessageID = std::tuple<int, int>;  //  <rank, request ID>
-    std::map<MessageID, std::shared_ptr<Request>> remote_partner_to_local;
 
     void progress()
     {
