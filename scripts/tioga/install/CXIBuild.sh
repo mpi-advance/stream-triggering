@@ -2,6 +2,7 @@
 
 set -e
 
+module load craype-accel-amd-gfx90a
 module load rocm
 
 DIR_TO_BUILD="build"

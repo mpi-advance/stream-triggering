@@ -34,7 +34,6 @@ HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : my_request(req)
 
 HIPQueueEntry::~HIPQueueEntry()
 {
-    std::cout << "Entry going away!" << std::endl;
     check_hip(hipHostFree(start_location));
     check_hip(hipHostFree(wait_location));
 }
@@ -46,13 +45,11 @@ void HIPQueueEntry::prepare()
 
 void HIPQueueEntry::start()
 {
-    Print::out("Waiting for GPU to tell us to start!");
     while ((*start_location) != 1)
     {
         std::this_thread::yield();
     }
     check_mpi(MPI_Start(&mpi_request));
-    Print::out("GPU says we should start: ", *start_location);
 }
 
 bool HIPQueueEntry::done()
@@ -62,20 +59,17 @@ bool HIPQueueEntry::done()
     if (value)
     {
         (*wait_location) = 1;
-        Print::out("Waiting value set!");
     }
     return value;
 }
 
 void HIPQueueEntry::launch_start_kernel(hipStream_t the_stream)
 {
-    Print::out("Queueing start kernel!");
     force_hip(hipStreamWriteValue64(the_stream, start_dev, 1, 0));
 }
 
 void HIPQueueEntry::launch_wait_kernel(hipStream_t the_stream)
 {
-    Print::out("Queueing wait kernel!");
     force_hip(hipStreamWaitValue64(the_stream, wait_dev, 1, 0));
 }
 
@@ -146,18 +140,15 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> qe)
 
 void HIPQueue::enqueue_waitall()
 {
-    Print::out("enqueue waiting");
     while (start_cntr.load())
     {
         // Do nothing
     }
-    Print::out("Done enqueue waiting");
 
     for (HIPQueueEntry* entry : entries)
     {
         entry->launch_wait_kernel(*my_stream);
         wait_cntr++;
-        Print::out("Waitng for 1 entry");
         while(wait_cntr.load())
         {
             // do nothing
@@ -177,9 +168,6 @@ void HIPQueue::host_wait()
 void HIPQueue::match(std::shared_ptr<Request> request)
 {
     // Normal matching
-    request->match();
-
-    auto& match_info = request->getMatch();
-    if (std::nullopt == match_info)
-        throw std::runtime_error("Request was not matched properly!");
+    Communication::BlankMatch();
+    request->toggle_match();
 }

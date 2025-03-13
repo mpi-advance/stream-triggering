@@ -1,13 +1,16 @@
 # Setup for Tioga
 
 ## Building
+Example scipts can be found in the `install` folder. Examples of compiling against and using the library (on Tioga) can be found in the `test` folder.
+
+The rest of the examples below more general examples that may be incomplete, so don't just copy paste them.
 
 ```bash
 module load craype-accel-amd-gfx90a
 module load rocm
 
 INSTALL_DIR="" # Fill in path to where you want to install library
-LIBFABRIC_DIR=/opt/cray/libfabric/2.1/ # Fill in path to where libfabric is
+LIBFABRIC_DIR="" # Fill in path to where libfabric is
 
 cmake -DUSE_IMPLEMENTATION=CXI -DLIBFABRIC_PREFIX=$LIBFABRIC_DIR -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_CXX_COMPILER=hipcc -DCMAKE_C_COMPILER=hipcc -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
 ```
