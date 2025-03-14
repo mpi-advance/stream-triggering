@@ -1,5 +1,6 @@
 #include "queues/CXIQueue.hpp"
 
+#include "abstract/match.hpp"
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 

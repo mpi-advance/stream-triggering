@@ -1,7 +1,9 @@
 #include "queues/HIPQueue.hpp"
+
+#include "abstract/match.hpp"
+#include "misc/print.hpp"
 #include "safety/hip.hpp"
 #include "safety/mpi.hpp"
-#include "misc/print.hpp"
 
 HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : my_request(req)
 {
@@ -22,12 +24,10 @@ HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : my_request(req)
             break;
     }
 
-    force_hip(hipHostMalloc(
-        (void**)&start_location, sizeof(int64_t), 0));
+    force_hip(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
     *start_location = 0;
     force_hip(hipHostGetDevicePointer(&start_dev, start_location, 0));
-    force_hip(hipHostMalloc(
-        (void**)&wait_location, sizeof(int64_t), 0));
+    force_hip(hipHostMalloc((void**)&wait_location, sizeof(int64_t), 0));
     *wait_location = 0;
     force_hip(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
@@ -149,7 +149,7 @@ void HIPQueue::enqueue_waitall()
     {
         entry->launch_wait_kernel(*my_stream);
         wait_cntr++;
-        while(wait_cntr.load())
+        while (wait_cntr.load())
         {
             // do nothing
         }

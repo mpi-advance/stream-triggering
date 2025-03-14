@@ -8,6 +8,7 @@
 #include <thread>
 #include <tuple>
 
+#include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 
 class ThreadRequest

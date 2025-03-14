@@ -1,7 +1,6 @@
 #ifndef ST_REQUEST_QUEUE
 #define ST_REQUEST_QUEUE
 
-#include "match.hpp"
 #include "safety/mpi.hpp"
 
 namespace Communication

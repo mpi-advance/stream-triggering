@@ -1,6 +1,8 @@
 #ifndef ST_MISC_PRINT
 #define ST_MISC_PRINT
 
+#include <iostream>
+
 namespace Print
 {
 inline int rank = -1;

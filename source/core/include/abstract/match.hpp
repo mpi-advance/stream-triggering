@@ -34,10 +34,10 @@ constexpr MPI_Datatype type_to_use()
     }
     else
     {
-#ifdef USE_CUDA
-        throw std::runtime_error("Type not supported for matching!");
-#else
+#ifdef ADVANCED_CPP23
         static_assert(false, "Type not supported!");
+#else
+        throw std::runtime_error("Type not supported for matching!");
 #endif
     }
 }

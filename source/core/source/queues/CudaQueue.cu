@@ -1,7 +1,7 @@
+#include "misc/print.hpp"
 #include "queues/CudaQueue.hpp"
 #include "safety/cuda.hpp"
 #include "safety/mpi.hpp"
-#include "misc/print.hpp"
 
 CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : my_request(req)
 {
@@ -161,7 +161,7 @@ void CudaQueue::enqueue_waitall()
         entry->launch_wait_kernel(*my_stream);
         wait_cntr++;
         Print::out("Waitng for 1 entry");
-        while(wait_cntr.load())
+        while (wait_cntr.load())
         {
             // do nothing
         }
@@ -175,11 +175,4 @@ void CudaQueue::host_wait()
     {
         // Do nothing.
     }
-}
-
-void CudaQueue::match(std::shared_ptr<Request> request)
-{
-    // Normal matching
-    Communication::BlankMatch();
-    request->toggle_match();
 }
