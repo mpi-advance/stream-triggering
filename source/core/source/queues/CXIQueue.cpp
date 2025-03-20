@@ -4,7 +4,8 @@
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 
-CompletionBuffer CXIQueue::my_buffer;
+CompletionBuffer  CXIQueue::my_buffer;
+DeferredWorkQueue CXIQueue::my_queue;
 
 void CXIQueue::libfabric_setup(int num_ranks)
 {
@@ -72,6 +73,9 @@ void CXIQueue::libfabric_setup(int num_ranks)
 
     // Register MR
     my_buffer.register_mr(domain, ep);
+
+    // Register progress counter
+    my_queue.regsiter_counter(recv_ctr);
 }
 
 void CXIQueue::peer_setup(int size)
@@ -153,7 +157,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
                 CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::COARSE>;
             std::unique_ptr<SendType> temp_object = std::make_unique<SendType>(
                 local_completion, remote_completion, data_area, domain, ep,
-                peers.at(req.peer), peers.at(my_rank));
+                my_queue, peers.at(req.peer), peers.at(my_rank));
 
             request_map.insert(std::make_pair(req_id, std::move(temp_object)));
         }
@@ -163,7 +167,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
                 CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::FINE>;
             std::unique_ptr<SendType> temp_object = std::make_unique<SendType>(
                 local_completion, remote_completion, data_area, domain, ep,
-                peers.at(req.peer), peers.at(my_rank));
+                my_queue, peers.at(req.peer), peers.at(my_rank));
 
             request_map.insert(std::make_pair(req_id, std::move(temp_object)));
         }

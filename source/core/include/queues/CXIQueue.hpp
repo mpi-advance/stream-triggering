@@ -11,6 +11,7 @@
 #include <rdma/fi_cxi_ext.h>
 // clang-format on
 
+#include <atomic>
 #include <map>
 #include <numeric>
 #include <vector>
@@ -43,6 +44,47 @@ public:
     size_t   len;
     uint64_t mr_key;
     uint64_t offset;
+};
+
+class DeferredWorkQueue
+{
+public:
+    DeferredWorkQueue() = default;
+
+    void regsiter_counter(struct fid_cntr* p_cntr)
+    {
+        progress_cntr = p_cntr;
+    }
+
+    void consume()
+    {
+        space_used++;
+    }
+
+    void make_space(struct fid_cntr* completion_cntr)
+    {
+        uint64_t curr_completed = fi_cntr_read(completion_cntr);
+        uint64_t done = curr_completed;
+        if(space_used >= total_space)
+        {
+            do 
+            {
+                uint64_t b = fi_cntr_read(progress_cntr);
+                done       = fi_cntr_read(completion_cntr);
+            } while(done == curr_completed);
+        }
+        space_used -= (done - curr_completed);
+        completed_dwfq = done;
+    }
+
+private:
+    // Control of DFWQ Space
+    const uint64_t        total_space    = 84;
+    uint64_t              completed_dwfq = 0;
+    std::atomic<uint64_t> space_used     = 0;
+
+    // Progress counter
+    struct fid_cntr* progress_cntr;
 };
 
 class CXICounter
@@ -193,8 +235,6 @@ public:
     }
     virtual void wait_gpu(hipStream_t* the_stream) = 0;
 
-    virtual void progress() { return;}
-
 protected:
     virtual void start_host()                       = 0;
     virtual void start_gpu(hipStream_t* the_stream) = 0;
@@ -322,7 +362,7 @@ private:
     struct iovec chain_iovec;
 
     static constexpr int MAX_COMP_VALUES = 1024;
-    int                  index = 0;
+    int                  index           = 0;
     std::vector<int>     completion_addrs;
 };
 
@@ -342,11 +382,13 @@ class CXISend : public CXITrigger<G>, public CXIWait
 public:
     CXISend(Buffer local_completion, Buffer remote_completion,
             Buffer data_buffer, struct fid_domain* domain,
-            struct fid_ep* main_ep, fi_addr_t partner, fi_addr_t self)
+            struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
+            fi_addr_t self)
         : CXIRequest(local_completion),
           CXITrigger<G>(domain),
           CXIWait(),
           domain_ptr(domain),
+          my_queue(dwq),
           completion_a(CXICounter::alloc_counter(domain)),
           completion_b(CXICounter::alloc_counter(domain)),
           completion_c(CXICounter::alloc_counter(domain)),
@@ -406,15 +448,13 @@ public:
         my_chained_completions.set_active_threshold(threshold);
 
         // Queue up send of data
+        my_queue.make_space(completion_c);
         force_libfabric(
             fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+
         // Queue up chained actions
         my_chained_completions.queue_work(domain_ptr);
-    }
-
-    void progress() override
-    {
-        Print::out(fi_cntr_read(completion_c));
+        my_queue.consume();
     }
 
 private:
@@ -426,6 +466,8 @@ private:
     struct fi_rma_iov msg_rma_iov;
     // Keep the domain pointer for later use
     struct fid_domain* domain_ptr;
+
+    DeferredWorkQueue& my_queue;
 
     struct fid_cntr*  completion_a;
     struct fid_cntr*  completion_b;
@@ -507,16 +549,6 @@ public:
 
     void host_wait() override
     {
-        for (int i = 0; i < 1000; i++)
-        {
-            for(auto& req : request_map)
-            {
-                std::get<1>(req)->progress();
-                auto x = fi_cntr_read(recv_ctr);
-            }
-            
-        }
-        Print::out("After counter progression!");
         force_hip(hipStreamSynchronize(*the_stream));
     }
 
@@ -552,6 +584,9 @@ private:
 
     // Completion buffers
     static CompletionBuffer my_buffer;
+
+    // Deferred Work Queue Management
+    static DeferredWorkQueue my_queue;
 
     // Hip Stream
     hipStream_t* the_stream;

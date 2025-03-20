@@ -76,7 +76,7 @@ __global__ void print_buffer(volatile int* buffer, int buffer_len,
 
 int main()
 {
-    const int num_iters = 2;
+    const int num_iters = 1000;
 
     int mode;
     MPI_Init_thread(nullptr, nullptr, MPI_THREAD_MULTIPLE, &mode);
@@ -89,12 +89,18 @@ int main()
     int BLOCK_SIZE  = 128;
     int NUM_BLOCKS  = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    void* send_buf = nullptr;
-    force_hip(hipMalloc(&send_buf, sizeof(int) * BUFFER_SIZE));
+    void*  send_buf = nullptr;
+    size_t buf_size = sizeof(int) * BUFFER_SIZE;
+    force_hip(hipMalloc(&send_buf, buf_size));
+    // force_hip(
+    //    hipExtMallocWithFlags(&send_buf, buf_size, hipDeviceMallocFinegrained));
     void* recv_buf = nullptr;
-    force_hip(hipMalloc(&recv_buf, sizeof(int) * BUFFER_SIZE));
+    force_hip(hipMalloc(&recv_buf, buf_size));
+    // force_hip(
+    //    hipExtMallocWithFlags(&recv_buf, buf_size, hipDeviceMallocFinegrained));
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE);
+
     check_hip(hipDeviceSynchronize());
 
     hipStream_t my_stream;
@@ -111,6 +117,7 @@ int main()
     MPI_Info mem_info;
     MPI_Info_create(&mem_info);
     MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
+    // MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
 
     // Make requests
     MPIS_Request my_reqs[2];
@@ -150,10 +157,14 @@ int main()
                 (int*)send_buf, BUFFER_SIZE, i);
             MPIS_Enqueue_startall(my_queue, 2, my_reqs);
             MPIS_Enqueue_waitall(my_queue);
+            print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                (int*)recv_buf, BUFFER_SIZE, i, rank);
         }
         else
         {
             MPIS_Enqueue_waitall(my_queue);
+            print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                (int*)recv_buf, BUFFER_SIZE, i, rank);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
             // Pong
@@ -167,9 +178,8 @@ int main()
                 MPIS_Enqueue_waitall(my_queue);
             }
         }
-        print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            (int*)recv_buf, BUFFER_SIZE, i, rank);
-        std::cout << rank << " After iter " << i << std::endl;
+
+        //std::cout << rank << " After iter " << i << std::endl;
     }
 
     MPIS_Queue_wait(my_queue);
@@ -178,7 +188,7 @@ int main()
     // Final check
     check_hip(hipDeviceSynchronize());
     print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-        (int*)recv_buf, BUFFER_SIZE, num_iters-1, rank);
+        (int*)recv_buf, BUFFER_SIZE, num_iters - 1, rank);
 
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
