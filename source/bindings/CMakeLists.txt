@@ -2,6 +2,7 @@ target_sources(stream-triggering
 	PRIVATE
 		"${CMAKE_CURRENT_SOURCE_DIR}/constants.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPI_Overrides.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Barrier_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_start.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_startall.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_waitall.cc"

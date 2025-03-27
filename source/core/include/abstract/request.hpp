@@ -9,7 +9,8 @@ namespace Communication
 enum Operation
 {
     SEND,
-    RECV
+    RECV,
+    BARRIER
 };
 
 class Request

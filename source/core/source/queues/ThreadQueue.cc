@@ -17,6 +17,8 @@ ThreadRequest::ThreadRequest(std::shared_ptr<Request> req)
                                     req->peer, req->tag, req->comm,
                                     &mpi_request));
             break;
+        case Communication::Operation::BARRIER:
+            break;
         default:
             throw std::runtime_error("Invalid Request");
             break;
@@ -25,7 +27,14 @@ ThreadRequest::ThreadRequest(std::shared_ptr<Request> req)
 
 void ThreadRequest::start()
 {
-    check_mpi(MPI_Start(&mpi_request));
+    if (original_request->operation == Communication::Operation::BARRIER)
+    {
+        create_barrier();
+    }
+    else
+    {
+        check_mpi(MPI_Start(&mpi_request));
+    }
 }
 
 bool ThreadRequest::done()
@@ -33,4 +42,9 @@ bool ThreadRequest::done()
     int value = 0;
     check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
     return value;
+}
+
+void ThreadRequest::create_barrier()
+{
+    check_mpi(MPI_Ibarrier(original_request->comm, &mpi_request));
 }

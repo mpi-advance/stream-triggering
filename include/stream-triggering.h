@@ -37,7 +37,7 @@ int MPIS_Queue_init(MPIS_Queue*, MPIS_Queue_type, void*);
 int MPIS_Queue_wait(MPIS_Queue);
 
 /* Custom Communication Methods */
-// int MPIS_Barrier_init();
+int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
 // int MPIS_Bcast_init();
 int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
                    MPIS_Request*);

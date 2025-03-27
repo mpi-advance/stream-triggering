@@ -22,6 +22,8 @@ public:
 protected:
     MPI_Request              mpi_request;
     std::shared_ptr<Request> original_request;
+
+    void create_barrier();
 };
 
 template <bool isSerialized>
