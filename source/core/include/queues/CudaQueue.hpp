@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "abstract/queue.hpp"
+#include "abstract/entry.hpp"
 
 class CudaQueueEntry
 {
@@ -17,11 +18,8 @@ public:
     CudaQueueEntry(std::shared_ptr<Request> qe);
     ~CudaQueueEntry();
 
-    void prepare();
-
-    void start();
-
-    bool done();
+    void start() override;
+    bool done() override;
 
     void launch_wait_kernel(CUstream);
     void launch_start_kernel(CUstream);

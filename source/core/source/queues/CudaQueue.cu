@@ -3,25 +3,8 @@
 #include "safety/cuda.hpp"
 #include "safety/mpi.hpp"
 
-CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : my_request(req)
+CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
-    switch (req->operation)
-    {
-        case Communication::Operation::SEND:
-            check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype,
-                                    req->peer, req->tag, req->comm,
-                                    &mpi_request));
-            break;
-        case Communication::Operation::RECV:
-            check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype,
-                                    req->peer, req->tag, req->comm,
-                                    &mpi_request));
-            break;
-        default:
-            throw std::runtime_error("Invalid Request");
-            break;
-    }
-
     force_cuda(cuMemHostAlloc(
         (void**)&start_location, sizeof(int64_t),
         CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
@@ -41,11 +24,6 @@ CudaQueueEntry::~CudaQueueEntry()
     check_cuda(cudaFreeHost(wait_location));
 }
 
-void CudaQueueEntry::prepare()
-{
-    // Do nothing?
-}
-
 void CudaQueueEntry::start()
 {
     Print::out("Waiting for GPU to tell us to start!");
@@ -53,14 +31,15 @@ void CudaQueueEntry::start()
     {
         std::this_thread::yield();
     }
-    check_mpi(MPI_Start(&mpi_request));
+    // Call parent method to launch MPI stuff
+    QueueEntry::start();
     Print::out("GPU says we should start: ", *start_location);
 }
 
 bool CudaQueueEntry::done()
 {
-    int value = 0;
-    check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
+    // Call parent method to figure out if MPI Request is done
+    bool value = QueueEntry::done();
     if (value)
     {
         (*wait_location) = 1;

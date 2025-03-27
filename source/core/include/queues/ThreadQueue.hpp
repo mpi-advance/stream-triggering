@@ -10,26 +10,13 @@
 
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
-
-class ThreadRequest
-{
-public:
-    ThreadRequest(std::shared_ptr<Request> qe);
-
-    void start();
-    bool done();
-
-protected:
-    MPI_Request              mpi_request;
-    std::shared_ptr<Request> original_request;
-
-    void create_barrier();
-};
+#include "abstract/entry.hpp"
 
 template <bool isSerialized>
 class ThreadQueue : public Queue
 {
 public:
+    using ThreadRequest = QueueEntry;
     ThreadQueue() : thr(&ThreadQueue::progress, this) {}
     ~ThreadQueue()
     {

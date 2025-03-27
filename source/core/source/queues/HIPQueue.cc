@@ -5,25 +5,8 @@
 #include "safety/hip.hpp"
 #include "safety/mpi.hpp"
 
-HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : my_request(req)
+HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
-    switch (req->operation)
-    {
-        case Communication::Operation::SEND:
-            check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype,
-                                    req->peer, req->tag, req->comm,
-                                    &mpi_request));
-            break;
-        case Communication::Operation::RECV:
-            check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype,
-                                    req->peer, req->tag, req->comm,
-                                    &mpi_request));
-            break;
-        default:
-            throw std::runtime_error("Invalid Request");
-            break;
-    }
-
     force_hip(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
     *start_location = 0;
     force_hip(hipHostGetDevicePointer(&start_dev, start_location, 0));
@@ -38,24 +21,20 @@ HIPQueueEntry::~HIPQueueEntry()
     check_hip(hipHostFree(wait_location));
 }
 
-void HIPQueueEntry::prepare()
-{
-    // Do nothing?
-}
-
 void HIPQueueEntry::start()
 {
     while ((*start_location) != 1)
     {
         std::this_thread::yield();
     }
-    check_mpi(MPI_Start(&mpi_request));
+    // Call parent method to launch MPI stuff
+    QueueEntry::start();
 }
 
 bool HIPQueueEntry::done()
 {
-    int value = 0;
-    check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
+    // Call parent method to figure out if MPI Request is done
+    bool value = QueueEntry::done();
     if (value)
     {
         (*wait_location) = 1;

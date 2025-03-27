@@ -9,18 +9,16 @@
 #include <thread>
 
 #include "abstract/queue.hpp"
+#include "abstract/entry.hpp"
 
-class HIPQueueEntry
+class HIPQueueEntry : public QueueEntry
 {
 public:
     HIPQueueEntry(std::shared_ptr<Request> qe);
     ~HIPQueueEntry();
 
-    void prepare();
-
-    void start();
-
-    bool done();
+    void start() override;
+    bool done() override;
 
     void launch_wait_kernel(hipStream_t);
     void launch_start_kernel(hipStream_t);
