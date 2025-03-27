@@ -56,12 +56,6 @@ int MPIS_Match(MPIS_Request);
 int MPIS_Is_matched(MPIS_Request, int*);
 int MPIS_Queue_match(MPIS_Queue, MPIS_Request);
 
-/* New Preparation Functions */
-int MPIS_Prepare_all(int, MPIS_Request[]);
-int MPIS_Prepare(MPIS_Request);
-int MPIS_Ready_all(int, MPIS_Request[]);
-int MPIS_Ready(MPIS_Request);
-
 /*        Custom MPIS Override Functions         */
 /* These have minimal, if any, new functionality */
 int MPIS_Request_free(MPIS_Request*);

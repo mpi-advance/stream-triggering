@@ -11,7 +11,6 @@
 #include <rdma/fi_cxi_ext.h>
 // clang-format on
 
-#include <atomic>
 #include <map>
 #include <numeric>
 #include <vector>
@@ -61,30 +60,42 @@ public:
         space_used++;
     }
 
-    void make_space(struct fid_cntr* completion_cntr)
+    void make_space(struct fid_cntr* completion_cntr, uint64_t space_amount = 1)
     {
-        uint64_t curr_completed = fi_cntr_read(completion_cntr);
-        uint64_t done = curr_completed;
-        if(space_used >= total_space)
+        if ((space_used + space_amount) >= total_space)
         {
-            do 
+            uint64_t last_value = 0;
+            if (known_completion_map.contains(completion_cntr))
             {
-                uint64_t b = fi_cntr_read(progress_cntr);
-                done       = fi_cntr_read(completion_cntr);
-            } while(done == curr_completed);
+                last_value = known_completion_map.at(completion_cntr);
+            }
+            else
+            {
+                known_completion_map.insert({completion_cntr, 0});
+            }
+
+            uint64_t curr_completed = fi_cntr_read(completion_cntr);
+            while ((curr_completed - last_value) < space_amount)
+            {
+                uint64_t b     = fi_cntr_read(progress_cntr);
+                curr_completed = fi_cntr_read(completion_cntr);
+            } 
+
+            space_used -= (curr_completed - last_value);
+            known_completion_map.at(completion_cntr) = curr_completed;
         }
-        space_used -= (done - curr_completed);
-        completed_dwfq = done;
     }
 
 private:
     // Control of DFWQ Space
-    const uint64_t        total_space    = 84;
-    uint64_t              completed_dwfq = 0;
-    std::atomic<uint64_t> space_used     = 0;
+    const uint64_t total_space = 84;
+    uint64_t       space_used  = 0;
 
     // Progress counter
     struct fid_cntr* progress_cntr;
+
+    // Last known completions
+    std::map<struct fid_cntr*, uint64_t> known_completion_map;
 };
 
 class CXICounter

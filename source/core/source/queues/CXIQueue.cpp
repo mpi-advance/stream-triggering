@@ -107,7 +107,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
 
     Buffer local_completion = my_buffer.alloc_buffer();
     /* The data_area buffer does not have an MR key yet,
-     * and Will always have an offset of 0 since it's the user's
+     * and will always have an offset of 0 since it's the user's
      * buffer from MPI! Note that only the receiver will ever
      * introduce an MR for this -- the sender doesn't have
      * an MR key for the data it is sending */

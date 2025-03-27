@@ -11,8 +11,6 @@ target_sources(stream-triggering
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_match.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Queue_wait.cc"
-		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Ready_all.cc"
-		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Ready.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Recv_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Request_free.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Request_freeall.cc"
