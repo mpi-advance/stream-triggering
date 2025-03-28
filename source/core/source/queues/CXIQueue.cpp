@@ -172,6 +172,10 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
             request_map.insert(std::make_pair(req_id, std::move(temp_object)));
         }
     }
+    else
+    {
+        throw std::runtime_error("Operation not supported");
+    }
 }
 
 void CXIQueue::libfabric_teardown()
