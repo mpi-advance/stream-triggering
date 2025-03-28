@@ -16,7 +16,6 @@ public:
     virtual ~Queue() = default;
 
     virtual void enqueue_operation(std::shared_ptr<Request> qe) = 0;
-    virtual void enqueue_prepare(std::shared_ptr<Request> qe)   = 0;
 
     virtual void enqueue_waitall() = 0;
 

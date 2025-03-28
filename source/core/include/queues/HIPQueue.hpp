@@ -1,8 +1,7 @@
-#ifndef ST_CUDA_QUEUE
-#define ST_CUDA_QUEUE
+#ifndef ST_HIP_QUEUE
+#define ST_HIP_QUEUE
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
 #include <atomic>
 #include <mutex>
@@ -12,17 +11,17 @@
 #include "abstract/queue.hpp"
 #include "abstract/entry.hpp"
 
-class CudaQueueEntry
+class HIPQueueEntry : public QueueEntry
 {
 public:
-    CudaQueueEntry(std::shared_ptr<Request> qe);
-    ~CudaQueueEntry();
+    HIPQueueEntry(std::shared_ptr<Request> qe);
+    ~HIPQueueEntry();
 
     void start() override;
     bool done() override;
 
-    void launch_wait_kernel(CUstream);
-    void launch_start_kernel(CUstream);
+    void launch_wait_kernel(hipStream_t);
+    void launch_start_kernel(hipStream_t);
 
 protected:
     std::shared_ptr<Request> my_request;
@@ -30,15 +29,15 @@ protected:
     int64_t*                 start_location;
     int64_t*                 wait_location;
 
-    CUdeviceptr start_dev;
-    CUdeviceptr wait_dev;
+    void* start_dev;
+    void* wait_dev;
 };
 
-class CudaQueue : public Queue
+class HIPQueue : public Queue
 {
 public:
-    CudaQueue(cudaStream_t*);
-    ~CudaQueue();
+    HIPQueue(hipStream_t *);
+    ~HIPQueue();
 
     void enqueue_operation(std::shared_ptr<Request> qe) override;
     void enqueue_waitall() override;
@@ -46,7 +45,7 @@ public:
     void match(std::shared_ptr<Request> qe) override;
 
 protected:
-    cudaStream_t* my_stream;
+    hipStream_t* my_stream;
 
     std::thread thr;
     bool        shutdown = false;
@@ -55,9 +54,9 @@ protected:
     std::atomic<int> start_cntr;
     std::atomic<int> wait_cntr;
 
-    std::vector<CudaQueueEntry*> entries;
-    std::vector<CudaQueueEntry*> s_ongoing;
-    std::queue<CudaQueueEntry*>  w_ongoing;
+    std::vector<HIPQueueEntry*> entries;
+    std::vector<HIPQueueEntry*> s_ongoing;
+    std::queue<HIPQueueEntry*>  w_ongoing;
 
     void progress();
 };

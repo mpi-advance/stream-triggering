@@ -1,12 +1,18 @@
 #include "abstract/queue.hpp"
+#include "misc/print.hpp"
 #include "stream-triggering.h"
 
 #ifdef USE_THREADS
 #include "queues/ThreadQueue.hpp"
 #endif
-#ifdef USE_CUDA
+#ifdef USE_MEM_OPS
+#ifdef CUDA_GPUS
 #include "cuda.h"
 #include "queues/CudaQueue.hpp"
+#endif
+#ifdef HIP_GPUS
+#include "queues/HIPQueue.hpp"
+#endif
 #endif
 #ifdef USE_HPE
 #include <hip/hip_runtime.h>
@@ -23,6 +29,13 @@ extern "C" {
 
 int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address)
 {
+#ifndef NDEBUG
+	// Setup printing rank
+	int rank = -1;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	Print::initialize_rank(rank);
+#endif
+
 	Queue *the_queue;
 	switch(type)
 	{
@@ -34,10 +47,16 @@ int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address
 			the_queue = new ThreadQueue<true>();
 			break;
 #endif
-#ifdef USE_CUDA
-		case CUDA:
+#ifdef USE_MEM_OPS
+		case GPU_MEM_OPS:
+	#ifdef CUDA_GPUS
 			the_queue = new CudaQueue((cudaStream_t *) (extra_address));
 			break;
+	#endif
+	#ifdef HIP_GPUS
+			the_queue = new HIPQueue((hipStream_t*) (extra_address));
+			break;
+	#endif
 #endif
 #ifdef USE_HPE
 		case HPE:
@@ -54,6 +73,15 @@ int MPIS_Queue_init(MPIS_Queue *queue, MPIS_Queue_type type, void* extra_address
 	}
 	*queue = (MPIS_Queue) the_queue;
     
+	if(MPIS_QUEUE_NULL == ACTIVE_QUEUE)
+	{
+		ACTIVE_QUEUE = (MPIS_Queue) the_queue;
+	}
+	else
+	{
+		throw std::runtime_error("There is already an active queue");
+	}
+
 	return MPIS_SUCCESS;
 }
 }

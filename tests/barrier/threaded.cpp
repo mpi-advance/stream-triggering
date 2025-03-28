@@ -36,6 +36,9 @@ int main()
 		MPIS_Send_init(&recv_buf, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_INFO_NULL, &my_reqs[1]);
 	}
 
+    MPIS_Request barrier_req;
+    MPIS_Barrier_init(MPI_COMM_WORLD, MPI_INFO_NULL, &barrier_req);
+
 	// Prepare inital buffers
 	send_buf = 0;
 	recv_buf = -1;
@@ -47,14 +50,14 @@ int main()
 	// Match
 	MPIS_Queue_match(my_queue, my_reqs[0]);
 	MPIS_Queue_match(my_queue, my_reqs[1]);
+    MPIS_Queue_match(my_queue, barrier_req);
 
 	for(int i = 0; i < num_iters; ++i)
 	{
 		//MPIS_Ready_all(2, my_reqs);
-		MPIS_Enqueue_prepare(my_queue, my_reqs[0]);
-		MPIS_Enqueue_prepare(my_queue, my_reqs[1]);
 		MPIS_Enqueue_start(my_queue, my_reqs[0]);
 		MPIS_Enqueue_start(my_queue, my_reqs[1]);
+        MPIS_Enqueue_start(my_queue, barrier_req);
 		MPIS_Enqueue_waitall(my_queue);
 		// This next line is needed for the CPU Thread example because I can't just
 		// "queue" a buffer change to the hidden thread like I can to a GPU thread
@@ -67,6 +70,7 @@ int main()
 	// Cleanup
 	MPIS_Request_free(&my_reqs[0]);
 	MPIS_Request_free(&my_reqs[1]);
+    MPIS_Request_free(&barrier_req);
 
 	MPIS_Queue_free(&my_queue);
 

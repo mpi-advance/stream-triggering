@@ -1,6 +1,9 @@
 # Setup for Tioga
 
 ## Building
+Example scipts can be found in the `install` folder. Examples of compiling against and using the library (on Tioga) can be found in the `test` folder.
+
+The rest of the examples below more general examples that may be incomplete, so don't just copy paste them.
 
 ```bash
 module load craype-accel-amd-gfx90a
@@ -8,8 +11,20 @@ module load rocm
 
 INSTALL_DIR="" # Fill in path to where you want to install library
 LIBFABRIC_DIR="" # Fill in path to where libfabric is
-cmake -DUSE_IMPLEMENTATION=CXI -DLIBFABRIC_PREFIX=$LIBFABRIC_DIR -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_HIP_COMPILER=CC ..
+
+cmake -DUSE_IMPLEMENTATION=CXI -DLIBFABRIC_PREFIX=$LIBFABRIC_DIR -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_CXX_COMPILER=hipcc -DCMAKE_C_COMPILER=hipcc -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
 ```
+
+Build using just HIP commands (and MPI). Currently, the `GPU_MEM_OPS` implementation also needs `USE_GPU_TYPE` to be specified (`AMD` or `NVIDIA`). `Release` mode to turn of debug print outs.
+
+```bash
+module load craype-accel-amd-gfx90a
+module load rocm
+
+INSTALL_DIR="" # Fill in path to where you want to install library
+cmake -DCMAKE_BUILD_TYPE=RELEASE -DUSE_IMPLEMENTATION=GPU_MEM_OPS -DUSE_GPU_TYPE=AMD -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_HIP_COMPILER=CC -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
+```
+
 
 ## Running
 
