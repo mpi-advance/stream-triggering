@@ -79,7 +79,7 @@ public:
             {
                 uint64_t b     = fi_cntr_read(progress_cntr);
                 curr_completed = fi_cntr_read(completion_cntr);
-            } 
+            }
 
             space_used -= (curr_completed - last_value);
             known_completion_map.at(completion_cntr) = curr_completed;
@@ -252,6 +252,85 @@ protected:
 
     Buffer completion_buffer;
     size_t threshold = 0;
+};
+
+class FakeBarrier : public CXIRequest
+{
+public:
+    FakeBarrier(Buffer buffer, MPI_Comm comm)
+        : CXIRequest(buffer), comm_to_use(comm)
+    {
+        // Setup GPU memory locations
+        force_hip(
+            hipHostMalloc((void**)&host_start_location, sizeof(int64_t), 0));
+        *host_start_location = 0;
+        force_hip(hipHostGetDevicePointer(&gpu_start_location,
+                                          host_start_location, 0));
+        force_hip(
+            hipHostMalloc((void**)&host_wait_location, sizeof(int64_t), 0));
+        *host_wait_location = 0;
+        force_hip(
+            hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
+    }
+
+    ~FakeBarrier()
+    {
+        thr.join();
+        check_hip(hipHostFree(host_start_location));
+        check_hip(hipHostFree(host_wait_location));
+    }
+
+    void wait_gpu(hipStream_t* the_stream) override
+    {
+        force_hip(
+            hipStreamWaitValue64(*the_stream, gpu_wait_location, threshold, 0));
+    }
+
+protected:
+    void start_host() override
+    {
+        /* If previously launched, make sure we finish that one. */
+        if (thr.joinable())
+        {
+            thr.join();
+        }
+        /* Launch thread */
+        thr = std::thread(&FakeBarrier::thread_function, this);
+    }
+
+    void start_gpu(hipStream_t* the_stream) override
+    {
+        force_hip(hipStreamWriteValue64(*the_stream, gpu_start_location,
+                                        threshold, 0));
+    }
+
+private:
+    void thread_function()
+    {
+        /* Wait for signal from GPU */
+        while ((*host_start_location) < threshold)
+        {
+            // Do nothing
+        }
+
+        /* Execute MPI Call */
+        MPI_Barrier(comm_to_use);
+
+        /* Mark completion location */
+        (*host_wait_location) = threshold;
+        /* End thread */
+    }
+
+    // Memory locations
+    size_t* host_start_location;
+    size_t* host_wait_location;
+
+    void* gpu_start_location;
+    void* gpu_wait_location;
+    // MPI Variables
+    MPI_Comm comm_to_use;
+    // Thread
+    std::thread thr;
 };
 
 class CXIWait : virtual public CXIRequest
@@ -565,7 +644,18 @@ public:
 
     void match(std::shared_ptr<Request> qe) override
     {
-        prepare_cxi_mr_key(*qe);
+        if (Communication::Operation::BARRIER == qe->operation)
+        {
+            /* Not really a true buffer! */
+            Buffer blank(qe->buffer, 0, 0, 0);
+            /* Add request to map */
+            request_map.insert(std::make_pair(
+                qe->getID(), std::make_unique<FakeBarrier>(blank, qe->comm)));
+        }
+        else
+        {
+            prepare_cxi_mr_key(*qe);
+        }
     }
 
 private:
