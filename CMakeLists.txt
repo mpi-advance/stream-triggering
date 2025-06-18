@@ -4,25 +4,22 @@ cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 project(stream-triggering VERSION 0.1 LANGUAGES C CXX)
 
 # Backend settings
-set(USE_IMPLEMENTATION NONE CACHE STRING "Pick the underlying implementation to use for stream triggering")
-set_property(CACHE USE_IMPLEMENTATION PROPERTY STRINGS NONE GPU_MEM_OPS MPICH HPE CXI)
-set(USE_GPU_TYPE NONE CACHE STRING "Pick the GPU provider on system")
-set_property(CACHE USE_GPU_TYPE PROPERTY STRINGS AMD NVIDIA)
+option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
+option(USE_HIP_BACKEND "Enable the HIP backend for the queue objects" OFF)
+option(USE_CUDA_BACKEND "Enable the CUDA backend for the queue objects" OFF)
+option(USE_CXI_BACKEND "Enable the CXI backend for the queue objects" OFF)
+option(USE_HPE_BACKEND "Enable the HPE (cray-mpich stream triggering) backend for queue objects" OFF)
 
 # Language settings
 set(CMAKE_CXX_STANDARD 23)
 set(BUILD_SHARED_LIBS ON)
 
-if(USE_IMPLEMENTATION STREQUAL GPU_MEM_OPS)
-    set(NEED_GPU ON)
-    set(GPU_TYPE ${USE_GPU_TYPE})
-    if(GPU_TYPE STREQUAL NVIDIA)
-        # This must come before making any targets or else cmake falls apart!
-        enable_language(CUDA)
-        set(CMAKE_CUDA_STANDARD 17)
-        set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-        set(CMAKE_CUDA_ARCHITECTURES native)
-    endif()
+if(USE_CUDA_BACKEND)
+    # This must come before making any targets or else cmake falls apart!
+    enable_language(CUDA)
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 
 # Make main library
@@ -57,29 +54,41 @@ endfunction()
 ###
 
 # Add definitions (and extra settings) for the chosen backend
-if(USE_IMPLEMENTATION STREQUAL NONE)
-    message(STATUS "Using a CPU thread as the underlying implementation.")
+if(USE_THREAD_BACKEND)
+    message(STATUS "Enabling the THREAD based backend")
     add_definitions( -DUSE_THREADS )
-elseif(USE_IMPLEMENTATION STREQUAL GPU_MEM_OPS)
-    message(STATUS "Using GPU_MEM_OPS as the underlying implementation")
-    add_definitions( -DUSE_MEM_OPS )
-elseif(USE_IMPLEMENTATION STREQUAL MPICH)
-    message(STATUS "Using MPICH's stream triggering as the underlying implementation.")
-elseif(USE_IMPLEMENTATION STREQUAL HPE)
-    message(STATUS "Using HPE's stream triggering as the underlying implementation.")
+endif()
+
+if(USE_HIP_BACKEND)
+    message(STATUS "Enabling the HIP based backend")
     set(NEED_GPU ON)
     set(GPU_TYPE "AMD")
-    add_definitions( -DUSE_HPE )
-elseif(USE_IMPLEMENTATION STREQUAL CXI)
-    message(STATUS "Using HPE's CXI Libfabric provider as the underlying implementation.")
+    add_definitions( -DUSE_MEM_OPS )
+endif()
+
+if(USE_CUDA_BACKEND)
+    message(STATUS "Enabling the CUDA based backend")
+    set(NEED_GPU ON)
+    set(GPU_TYPE "NVIDIA")
+    add_definitions( -DUSE_MEM_OPS )
+endif()
+
+if(USE_CXI_BACKEND)
+    message(STATUS "Enabling HPE's CXI Libfabric provider based backend")
     set(NEED_GPU ON)
     set(GPU_TYPE "AMD")
     add_definitions( -DUSE_CXI )
     find_package(LibFabric REQUIRED)
     target_include_directories(stream-triggering PUBLIC ${LIBFABRIC_INCLUDE_DIR})
     target_link_libraries(stream-triggering ${LIBFABRIC_LIBRARY})
-else()
-    message(FATAL_ERROR "Invalid implementation selected.")
+    target_compile_options(stream-triggering PUBLIC -x hip)
+endif()
+
+if(USE_HPE_BACKEND)
+    message(STATUS "Using HPE's stream triggering as the underlying implementation.")
+    set(NEED_GPU ON)
+    set(GPU_TYPE "AMD")
+    add_definitions( -DUSE_HPE )
 endif()
 
 if( (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13) OR

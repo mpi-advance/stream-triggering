@@ -70,6 +70,7 @@ void HIPQueue::progress()
     {
         while (start_cntr.load() > 0 || wait_cntr.load() > 0)
         {
+            if(start_cntr.load() > 0)
             {
                 std::scoped_lock<std::mutex> incoming_lock(queue_guard);
                 for (HIPQueueEntry* entry : s_ongoing)

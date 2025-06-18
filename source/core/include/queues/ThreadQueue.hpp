@@ -8,15 +8,17 @@
 #include <thread>
 #include <tuple>
 
+#include "abstract/entry.hpp"
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
-#include "abstract/entry.hpp"
 
 template <bool isSerialized>
 class ThreadQueue : public Queue
 {
 public:
-    using ThreadRequest = QueueEntry;
+    using InternalRequest = QueueEntry;
+    using UserRequest     = std::shared_ptr<Request>;
+
     ThreadQueue() : thr(&ThreadQueue::progress, this) {}
     ~ThreadQueue()
     {
@@ -24,12 +26,13 @@ public:
         thr.join();
     }
 
-    void enqueue_operation(std::shared_ptr<Request> request) override
+    void enqueue_operation(UserRequest request) override
     {
         std::scoped_lock<std::mutex> incoming_lock(queue_guard);
         size_t                       request_id = request->getID();
         if (!request_cache.contains(request_id))
         {
+            // Also converts to InternalRequest
             request_cache.emplace(request_id, request);
         }
         entries.add_to_bundle(request_cache.at(request_id));
@@ -65,23 +68,19 @@ protected:
     class Bundle
     {
     public:
-        using RequestIterator = std::vector<ThreadRequest>::iterator;
-
         // No fancy constructor
         Bundle() {};
 
-        void add_to_bundle(ThreadRequest request)
+        void add_to_bundle(InternalRequest& request)
         {
-            items.emplace_back(request);
+            items.push_back(request);
         }
 
         void progress_serial()
         {
             // Start and progress operations one at a time
-            for (RequestIterator entry = items.begin(); entry != items.end();
-                 entry++)
+            for (InternalRequest& req : items)
             {
-                ThreadRequest& req = *entry;
                 req.start();
                 while (!req.done())
                 {
@@ -92,18 +91,14 @@ protected:
         void progress_all()
         {
             // Start all actions
-            for (RequestIterator entry = items.begin(); entry != items.end();
-                 entry++)
+            for (InternalRequest& req : items)
             {
-                ThreadRequest& req = *entry;
                 req.start();
             }
 
             // Wait for "starts" to complete:
-            for (RequestIterator entry = items.begin(); entry != items.end();
-                 entry++)
+            for (InternalRequest& req : items)
             {
-                ThreadRequest& req = *entry;
                 while (!req.done())
                 {
                     // Do nothing
@@ -112,7 +107,7 @@ protected:
         }
 
     private:
-        std::vector<ThreadRequest> items;
+        std::vector<std::reference_wrapper<InternalRequest>> items;
     };
 
     // Thread control variables
@@ -123,15 +118,15 @@ protected:
 
     // Bundle variables
     using BundleIterator = std::vector<Bundle>::iterator;
-    Bundle                          entries;
-    std::queue<Bundle>              pending;
-    std::map<size_t, ThreadRequest> request_cache;
+    Bundle                            entries;
+    std::queue<Bundle>                pending;
+    std::map<size_t, InternalRequest> request_cache;
 
     void progress()
     {
         while (!shutdown)
         {
-            if (pending.size() > 0)
+            if (busy > 0)
             {
                 Bundle the_bundle = std::move(pending.front());
                 {  // Scope of the lock

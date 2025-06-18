@@ -1,22 +1,26 @@
-if(USE_IMPLEMENTATION STREQUAL GPU_MEM_OPS AND
-       GPU_TYPE STREQUAL NVIDIA)
+if(USE_CUDA_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/CudaQueue.cpp"
 			"${CMAKE_CURRENT_SOURCE_DIR}/CudaQueue.cu"
 	)
-elseif(USE_IMPLEMENTATION STREQUAL GPU_MEM_OPS AND
-	   GPU_TYPE STREQUAL AMD)
+endif()
+
+if(USE_HIP_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/HIPQueue.cc"
  )
-elseif(USE_IMPLEMENTATION STREQUAL HPE)
+endif()
+
+if(USE_HPE_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/HPEQueue.cc"
 	)
-elseif(USE_IMPLEMENTATION STREQUAL CXI)
+endif()
+
+if(USE_CXI_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/CXIQueue.cpp"
