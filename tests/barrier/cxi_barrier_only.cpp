@@ -93,13 +93,11 @@ int main()
     size_t buf_size = sizeof(int) * BUFFER_SIZE;
     force_hip(hipMalloc(&send_buf, buf_size));
     // force_hip(
-    //    hipExtMallocWithFlags(&send_buf, buf_size,
-    //    hipDeviceMallocFinegrained));
+    //    hipExtMallocWithFlags(&send_buf, buf_size, hipDeviceMallocFinegrained));
     void* recv_buf = nullptr;
     force_hip(hipMalloc(&recv_buf, buf_size));
     // force_hip(
-    //    hipExtMallocWithFlags(&recv_buf, buf_size,
-    //    hipDeviceMallocFinegrained));
+    //    hipExtMallocWithFlags(&recv_buf, buf_size, hipDeviceMallocFinegrained));
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE);
 
@@ -112,84 +110,24 @@ int main()
     MPIS_Queue my_queue;
     MPIS_Queue_init(&my_queue, CXI, &my_stream);
 
-#define SEND_REQ (rank ^ 1)
-#define RECV_REQ (rank & 1)
-
-    // Info hint
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
-    // MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
-
-    // Make requests
-    MPIS_Request my_reqs[2];
-    // MPIS_Request queue_reqs[2]; TODO
-    if (0 == rank % 2)
-    {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
-    }
-    else
-    {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
-    }
-
     MPIS_Request barrier_req;
     MPIS_Barrier_init(MPI_COMM_WORLD, MPI_INFO_NULL, &barrier_req);
-
-    MPIS_Match(my_reqs[0]);
-    MPIS_Match(my_reqs[1]);
     MPIS_Match(barrier_req);
 
-    for (int i = 0; i < num_iters; i++)
-    {
-        if (0 == rank)
-        {
-            // Ping side
-            pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)send_buf, BUFFER_SIZE, i);
-            MPIS_Enqueue_startall(my_queue, 2, my_reqs);
-            MPIS_Enqueue_waitall(my_queue);
-            print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)recv_buf, BUFFER_SIZE, i, rank);
-        }
-        else
-        {
-            MPIS_Enqueue_start(my_queue, my_reqs[RECV_REQ]);
-            MPIS_Enqueue_waitall(my_queue);
-            print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)recv_buf, BUFFER_SIZE, i, rank);
-            pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
+    MPIS_Enqueue_start(my_queue, barrier_req);
+    MPIS_Enqueue_waitall(my_queue);
+    std::cout << rank << " After 1 work!" << std::endl;
 
-            MPIS_Enqueue_start(my_queue, my_reqs[SEND_REQ]);
-            MPIS_Enqueue_waitall(my_queue);
-        }
-
-        MPIS_Enqueue_start(my_queue, barrier_req);
-
-        //std::cout << rank << " After iter " << i << std::endl;
-    }
+    MPIS_Enqueue_start(my_queue, barrier_req);
     MPIS_Enqueue_waitall(my_queue);
     MPIS_Queue_wait(my_queue);
 
     std::cout << rank << " After all work!" << std::endl;
     // Final check
     check_hip(hipDeviceSynchronize());
-    print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-        (int*)recv_buf, BUFFER_SIZE, num_iters - 1, rank);
 
     // Cleanup
-    MPIS_Request_freeall(2, my_reqs);
     MPIS_Request_free(&barrier_req);
-
-    MPI_Info_free(&mem_info);
-
     MPIS_Queue_free(&my_queue);
 
     std::cout << rank << " is done!" << std::endl;

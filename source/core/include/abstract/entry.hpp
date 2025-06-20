@@ -9,7 +9,7 @@ using namespace Communication;
 class QueueEntry
 {
 public:
-    QueueEntry(std::shared_ptr<Request> req) : original_request(req)
+    explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req)
     {
         switch (req->operation)
         {
@@ -33,10 +33,37 @@ public:
 
     virtual ~QueueEntry()
     {
-        if (original_request->operation != Communication::Operation::BARRIER)
+        if (MPI_REQUEST_NULL != mpi_request && original_request &&
+            original_request->operation != Communication::Operation::BARRIER)
         {
             check_mpi(MPI_Request_free(&mpi_request));
         }
+    }
+
+    // No copying
+    QueueEntry(const QueueEntry& other)            = delete;
+    QueueEntry& operator=(const QueueEntry& other) = delete;
+
+    // Only Moving
+    QueueEntry(QueueEntry&& other) noexcept
+        : mpi_request(other.mpi_request),
+          original_request(other.original_request)
+    {
+        // clear other structs
+        other.mpi_request = MPI_REQUEST_NULL;
+        other.original_request.reset();
+    }
+    QueueEntry& operator=(QueueEntry&& other) noexcept
+    {
+        if (this != &other)
+        {
+            mpi_request      = other.mpi_request;
+            original_request = other.original_request;
+            // clear other
+            other.mpi_request = MPI_REQUEST_NULL;
+            other.original_request.reset();
+        }
+        return *this;
     }
 
     virtual void start()
@@ -59,8 +86,8 @@ public:
     }
 
 protected:
-    MPI_Request              mpi_request;
-    std::shared_ptr<Request> original_request;
+    MPI_Request              mpi_request      = MPI_REQUEST_NULL;
+    std::shared_ptr<Request> original_request = nullptr;
 };
 
 #endif
