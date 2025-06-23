@@ -5,6 +5,6 @@
 void CudaQueue::match(std::shared_ptr<Request> request)
 {
     // Normal matching
-    Communication::BlankMatch();
+    Communication::BlankMatch::match(request->peer);
     request->toggle_match();
 }

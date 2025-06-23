@@ -8,6 +8,7 @@
 #include <thread>
 #include <tuple>
 
+#include "abstract/bundle.hpp"
 #include "abstract/entry.hpp"
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
@@ -28,8 +29,7 @@ public:
 
     void enqueue_operation(UserRequest request) override
     {
-        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        size_t                       request_id = request->getID();
+        size_t request_id = request->getID();
         if (!request_cache.contains(request_id))
         {
             // Also converts to InternalRequest
@@ -60,56 +60,11 @@ public:
     void match(std::shared_ptr<Request> request) override
     {
         // Normal matching
-        Communication::BlankMatch();
+        Communication::BlankMatch::match(request->peer);
         request->toggle_match();
     }
 
 protected:
-    class Bundle
-    {
-    public:
-        // No fancy constructor
-        Bundle() {};
-
-        void add_to_bundle(InternalRequest& request)
-        {
-            items.push_back(request);
-        }
-
-        void progress_serial()
-        {
-            // Start and progress operations one at a time
-            for (InternalRequest& req : items)
-            {
-                req.start();
-                while (!req.done())
-                {
-                    // Do nothing
-                }
-            }
-        }
-        void progress_all()
-        {
-            // Start all actions
-            for (InternalRequest& req : items)
-            {
-                req.start();
-            }
-
-            // Wait for "starts" to complete:
-            for (InternalRequest& req : items)
-            {
-                while (!req.done())
-                {
-                    // Do nothing
-                }
-            }
-        }
-
-    private:
-        std::vector<std::reference_wrapper<InternalRequest>> items;
-    };
-
     // Thread control variables
     std::atomic<int> busy;
     std::thread      thr;

@@ -1,6 +1,8 @@
 #ifndef ST_ABSTRACT_QUEUE_ENTRY
 #define ST_ABSTRACT_QUEUE_ENTRY
 
+#include <memory>
+
 #include "request.hpp"
 
 using namespace Communication;
@@ -9,7 +11,7 @@ using namespace Communication;
 class QueueEntry
 {
 public:
-    explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req)
+    explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req), threshold(0)
     {
         switch (req->operation)
         {
@@ -66,7 +68,7 @@ public:
         return *this;
     }
 
-    virtual void start()
+    virtual void start_host()
     {
         if (original_request->operation == Communication::Operation::BARRIER)
         {
@@ -78,6 +80,23 @@ public:
         }
     }
 
+    virtual void start_gpu(void* stream)
+    {
+        // Does nothing in base class.
+    }
+
+    virtual void start(void* stream)
+    {
+        threshold++;
+        start_host();
+        start_gpu(stream);
+    }
+
+    virtual void wait_gpu(void* stream)
+    {
+        // Does nothing in base class.
+    }
+
     virtual bool done()
     {
         int value = 0;
@@ -86,6 +105,8 @@ public:
     }
 
 protected:
+    int64_t threshold = 0;
+
     MPI_Request              mpi_request      = MPI_REQUEST_NULL;
     std::shared_ptr<Request> original_request = nullptr;
 };

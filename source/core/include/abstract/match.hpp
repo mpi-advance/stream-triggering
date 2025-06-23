@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "misc/print.hpp"
 #include "safety/mpi.hpp"
 
 namespace Communication
