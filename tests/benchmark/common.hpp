@@ -54,7 +54,7 @@ void allocate_gpu_memory(void** location, size_t size)
 
 void device_sync()
 {
-    check_hip(hipDeviceSynchronize());
+    check_gpu(hipDeviceSynchronize());
 }
 
 #elif NEED_CUDA
