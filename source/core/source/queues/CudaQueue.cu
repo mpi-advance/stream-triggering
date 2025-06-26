@@ -19,21 +19,18 @@ CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 
 CudaQueueEntry::~CudaQueueEntry()
 {
-    std::cout << "Entry going away!" << std::endl;
     check_cuda(cudaFreeHost(start_location));
     check_cuda(cudaFreeHost(wait_location));
 }
 
-void CudaQueueEntry::start()
+void CudaQueueEntry::start_host()
 {
-    Print::out("Waiting for GPU to tell us to start!");
-    while ((*start_location) != 1)
+    while ((*start_location) != threshold)
     {
         std::this_thread::yield();
     }
     // Call parent method to launch MPI stuff
-    QueueEntry::start();
-    Print::out("GPU says we should start: ", *start_location);
+    QueueEntry::start_host();
 }
 
 bool CudaQueueEntry::done()
@@ -42,26 +39,27 @@ bool CudaQueueEntry::done()
     bool value = QueueEntry::done();
     if (value)
     {
-        (*wait_location) = 1;
-        Print::out("Waiting value set!");
+        (*wait_location) = threshold;
     }
     return value;
 }
 
-void CudaQueueEntry::launch_start_kernel(CUstream the_stream)
+void CudaQueueEntry::start_gpu(void* the_stream)
 {
-    Print::out("Queueing start kernel!");
-    force_cuda(cuStreamWriteValue64(the_stream, start_dev, 1, 0));
+    cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
+    CUstream      real_stream = *cuda_stream;
+    force_cuda(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
 }
 
-void CudaQueueEntry::launch_wait_kernel(CUstream the_stream)
+void CudaQueueEntry::wait_gpu(void* the_stream)
 {
-    Print::out("Queueing wait kernel!");
-    force_cuda(cuStreamWaitValue64(the_stream, wait_dev, 1, 0));
+    cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
+    CUstream      real_stream = *cuda_stream;
+    force_cuda(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));
 }
 
 CudaQueue::CudaQueue(cudaStream_t* stream)
-    : thr(&CudaQueue::progress, this), my_stream(stream)
+    : thr(&CudaQueue::progress, this), my_stream(stream), wait_cntr(0)
 {
     // force_cuda(cuInit(0));
     // force_cuda(cudaSetDevice(0));
@@ -75,16 +73,17 @@ CudaQueue::~CudaQueue()
 
 void CudaQueue::progress()
 {
+    check_cuda(cudaSetDevice(0));
     while (!shutdown)
     {
-        while (start_cntr.load() > 0 || wait_cntr.load() > 0)
+        while (s_ongoing.size() > 0 || wait_cntr.load() > 0)
         {
+            if (s_ongoing.size() > 0)
             {
                 std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-                for (CudaQueueEntry* entry : s_ongoing)
+                for (QueueEntry& entry : s_ongoing)
                 {
-                    entry->start();
-                    start_cntr--;
+                    entry.start_host();
                     w_ongoing.push(entry);
                 }
                 s_ongoing.clear();
@@ -92,8 +91,8 @@ void CudaQueue::progress()
 
             for (size_t i = 0; i < w_ongoing.size(); ++i)
             {
-                CudaQueueEntry* entry = w_ongoing.front();
-                if (entry->done())
+                QueueEntry& entry = w_ongoing.front();
+                if (entry.done())
                 {
                     wait_cntr--;
                     w_ongoing.pop();
@@ -112,34 +111,17 @@ void CudaQueue::progress()
     }
 }
 
-void CudaQueue::enqueue_operation(std::shared_ptr<Request> qe)
-{
-    if (wait_cntr.load() > 0)
-        Print::out("WARNING!");
-
-    CudaQueueEntry* cqe = new CudaQueueEntry(qe);
-    cqe->launch_start_kernel(*my_stream);
-    start_cntr++;
-    entries.push_back(cqe);
-
-    std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-    s_ongoing.push_back(cqe);
-}
-
 void CudaQueue::enqueue_waitall()
 {
-    Print::out("enqueue waiting");
-    while (start_cntr.load())
+    while (s_ongoing.size())
     {
         // Do nothing
     }
-    Print::out("Done enqueue waiting");
 
-    for (CudaQueueEntry* entry : entries)
+    for (QueueEntry& entry : entries)
     {
-        entry->launch_wait_kernel(*my_stream);
+        entry.wait_gpu(my_stream);
         wait_cntr++;
-        Print::out("Waitng for 1 entry");
         while (wait_cntr.load())
         {
             // do nothing
@@ -150,7 +132,7 @@ void CudaQueue::enqueue_waitall()
 
 void CudaQueue::host_wait()
 {
-    while (start_cntr.load() || wait_cntr.load())
+    while (s_ongoing.size() || wait_cntr.load())
     {
         // Do nothing.
     }

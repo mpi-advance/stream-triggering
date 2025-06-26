@@ -23,17 +23,20 @@ int main(int argc, char* argv[])
 
     void* send_buf = nullptr;
     void* recv_buf = nullptr;
-    force_hip(hipExtMallocWithFlags(&send_buf, sizeof(int) * BUFFER_SIZE,
-                                    hipDeviceMallocFinegrained));
-    force_hip(hipExtMallocWithFlags(&recv_buf, sizeof(int) * BUFFER_SIZE,
-                                    hipDeviceMallocFinegrained));
+    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE);
+    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE);
 
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE);
-    check_hip(hipDeviceSynchronize());
+    device_sync();
 
+#if defined(NEED_HIP)
     hipStream_t my_stream;
-    check_hip(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
+    check_gpu(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
+#elif defined(NEED_CUDA)
+    cudaStream_t my_stream;
+    check_gpu(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
+#endif
 
 #define SEND_REQ (rank ^ 1)
 #define RECV_REQ (rank & 1)
@@ -63,7 +66,7 @@ int main(int argc, char* argv[])
             // Ping side
             pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, BUFFER_SIZE, i);
-            check_hip(hipDeviceSynchronize());
+            device_sync();
             MPI_Startall(2, my_reqs);
             MPI_Waitall(2, my_reqs, MPI_STATUSES_IGNORE);
             // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
@@ -77,7 +80,7 @@ int main(int argc, char* argv[])
             //     (int*)recv_buf, BUFFER_SIZE, i, rank);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
-            check_hip(hipDeviceSynchronize());
+            device_sync();
             MPI_Start(&my_reqs[SEND_REQ]);
             MPI_Wait(&my_reqs[SEND_REQ], MPI_STATUS_IGNORE);
         }
@@ -85,10 +88,10 @@ int main(int argc, char* argv[])
     double end = MPI_Wtime();
 
     // Final check
-    check_hip(hipDeviceSynchronize());
+    device_sync();
     print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
         (int*)recv_buf, BUFFER_SIZE, num_iters - 1, rank);
-    check_hip(hipDeviceSynchronize());
+    device_sync();;
 
     // Cleanup
     MPI_Request_free(&my_reqs[SEND_REQ]);

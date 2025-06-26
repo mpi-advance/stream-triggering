@@ -5,30 +5,28 @@
 #include <cuda_runtime.h>
 
 #include <atomic>
+#include <map>
 #include <mutex>
 #include <queue>
 #include <thread>
 
-#include "abstract/queue.hpp"
 #include "abstract/entry.hpp"
+#include "abstract/queue.hpp"
 
-class CudaQueueEntry
+class CudaQueueEntry : public QueueEntry
 {
 public:
     CudaQueueEntry(std::shared_ptr<Request> qe);
     ~CudaQueueEntry();
 
-    void start() override;
+    void start_host() override;
+    void start_gpu(void*) override;
+    void wait_gpu(void*) override;
     bool done() override;
 
-    void launch_wait_kernel(CUstream);
-    void launch_start_kernel(CUstream);
-
 protected:
-    std::shared_ptr<Request> my_request;
-    MPI_Request              mpi_request;
-    int64_t*                 start_location;
-    int64_t*                 wait_location;
+    int64_t* start_location;
+    int64_t* wait_location;
 
     CUdeviceptr start_dev;
     CUdeviceptr wait_dev;
@@ -52,12 +50,13 @@ protected:
     bool        shutdown = false;
 
     std::mutex       queue_guard;
-    std::atomic<int> start_cntr;
     std::atomic<int> wait_cntr;
 
-    std::vector<CudaQueueEntry*> entries;
-    std::vector<CudaQueueEntry*> s_ongoing;
-    std::queue<CudaQueueEntry*>  w_ongoing;
+    std::vector<std::reference_wrapper<QueueEntry>> entries;
+    std::vector<std::reference_wrapper<QueueEntry>> s_ongoing;
+    std::queue<std::reference_wrapper<QueueEntry>>  w_ongoing;
+
+    std::map<size_t, CudaQueueEntry> request_cache;
 
     void progress();
 };

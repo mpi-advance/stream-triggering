@@ -154,7 +154,10 @@ void HIPQueue::host_wait()
 
 void HIPQueue::match(std::shared_ptr<Request> request)
 {
-    // Normal matching
-    Communication::BlankMatch::match(request->peer);
+    if (Operation::BARRIER != request->operation)
+    {
+        // Normal matching
+        Communication::BlankMatch::match(request->peer);
+    }
     request->toggle_match();
 }

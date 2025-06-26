@@ -1,29 +1,35 @@
 #ifndef BENCHMARK_COMMON
 #define BENCHMARK_COMMON
 
+#ifdef NEED_HIP
+#include <hip/hip_runtime.h>
+#elif NEED_CUDA
+#include "cuda.h"
+#include "cuda_runtime.h"
+#endif
+
 #include <unistd.h>
 
 #include <iostream>
 
-#include <hip/hip_runtime.h>
 #include "mpi.h"
 #include "stream-triggering.h"
 
-#define check_hip(function)                       \
-    {                                              \
-        auto err = function;                       \
+#if NEED_HIP
+#define check_gpu(function)                       \
+    {                                             \
+        auto err = function;                      \
         check_hip_error(err, __FILE__, __LINE__); \
     }
 
-#define force_hip(function)                             \
-    {                                                    \
-        auto err = function;                             \
+#define force_gpu(function)                             \
+    {                                                   \
+        auto err = function;                            \
         check_hip_error<true>(err, __FILE__, __LINE__); \
     }
 
 template <bool shouldThrow = false>
-void check_hip_error(const hipError_t err, const char* filename,
-                      const int line)
+void check_hip_error(const hipError_t err, const char* filename, const int line)
 {
     if (err != hipSuccess)
     {
@@ -35,6 +41,82 @@ void check_hip_error(const hipError_t err, const char* filename,
         }
     }
 }
+
+void allocate_gpu_memory(void** location, size_t size)
+{
+#ifndef FINE_GRAINED_TEST
+    force_gpu(hipMalloc(location, size));
+#else
+    force_gpu(hipExtMallocWithFlags(location, size,
+                                    hipDeviceMallocFinegrained));
+#endif
+}
+
+void device_sync()
+{
+    check_hip(hipDeviceSynchronize());
+}
+
+#elif NEED_CUDA
+#define check_gpu(function)                        \
+    {                                              \
+        auto err = function;                       \
+        check_cuda_error(err, __FILE__, __LINE__); \
+    }
+
+#define force_gpu(function)                              \
+    {                                                    \
+        auto err = function;                             \
+        check_cuda_error<true>(err, __FILE__, __LINE__); \
+    }
+
+template <bool shouldThrow = false>
+void check_cuda_error(const cudaError_t err, const char* filename,
+                      const int line)
+{
+    if (err != cudaSuccess)
+    {
+        std::cout << "(" << err << ") in " << filename << " on line " << line
+                  << " : " << cudaGetErrorString(err) << std::endl;
+        if constexpr (shouldThrow)
+        {
+            throw std::runtime_error(cudaGetErrorString(err));
+        }
+    }
+}
+
+template <bool shouldThrow = false>
+void check_cuda_error(const CUresult code, const char* filename, const int line)
+{
+    if (code != CUDA_SUCCESS)
+    {
+        const char* name = nullptr;
+        const char* strg = nullptr;
+
+        cuGetErrorName(code, &name);
+        cuGetErrorString(code, &strg);
+
+        std::cout << "(" << code << ") in " << filename << " on line " << line
+                  << " : " << std::string(name) << " - " << std::string(strg)
+                  << std::endl;
+        if constexpr (shouldThrow)
+        {
+            throw std::runtime_error("CU CUDA Error");
+        }
+    }
+}
+
+void allocate_gpu_memory(void** location, size_t size)
+{
+    force_gpu(cudaMalloc(location, size));
+}
+
+void device_sync()
+{
+    check_gpu(cudaDeviceSynchronize());
+}
+
+#endif
 
 __global__ void init_buffers(int* send_buf, int* recv_buf, int buffer_len)
 {
@@ -78,20 +160,21 @@ __global__ void print_buffer(volatile int* buffer, int buffer_len,
     }
 }
 
-static void inline check_param_size(int* argc, int num_params, std::string usage)
+static void inline check_param_size(int* argc, int num_params,
+                                    std::string usage)
 {
-    if((*argc) != (1+num_params))
+    if ((*argc) != (1 + num_params))
     {
-        std::cerr << "Usage: "<< usage << std::endl;
+        std::cerr << "Usage: " << usage << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
 }
 
-static void inline read_iter_buffer_input(char*** argv, int* num_iters, int* buffer_size)
+static void inline read_iter_buffer_input(char*** argv, int* num_iters,
+                                          int* buffer_size)
 {
-    (*num_iters) = std::atoi((*argv)[1]);
+    (*num_iters)   = std::atoi((*argv)[1]);
     (*buffer_size) = std::atoi((*argv)[2]);
 }
-
 
 #endif

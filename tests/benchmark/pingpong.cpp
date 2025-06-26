@@ -23,26 +23,26 @@ int main(int argc, char* argv[])
 
     void* send_buf = nullptr;
     void* recv_buf = nullptr;
-#ifndef FINE_GRAINED_TEST
-    force_hip(hipMalloc(&send_buf, sizeof(int) * BUFFER_SIZE));
-    force_hip(hipMalloc(&recv_buf, sizeof(int) * BUFFER_SIZE));
-#else
-    force_hip(hipExtMallocWithFlags(&send_buf, sizeof(int) * BUFFER_SIZE,
-                                    hipDeviceMallocFinegrained));
-    force_hip(hipExtMallocWithFlags(&recv_buf, sizeof(int) * BUFFER_SIZE,
-                                    hipDeviceMallocFinegrained));
-#endif
+    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE);
+    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE);
 
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE);
-    check_hip(hipDeviceSynchronize());
+    device_sync();
 
+#if defined(NEED_HIP)
     hipStream_t my_stream;
-    check_hip(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
+    check_gpu(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
+#elif defined(NEED_CUDA)
+    cudaStream_t my_stream;
+    check_gpu(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
+#endif
 
     // Make queue
     MPIS_Queue my_queue;
 #if defined(HIP_BACKEND)
+    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+#elif defined(CUDA_BACKEND)
     MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
 #elif defined(CXI_BACKEND)
     MPIS_Queue_init(&my_queue, CXI, &my_stream);
@@ -134,10 +134,10 @@ int main(int argc, char* argv[])
     double end = MPI_Wtime();
 
     // Final check
-    check_hip(hipDeviceSynchronize());
+    device_sync();
     print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
         (int*)recv_buf, BUFFER_SIZE, num_iters - 1, rank);
-    check_hip(hipDeviceSynchronize());
+    device_sync();
 
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
