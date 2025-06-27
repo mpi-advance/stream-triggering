@@ -57,13 +57,6 @@ public:
         }
     }
 
-    void match(std::shared_ptr<Request> request) override
-    {
-        // Normal matching
-        Communication::BlankMatch::match(request->peer);
-        request->toggle_match();
-    }
-
 protected:
     // Thread control variables
     std::atomic<int> busy;

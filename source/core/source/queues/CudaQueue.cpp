@@ -2,16 +2,6 @@
 
 #include "abstract/match.hpp"
 
-void CudaQueue::match(std::shared_ptr<Request> request)
-{
-    if (Operation::BARRIER != request->operation)
-    {
-        // Normal matching
-        Communication::BlankMatch::match(request->peer);
-    }
-    request->toggle_match();
-}
-
 void CudaQueue::enqueue_operation(std::shared_ptr<Request> request)
 {
     if (wait_cntr.load() > 0)

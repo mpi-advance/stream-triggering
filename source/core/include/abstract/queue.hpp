@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "match.hpp"
 #include "request.hpp"
 
 using namespace Communication;
@@ -21,7 +22,15 @@ public:
 
     virtual void host_wait() = 0;
 
-    virtual void match(std::shared_ptr<Request> qe) = 0;
+    virtual void match(std::shared_ptr<Request> request)
+    {
+        if (Operation::BARRIER != request->operation)
+        {
+            // Normal matching
+            Communication::BlankMatch::match(request->peer);
+        }
+        request->toggle_match();
+    };
 
     operator uintptr_t() const
     {

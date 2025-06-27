@@ -41,7 +41,6 @@ public:
     void enqueue_operation(std::shared_ptr<Request> qe) override;
     void enqueue_waitall() override;
     void host_wait() override;
-    void match(std::shared_ptr<Request> qe) override;
 
 protected:
     cudaStream_t* my_stream;
