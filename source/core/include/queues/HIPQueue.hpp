@@ -19,8 +19,8 @@ public:
     ~HIPQueueEntry();
 
     void start_host() override;
-    void start_gpu(void *) override;
-    void wait_gpu(void *) override;
+    void start_gpu(void*) override;
+    void wait_gpu(void*) override;
     bool done() override;
 
 protected:
@@ -37,7 +37,8 @@ public:
     HIPQueue(hipStream_t*);
     ~HIPQueue();
 
-    void enqueue_operation(std::shared_ptr<Request> qe) override;
+    void enqueue_operation(std::shared_ptr<Request> req) override;
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> reqs) override;
     void enqueue_waitall() override;
     void host_wait() override;
 

@@ -125,6 +125,14 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
     s_ongoing.push_back(cqe);
 }
 
+void HIPQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> reqs)
+{
+    for(auto& req: reqs)
+    {
+        enqueue_operation(req);
+    }
+}
+
 void HIPQueue::enqueue_waitall()
 {
     while (s_ongoing.size())

@@ -121,8 +121,8 @@ int main(int argc, char* argv[])
 #endif
             MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
             MPIS_Enqueue_waitall(my_queue);
-            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //     (int*)recv_buf, BUFFER_SIZE, i, rank);
+            //print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            //    (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
         }
         else
         {
@@ -131,8 +131,8 @@ int main(int argc, char* argv[])
 #ifdef THREAD_BACKEND
             MPIS_Queue_wait(my_queue);
 #endif
-            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //     (int*)recv_buf, BUFFER_SIZE, i, rank);
+            //print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
@@ -156,8 +156,6 @@ int main(int argc, char* argv[])
     }
 
     // std::cout << rank << " at final wait!" << std::endl;
-
-    MPIS_Enqueue_waitall(my_queue);
     MPIS_Queue_wait(my_queue);
     double end = MPI_Wtime();
 

@@ -1,16 +1,20 @@
-#include "abstract/request.hpp"
-#include "stream-triggering.h"
+#include "abstract/queue.hpp"
+#include "helpers.hpp"
 
 extern "C" {
 
 int MPIS_Enqueue_startall(MPIS_Queue queue, int len, MPIS_Request requests[])
 {
+    Queue*                                the_queue = (Queue*)(queue);
+    std::vector<std::shared_ptr<Request>> all_requests(len);
+
     for (int i = 0; i < len; ++i)
     {
-        int err_code = MPIS_Enqueue_start(queue, requests[i]);
-        if (MPIS_SUCCESS != err_code)
-            return err_code;
+        all_requests[i] = convert_request(requests[i]);
     }
+
+    the_queue->enqueue_startall(all_requests);
+
     return MPIS_SUCCESS;
 }
 }

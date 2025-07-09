@@ -38,6 +38,14 @@ public:
         entries.add_to_bundle(request_cache.at(request_id));
     }
 
+    void enqueue_startall(std::vector<UserRequest> requests) override
+    {
+        for(auto& req: requests)
+        {
+            enqueue_operation(req);
+        }
+    }
+
     void enqueue_waitall() override
     {
         std::scoped_lock<std::mutex> incoming_lock(queue_guard);
