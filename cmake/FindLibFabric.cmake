@@ -5,7 +5,7 @@
 #  LIBFABRIC_LIBRARY     - The libraries needed to use LibFabric
 
 # searhc prefix path
-set(LIBFABRIC_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Help cmake to find LibFabric library (https://github.com/ofiwg/libfabric).")
+set(LIBFABRIC_PREFIX "${CMAKE_PREFIX_PATH}" CACHE STRING "Help cmake to find LibFabric library (https://github.com/ofiwg/libfabric).")
 
 # check include
 find_path(LIBFABRIC_INCLUDE_DIR rdma/fabric.h

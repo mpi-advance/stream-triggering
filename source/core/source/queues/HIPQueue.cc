@@ -5,7 +5,8 @@
 #include "safety/hip.hpp"
 #include "safety/mpi.hpp"
 
-HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
+HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req)
+    : QueueEntry(req)
 {
     force_hip(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
     *start_location = 0;
@@ -21,14 +22,14 @@ HIPQueueEntry::~HIPQueueEntry()
     check_hip(hipHostFree(wait_location));
 }
 
-void HIPQueueEntry::start()
+void HIPQueueEntry::start_host()
 {
-    while ((*start_location) != 1)
+    while ((*start_location) != threshold)
     {
         std::this_thread::yield();
     }
     // Call parent method to launch MPI stuff
-    QueueEntry::start();
+    QueueEntry::start_host();
 }
 
 bool HIPQueueEntry::done()
@@ -37,19 +38,21 @@ bool HIPQueueEntry::done()
     bool value = QueueEntry::done();
     if (value)
     {
-        (*wait_location) = 1;
+        (*wait_location) = threshold;
     }
     return value;
 }
 
-void HIPQueueEntry::launch_start_kernel(hipStream_t the_stream)
+void HIPQueueEntry::start_gpu(void* the_stream)
 {
-    force_hip(hipStreamWriteValue64(the_stream, start_dev, 1, 0));
+    force_hip(hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev,
+                                    threshold, 0));
 }
 
-void HIPQueueEntry::launch_wait_kernel(hipStream_t the_stream)
+void HIPQueueEntry::wait_gpu(void* the_stream)
 {
-    force_hip(hipStreamWaitValue64(the_stream, wait_dev, 1, 0));
+    force_hip(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev,
+                                   threshold, 0));
 }
 
 HIPQueue::HIPQueue(hipStream_t* stream)
@@ -68,15 +71,14 @@ void HIPQueue::progress()
 {
     while (!shutdown)
     {
-        while (start_cntr.load() > 0 || wait_cntr.load() > 0)
+        while (s_ongoing.size() > 0 || wait_cntr.load() > 0)
         {
-            if(start_cntr.load() > 0)
+            if (s_ongoing.size() > 0)
             {
                 std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-                for (HIPQueueEntry* entry : s_ongoing)
+                for (QueueEntry& entry : s_ongoing)
                 {
-                    entry->start();
-                    start_cntr--;
+                    entry.start_host();
                     w_ongoing.push(entry);
                 }
                 s_ongoing.clear();
@@ -84,8 +86,8 @@ void HIPQueue::progress()
 
             for (size_t i = 0; i < w_ongoing.size(); ++i)
             {
-                HIPQueueEntry* entry = w_ongoing.front();
-                if (entry->done())
+                QueueEntry& entry = w_ongoing.front();
+                if (entry.done())
                 {
                     wait_cntr--;
                     w_ongoing.pop();
@@ -104,30 +106,43 @@ void HIPQueue::progress()
     }
 }
 
-void HIPQueue::enqueue_operation(std::shared_ptr<Request> qe)
+void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
 {
     if (wait_cntr.load() > 0)
         Print::out("WARNING!");
 
-    HIPQueueEntry* cqe = new HIPQueueEntry(qe);
-    cqe->launch_start_kernel(*my_stream);
-    start_cntr++;
-    entries.push_back(cqe);
+    size_t request_id = request->getID();
+    if (!request_cache.contains(request_id))
+    {
+        request_cache.emplace(request_id, request);
+    }
 
+    HIPQueueEntry& cqe = request_cache.at(request_id);
+    cqe.start_gpu(my_stream);
+
+    entries.push_back(cqe);
     std::scoped_lock<std::mutex> incoming_lock(queue_guard);
     s_ongoing.push_back(cqe);
 }
 
+void HIPQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> reqs)
+{
+    for(auto& req: reqs)
+    {
+        enqueue_operation(req);
+    }
+}
+
 void HIPQueue::enqueue_waitall()
 {
-    while (start_cntr.load())
+    while (s_ongoing.size())
     {
         // Do nothing
     }
 
-    for (HIPQueueEntry* entry : entries)
+    for (QueueEntry& entry : entries)
     {
-        entry->launch_wait_kernel(*my_stream);
+        entry.wait_gpu(my_stream);
         wait_cntr++;
         while (wait_cntr.load())
         {
@@ -139,15 +154,8 @@ void HIPQueue::enqueue_waitall()
 
 void HIPQueue::host_wait()
 {
-    while (start_cntr.load() || wait_cntr.load())
+    while (s_ongoing.size() || wait_cntr.load())
     {
         // Do nothing.
     }
-}
-
-void HIPQueue::match(std::shared_ptr<Request> request)
-{
-    // Normal matching
-    Communication::BlankMatch();
-    request->toggle_match();
 }

@@ -180,6 +180,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
 
 void CXIQueue::libfabric_teardown()
 {
+    the_gpu_counter.reset();
     request_map.clear();
     my_buffer.free_mr();
     check_libfabric(fi_close(&(ep)->fid));
@@ -191,16 +192,16 @@ void CXIQueue::libfabric_teardown()
     check_libfabric(fi_close(&(fabric)->fid));
 }
 
-__global__ void add_to_counter(uint64_t* cntr)
+__global__ void add_to_counter(uint64_t* cntr, size_t value)
 {
-    *cntr = 1;
+    *cntr = value;
 }
 
 __global__ void wait_on_completion(volatile size_t* comp_addr,
                                    size_t           goal_value)
 {
     size_t curr_value = *comp_addr;
-    while (curr_value != goal_value)
+    while (curr_value < goal_value)
     {
         curr_value = *comp_addr;
     }
@@ -214,18 +215,27 @@ __global__ void flush_buffer()
 void CXIWait::wait_gpu(hipStream_t* the_stream)
 {
     wait_on_completion<<<1, 1, 0, *the_stream>>>(
-        (size_t*)completion_buffer.address, threshold);
+        (size_t*)completion_buffer.address, num_times_started);
 }
 
-template <GPUMemoryType G>
-void CXITrigger<G>::start_gpu(hipStream_t* the_stream)
+template <CommunicationType MODE, GPUMemoryType G>
+void CXISend<MODE, G>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                                 CXICounter& trigger_cntr)
 {
     if constexpr (GPUMemoryType::COARSE == G)
     {
         flush_buffer<<<1, 1, 0, *the_stream>>>();
     }
-    uint64_t* cntr_addr = (uint64_t*)trigger_counter.gpu_mmio_addr;
-    add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr);
+
+    if(threshold.value() == threshold.counter_value())
+    {
+        // No need to trigger counter, as eventually it should be what we want.
+        return;
+    }
+
+    size_t counter_bump = threshold.equalize_counter();
+    uint64_t* cntr_addr = (uint64_t*)trigger_cntr.gpu_mmio_addr;
+    add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
 }
 
 void CXIQueue::enqueue_waitall()

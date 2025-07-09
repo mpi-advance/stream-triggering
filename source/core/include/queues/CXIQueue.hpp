@@ -45,6 +45,37 @@ public:
     uint64_t offset;
 };
 
+class Threshold
+{
+public:
+    Threshold() : _value(0), _counter_value(0) {}
+
+    void increment_threshold()
+    {
+        _value++;
+    }
+
+    size_t equalize_counter()
+    {
+        size_t diff = _value - _counter_value;
+        _counter_value = _value;
+        return diff;
+    }
+
+    size_t value()
+    {
+        return _value;
+    }
+    size_t counter_value()
+    {
+        return _counter_value;
+    }
+
+private:
+    size_t _value         = 0;
+    size_t _counter_value = 0;
+};
+
 class DeferredWorkQueue
 {
 public:
@@ -239,24 +270,28 @@ class CXIRequest
 {
 public:
     CXIRequest(Buffer local_completion_buffer)
-        : completion_buffer(local_completion_buffer)
+        : completion_buffer(local_completion_buffer), num_times_started(0)
     {
     }
     virtual ~CXIRequest() = default;
-    virtual void start(hipStream_t* the_stream)
+    virtual void start(hipStream_t* the_stream, Threshold& threshold,
+                       CXICounter& trigger_cntr)
     {
-        threshold++;
-        start_host();
-        start_gpu(the_stream);
+        num_times_started++;
+        start_host(the_stream, threshold, trigger_cntr);
+        start_gpu(the_stream, threshold, trigger_cntr);
     }
+
     virtual void wait_gpu(hipStream_t* the_stream) = 0;
 
 protected:
-    virtual void start_host()                       = 0;
-    virtual void start_gpu(hipStream_t* the_stream) = 0;
+    virtual void start_host(hipStream_t* the_stream, Threshold& threshold,
+                            CXICounter& trigger_cntr) = 0;
+    virtual void start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                           CXICounter& trigger_cntr)  = 0;
 
     Buffer completion_buffer;
-    size_t threshold = 0;
+    size_t num_times_started;
 };
 
 class FakeBarrier : public CXIRequest
@@ -290,15 +325,15 @@ public:
 
     void wait_gpu(hipStream_t* the_stream) override
     {
-        force_hip(
-            hipStreamWaitValue64(*the_stream, gpu_wait_location, threshold, 0));
+        force_hip(hipStreamWaitValue64(*the_stream, gpu_wait_location,
+                                       num_times_started, 0));
     }
 
 protected:
-    void start_host() override
+    void start_host(hipStream_t* the_stream, Threshold& threshold,
+                    CXICounter& trigger_cntr) override
     {
-        /* If previously launched, make sure we do progress in case it's stuck
-         */
+        /* If previously launched, make do progress in case it's stuck */
         while (!finished)
         {
             /* Do progress (fi_cntr_read) */
@@ -312,17 +347,18 @@ protected:
         }
         /* Launch thread */
         finished = false;
-        thr      = std::thread(&FakeBarrier::thread_function, this, threshold);
+        thr = std::thread(&FakeBarrier::thread_function, this, threshold.value());
     }
 
-    void start_gpu(hipStream_t* the_stream) override
+    void start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                   CXICounter& trigger_cntr) override
     {
         force_hip(hipStreamWriteValue64(*the_stream, gpu_start_location,
-                                        threshold, 0));
+                                        threshold.value(), 0));
     }
 
 private:
-    void thread_function(int thread_threshold)
+    void thread_function(size_t thread_threshold)
     {
         /* Wait for signal from GPU */
         while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) <
@@ -335,7 +371,7 @@ private:
         MPI_Barrier(comm_to_use);
 
         /* Mark completion location */
-        (*host_wait_location) = thread_threshold;
+        (*host_wait_location) = num_times_started;
         /* End thread */
         finished = true;
     }
@@ -359,33 +395,6 @@ class CXIWait : virtual public CXIRequest
 {
 public:
     void wait_gpu(hipStream_t* the_stream) override;
-};
-
-enum GPUMemoryType
-{
-    COARSE = 1,
-    FINE   = 2,
-};
-template <GPUMemoryType G>
-class CXITrigger : virtual public CXIRequest
-{
-public:
-    CXITrigger(struct fid_domain* domain) : trigger_counter(domain) {}
-
-    void start_gpu(hipStream_t* the_stream) override;
-
-    struct fid_cntr* get_libfabric_counter()
-    {
-        return trigger_counter.counter;
-    }
-
-    void print_counter()
-    {
-        trigger_counter.print();
-    }
-
-private:
-    CXICounter trigger_counter;
 };
 
 template <bool FENCE = false>
@@ -446,16 +455,13 @@ public:
         chain_work_local.op.rma  = &local_base_rma;
         chain_work_remote.op.rma = &remote_base_rma;
     }
-
-    void set_active_threshold(int threshold)
-    {
-        chain_work_remote.threshold = threshold;
-        chain_work_local.threshold  = threshold;
-        chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
-    }
-
     void queue_work(struct fid_domain* domain)
     {
+        /* Increase thresholds before starting! */
+        chain_work_remote.threshold++;
+        chain_work_local.threshold++;
+        chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
+
         check_libfabric(
             fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
         check_libfabric(
@@ -484,8 +490,14 @@ enum CommunicationType
     TWO_SIDED = 2,
 };
 
+enum GPUMemoryType
+{
+    COARSE = 1,
+    FINE   = 2,
+};
+
 template <CommunicationType MODE, GPUMemoryType G>
-class CXISend : public CXITrigger<G>, public CXIWait
+class CXISend : public CXIWait
 {
     using FI_DFWQ_TYPE =
         std::conditional_t<MODE == CommunicationType::ONE_SIDED,
@@ -497,7 +509,6 @@ public:
             struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
             fi_addr_t self)
         : CXIRequest(local_completion),
-          CXITrigger<G>(domain),
           CXIWait(),
           domain_ptr(domain),
           my_queue(dwq),
@@ -517,8 +528,9 @@ public:
         msg_iov             = {};
         msg_rma_iov         = {};
 
-        work_entry.threshold       = 0;
-        work_entry.triggering_cntr = CXITrigger<G>::get_libfabric_counter();
+        work_entry.threshold = 0;
+        /* Wait to set "work_entry.triggering_cntr" when request is enqueued. */
+
         work_entry.completion_cntr = completion_a;
         if constexpr (CommunicationType::ONE_SIDED == MODE)
         {
@@ -552,12 +564,13 @@ public:
         force_libfabric(fi_close(&completion_c->fid));
     }
 
-    void start_host() override
+    void start_host(hipStream_t* the_stream, Threshold& threshold,
+                    CXICounter& trigger_cntr) override
     {
         // Update threshold of chained things
-        work_entry.threshold = threshold;
-        // This one also set the "completion" value (address) to send
-        my_chained_completions.set_active_threshold(threshold);
+        work_entry.threshold = threshold.value();
+        // Adjust the triggering counter to use
+        work_entry.triggering_cntr = trigger_cntr.counter;
 
         // Queue up send of data
         my_queue.make_space(completion_c);
@@ -568,6 +581,9 @@ public:
         my_chained_completions.queue_work(domain_ptr);
         my_queue.consume();
     }
+
+    void start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                   CXICounter& trigger_cntr) override;
 
 private:
     // Structs for the DFWQ Entry:
@@ -612,12 +628,14 @@ public:
         force_libfabric(fi_close(&(my_mr)->fid));
     }
 
-    void start_host() override
+    void start_host(hipStream_t* the_stream, Threshold& threshold,
+                    CXICounter& trigger_cntr) override
     {
         // Do nothing
     }
 
-    void start_gpu(hipStream_t* the_stream) override
+    void start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                   CXICounter& trigger_cntr) override
     {
         // Do nothing
     }
@@ -641,6 +659,7 @@ public:
         peers.resize(size, 0);
         libfabric_setup(size);
         peer_setup(size);
+        the_gpu_counter = std::make_unique<CXICounter>(domain);
     }
 
     ~CXIQueue()
@@ -650,11 +669,18 @@ public:
 
     void enqueue_operation(std::shared_ptr<Request> qe) override
     {
-        CXIObjects& cxi_stuff = request_map.at(qe->getID());
-        cxi_stuff->start(the_stream);
+        queue_thresholds.increment_threshold();
+        enqueue_request(*qe);
+    }
 
-        // Keep track of active requests
-        active_requests.push_back(qe->getID());
+    void enqueue_startall(
+        std::vector<std::shared_ptr<Request>> requests) override
+    {
+        queue_thresholds.increment_threshold();
+        for (auto& req : requests)
+        {
+            enqueue_request(*req);
+        }
     }
 
     void enqueue_waitall() override;
@@ -687,6 +713,15 @@ private:
     void prepare_cxi_mr_key(Request&);
     void libfabric_teardown();
 
+    void inline enqueue_request(Request& req)
+    {
+        CXIObjects& cxi_stuff = request_map.at(req.getID());
+        cxi_stuff->start(the_stream, queue_thresholds, *the_gpu_counter);
+
+        // Keep track of active requests
+        active_requests.push_back(req.getID());
+    }
+
     // Persistent Libfabric objects
     struct fi_info*    fi;       /*!< Provider's data and features */
     struct fid_fabric* fabric;   /*!< Represents the network */
@@ -714,6 +749,9 @@ private:
 
     // Hip Stream
     hipStream_t* the_stream;
+    // GPU Triggerable Counter
+    std::unique_ptr<CXICounter> the_gpu_counter;
+    Threshold                   queue_thresholds;
 };
 
 #endif
