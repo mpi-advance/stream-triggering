@@ -38,7 +38,8 @@ public:
     CudaQueue(cudaStream_t*);
     ~CudaQueue();
 
-    void enqueue_operation(std::shared_ptr<Request> qe) override;
+    void enqueue_operation(std::shared_ptr<Request> req) override;
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> reqs) override;
     void enqueue_waitall() override;
     void host_wait() override;
 

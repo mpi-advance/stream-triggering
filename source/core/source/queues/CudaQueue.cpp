@@ -20,3 +20,11 @@ void CudaQueue::enqueue_operation(std::shared_ptr<Request> request)
     std::scoped_lock<std::mutex> incoming_lock(queue_guard);
     s_ongoing.push_back(cqe);
 }
+
+void CudaQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> reqs)
+{
+    for(auto& req: reqs)
+    {
+        enqueue_operation(req);
+    }
+}
