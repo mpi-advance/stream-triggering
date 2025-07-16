@@ -478,7 +478,9 @@ public:
         chain_work_local.threshold++;
         chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
 
+        print_dfwq_entry(&chain_work_remote, "Chain work remote completion");
         check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
+        print_dfwq_entry(&chain_work_local, "Chain work local completion");
         check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
     }
 
@@ -600,6 +602,7 @@ public:
 
         // Queue up send of data
         my_queue.make_space(completion_c);
+        print_dfwq_entry(&work_entry, "Send");
         force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
 
         // Queue up chained actions

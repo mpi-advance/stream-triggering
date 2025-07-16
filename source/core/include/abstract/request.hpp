@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "misc/print.hpp"
 #include "safety/mpi.hpp"
 
 namespace Communication
@@ -38,7 +39,12 @@ public:
           comm(_comm),
           info(_info),
           myID(assignID()),
-          matched(false) {};
+          matched(false)
+    {
+        int size = -1;
+        check_mpi(MPI_Type_size(_datatype, &size));
+        Print::out("Request made with address:", _buffer, size, _count);
+    };
 
     bool is_matched()
     {
