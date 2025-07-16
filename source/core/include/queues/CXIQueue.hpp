@@ -15,11 +15,33 @@
 #include <numeric>
 #include <vector>
 
+#include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 #include "misc/print.hpp"
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
+
+static inline MPI_Count get_size_of_buffer(Request& req)
+{
+    int size = -1;
+    check_mpi(MPI_Type_size(req.datatype, &size));
+    return size * req.count;
+}
+
+static inline void print_dfwq_entry(struct fi_deferred_work* dfwq_entry,
+                                    std::string              entry_name)
+{
+    Print::out("--- Start:", entry_name);
+
+    Print::out("Threshold:", dfwq_entry->threshold);
+    Print::out("Local IOVEC:", dfwq_entry->op.rma->msg.msg_iov->iov_base,
+               dfwq_entry->op.rma->msg.msg_iov->iov_len);
+    Print::out("Remote IOVEC:", dfwq_entry->op.rma->msg.rma_iov->addr,
+               dfwq_entry->op.rma->msg.rma_iov->len, dfwq_entry->op.rma->msg.rma_iov->key);
+
+    Print::out("--- End", entry_name, "---");
+}
 
 class Buffer
 {
@@ -57,7 +79,7 @@ public:
 
     size_t equalize_counter()
     {
-        size_t diff = _value - _counter_value;
+        size_t diff    = _value - _counter_value;
         _counter_value = _value;
         return diff;
     }
@@ -154,11 +176,10 @@ public:
         check_libfabric(fi_open_ops(&(counter->fid), FI_CXI_COUNTER_OPS, 0,
                                     (void**)&counter_ops, NULL));
         // Get the MMIO Address of the counter
-        check_libfabric(counter_ops->get_mmio_addr(&counter->fid, &mmio_addr,
-                                                   &mmio_addr_len));
+        check_libfabric(
+            counter_ops->get_mmio_addr(&counter->fid, &mmio_addr, &mmio_addr_len));
         // Register MMIO Address w/ HIP
-        force_hip(
-            hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
+        force_hip(hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
         // Get GPU version of MMIO address
         force_hip(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
     }
@@ -251,7 +272,7 @@ public:
             throw std::runtime_error("Out of space for completion buffer");
         if (nullptr == my_mr)
             throw std::runtime_error("Buffer is not registered with libfabric");
-        void*    x = ((char*)buffer) + (sizeof(size_t) * current_index);
+        void*    x            = ((char*)buffer) + (sizeof(size_t) * current_index);
         uint64_t offset_value = current_index * DEFAULT_ITEM_SIZE;
         current_index++;
         return Buffer(x, DEFAULT_SIZE, fi_mr_key(my_mr), offset_value);
@@ -263,7 +284,7 @@ public:
 
     static constexpr size_t DEFAULT_ITEMS     = 1000;
     static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(size_t);
-    static constexpr size_t DEFAULT_SIZE = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+    static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
 };
 
 class CXIRequest
@@ -298,22 +319,17 @@ class FakeBarrier : public CXIRequest
 {
 public:
     FakeBarrier(Buffer buffer, MPI_Comm comm, DeferredWorkQueue& dwq)
-        : CXIRequest(buffer),
-          comm_to_use(comm),
-          finished(true),
-          progress_engine(dwq)
+        : CXIRequest(buffer), comm_to_use(comm), finished(true), progress_engine(dwq)
     {
         // Setup GPU memory locations
         force_hip(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_start_location = 0;
-        force_hip(hipHostGetDevicePointer(&gpu_start_location,
-                                          host_start_location, 0));
+        force_hip(hipHostGetDevicePointer(&gpu_start_location, host_start_location, 0));
         force_hip(hipHostMalloc((void**)&host_wait_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_wait_location = 0;
-        force_hip(
-            hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
+        force_hip(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
     }
 
     ~FakeBarrier()
@@ -325,8 +341,8 @@ public:
 
     void wait_gpu(hipStream_t* the_stream) override
     {
-        force_hip(hipStreamWaitValue64(*the_stream, gpu_wait_location,
-                                       num_times_started, 0));
+        force_hip(
+            hipStreamWaitValue64(*the_stream, gpu_wait_location, num_times_started, 0));
     }
 
 protected:
@@ -347,22 +363,21 @@ protected:
         }
         /* Launch thread */
         finished = false;
-        thr = std::thread(&FakeBarrier::thread_function, this, threshold.value());
+        thr      = std::thread(&FakeBarrier::thread_function, this, threshold.value());
     }
 
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override
     {
-        force_hip(hipStreamWriteValue64(*the_stream, gpu_start_location,
-                                        threshold.value(), 0));
+        force_hip(
+            hipStreamWriteValue64(*the_stream, gpu_start_location, threshold.value(), 0));
     }
 
 private:
     void thread_function(size_t thread_threshold)
     {
         /* Wait for signal from GPU */
-        while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) <
-               thread_threshold)
+        while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) < thread_threshold)
         {
             // Do nothing
         }
@@ -401,9 +416,8 @@ template <bool FENCE = false>
 class ChainedRMA
 {
 public:
-    ChainedRMA(Buffer local_completion, Buffer remote_completion,
-               struct fid_ep* ep, fi_addr_t partner, fi_addr_t self,
-               struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
+    ChainedRMA(Buffer local_completion, struct fid_ep* ep, fi_addr_t partner,
+               fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
                struct fid_cntr* local_cntr, void** comp_desc = nullptr)
         : completion_addrs(MAX_COMP_VALUES)
     {
@@ -421,8 +435,10 @@ public:
         chain_iovec = {};
 
         // RMA Send using offsets in remote buffer (not virtual addresses)
-        local_rma_iov  = local_completion;   // Type cast of Buffer class
-        remote_rma_iov = remote_completion;  // Type cast of Buffer class
+        /* Filled in by the type cast of Buffer class */
+        local_rma_iov = local_completion;
+        /* The first and last values should be filled in by the match! */
+        remote_rma_iov = {0, CompletionBuffer::DEFAULT_ITEM_SIZE, 0};
 
         local_base_rma.ep  = ep;
         local_base_rma.msg = {
@@ -462,10 +478,18 @@ public:
         chain_work_local.threshold++;
         chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
 
-        check_libfabric(
-            fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
-        check_libfabric(
-            fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
+        check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
+        check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
+    }
+
+    uint64_t* get_rma_iov_addr_addr()
+    {
+        return &(remote_rma_iov.addr);
+    }
+
+    uint64_t* get_rma_iov_key_addr()
+    {
+        return &(remote_rma_iov.key);
     }
 
 private:
@@ -499,13 +523,11 @@ enum GPUMemoryType
 template <CommunicationType MODE, GPUMemoryType G>
 class CXISend : public CXIWait
 {
-    using FI_DFWQ_TYPE =
-        std::conditional_t<MODE == CommunicationType::ONE_SIDED,
-                           struct fi_op_rma, struct fi_op_msg>;
+    using FI_DFWQ_TYPE = std::conditional_t<MODE == CommunicationType::ONE_SIDED,
+                                            struct fi_op_rma, struct fi_op_msg>;
 
 public:
-    CXISend(Buffer local_completion, Buffer remote_completion,
-            Buffer data_buffer, struct fid_domain* domain,
+    CXISend(Buffer local_completion, Request& user_request, struct fid_domain* domain,
             struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
             fi_addr_t self)
         : CXIRequest(local_completion),
@@ -515,14 +537,9 @@ public:
           completion_a(CXICounter::alloc_counter(domain)),
           completion_b(CXICounter::alloc_counter(domain)),
           completion_c(CXICounter::alloc_counter(domain)),
-          my_chained_completions(local_completion, remote_completion, main_ep,
-                                 partner, self, completion_a, completion_b,
-                                 completion_c)
+          my_chained_completions(local_completion, main_ep, partner, self, completion_a,
+                                 completion_b, completion_c)
     {
-        // local_completion.print();
-        // remote_completion.print();
-        // data_buffer.print();
-
         work_entry          = {};
         message_description = {};
         msg_iov             = {};
@@ -544,8 +561,10 @@ public:
         }
         work_entry.op.rma = &message_description;
 
-        msg_iov     = {data_buffer.address, data_buffer.len};
-        msg_rma_iov = {0, data_buffer.len, data_buffer.mr_key};
+        auto data_len = static_cast<size_t>(get_size_of_buffer(user_request));
+        msg_iov       = {user_request.buffer, data_len};
+        /* Last field will be filled in by the match! */
+        msg_rma_iov = {0, data_len, 0};
 
         message_description.ep            = main_ep;
         message_description.msg.msg_iov   = &msg_iov;
@@ -554,6 +573,13 @@ public:
         // No harm in doing this if mode is not one_sided
         message_description.msg.rma_iov       = &msg_rma_iov;
         message_description.msg.rma_iov_count = 1;
+
+        /* Start requests to get data from peer */
+        std::vector<uint64_t*> matching_data(3);
+        matching_data.at(0) = &msg_rma_iov.key;
+        matching_data.at(1) = my_chained_completions.get_rma_iov_key_addr();
+        matching_data.at(2) = my_chained_completions.get_rma_iov_addr_addr();
+        Communication::OneSideMatch::take(matching_data, user_request);
     }
 
     ~CXISend()
@@ -574,8 +600,7 @@ public:
 
         // Queue up send of data
         my_queue.make_space(completion_c);
-        force_libfabric(
-            fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+        force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
 
         // Queue up chained actions
         my_chained_completions.queue_work(domain_ptr);
@@ -606,20 +631,27 @@ private:
 class CXIRecvOneSided : public CXIWait
 {
 public:
-    CXIRecvOneSided(Buffer& comp_buffer, Buffer& data_buffer,
-                    struct fid_domain* domain, struct fid_ep* main_ep)
+    CXIRecvOneSided(Buffer& comp_buffer, Request& user_request, struct fid_domain* domain,
+                    struct fid_ep* main_ep)
         : CXIRequest(comp_buffer)
     {
         uint64_t recv_key_requested = getMRID();
 
-        force_libfabric(fi_mr_reg(domain, data_buffer.address, data_buffer.len,
-                                  FI_REMOTE_WRITE, 0, recv_key_requested,
-                                  FI_MR_ALLOCATED, &my_mr, NULL));
+        force_libfabric(fi_mr_reg(domain, user_request.buffer,
+                                  get_size_of_buffer(user_request), FI_REMOTE_WRITE, 0,
+                                  recv_key_requested, FI_MR_ALLOCATED, &my_mr, NULL));
         force_libfabric(fi_mr_bind(my_mr, &(main_ep)->fid, 0));
 
         // Enable MR
         force_libfabric(fi_mr_enable(my_mr));
-        data_buffer.mr_key = fi_mr_key(my_mr);
+        mr_key_storage = fi_mr_key(my_mr);
+
+        // Start match process
+        std::vector<uint64_t*> matching_data(3);
+        matching_data.at(0) = &mr_key_storage;
+        matching_data.at(1) = &completion_buffer.mr_key;
+        matching_data.at(2) = &completion_buffer.offset;
+        Communication::OneSideMatch::give(matching_data, user_request);
     }
 
     ~CXIRecvOneSided()
@@ -643,6 +675,7 @@ public:
 private:
     // Allocated Libfabric Objects
     struct fid_mr* my_mr;
+    uint64_t       mr_key_storage;
 };
 
 class CXIQueue : public Queue
@@ -673,8 +706,7 @@ public:
         enqueue_request(*qe);
     }
 
-    void enqueue_startall(
-        std::vector<std::shared_ptr<Request>> requests) override
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
         queue_thresholds.increment_threshold();
         for (auto& req : requests)
@@ -698,8 +730,7 @@ public:
             Buffer blank(qe->buffer, 0, 0, 0);
             /* Add request to map */
             request_map.insert(std::make_pair(
-                qe->getID(),
-                std::make_unique<FakeBarrier>(blank, qe->comm, my_queue)));
+                qe->getID(), std::make_unique<FakeBarrier>(blank, qe->comm, my_queue)));
         }
         else
         {

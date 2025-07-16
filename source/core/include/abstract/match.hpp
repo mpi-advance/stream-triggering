@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "abstract/request.hpp"
 #include "misc/print.hpp"
 #include "safety/mpi.hpp"
 
@@ -12,13 +13,11 @@ namespace Communication
 class BlankMatch
 {
 public:
-    static constexpr int MATCH_TAG = 4200;
-
-    static void match(int peer_rank, MPI_Comm comm = MPI_COMM_WORLD)
+    static void match(int peer_rank, int tag, MPI_Request* request,
+                      MPI_Comm comm = MPI_COMM_WORLD)
     {
-        check_mpi(MPI_Sendrecv(nullptr, 0, MPI_BYTE, peer_rank, MATCH_TAG,
-                               nullptr, 0, MPI_BYTE, peer_rank, MATCH_TAG, comm,
-                               MPI_STATUS_IGNORE));
+        check_mpi(MPI_Irecv(nullptr, 0, MPI_BYTE, peer_rank, tag, comm, request));
+        check_mpi(MPI_Send(nullptr, 0, MPI_BYTE, peer_rank, tag, comm));
     }
 };
 
@@ -43,53 +42,37 @@ constexpr MPI_Datatype type_to_use()
     }
 }
 
-class ExchangeMatch
-{
-public:
-    static constexpr int MATCH_TAG = 4211;
-
-    template <typename T>
-    static std::vector<T> match(std::vector<T>& data_to_exchange, int peer_rank,
-                                MPI_Comm comm = MPI_COMM_WORLD)
-    {
-        std::vector<T> data_to_recv(data_to_exchange.size());
-
-        MPI_Datatype my_type = type_to_use<T>();
-
-        check_mpi(MPI_Sendrecv(
-            data_to_exchange.data(), data_to_exchange.size(), my_type,
-            peer_rank, MATCH_TAG, data_to_recv.data(), data_to_recv.size(),
-            my_type, peer_rank, MATCH_TAG, comm, MPI_STATUS_IGNORE));
-
-        return data_to_recv;
-    }
-};
-
 class OneSideMatch
 {
 public:
-    static constexpr int MATCH_TAG = 4222;
-
     template <typename T>
-    static void give(std::vector<T>& data_to_exchange, int peer_rank,
-              MPI_Comm comm = MPI_COMM_WORLD)
+    static void give(std::vector<T*>& data_to_exchange, Request& req)
     {
-        MPI_Datatype my_type = type_to_use<T>();
+        constexpr MPI_Datatype my_type = type_to_use<T>();
 
-        check_mpi(MPI_Ssend(data_to_exchange.data(), data_to_exchange.size(),
-                            my_type, peer_rank, MATCH_TAG, comm));
+        MPI_Request* mpi_requests = req.get_match_requests(3);
+
+        check_mpi(MPI_Isend(data_to_exchange[0], 1, my_type, req.peer, req.tag, req.comm,
+                            &mpi_requests[0]));
+        check_mpi(MPI_Isend(data_to_exchange[1], 1, my_type, req.peer, req.tag, req.comm,
+                            &mpi_requests[1]));
+        check_mpi(MPI_Issend(data_to_exchange[2], 1, my_type, req.peer, req.tag, req.comm,
+                             &mpi_requests[2]));
     }
 
     template <typename T>
-    static std::vector<T> take(size_t num_elems, int peer_rank,
-                        MPI_Comm comm = MPI_COMM_WORLD)
+    static void take(std::vector<T*>& data_to_exchange, Request& req)
     {
-        std::vector<T> recv_data(num_elems);
-        MPI_Datatype   my_type = type_to_use<T>();
+        constexpr MPI_Datatype my_type = type_to_use<T>();
 
-        check_mpi(MPI_Recv(recv_data.data(), recv_data.size(), my_type,
-                           peer_rank, MATCH_TAG, comm, MPI_STATUS_IGNORE));
-        return recv_data;
+        MPI_Request* mpi_requests = req.get_match_requests(3);
+
+        check_mpi(MPI_Irecv(data_to_exchange[0], 1, my_type, req.peer, req.tag, req.comm,
+                            &mpi_requests[0]));
+        check_mpi(MPI_Irecv(data_to_exchange[1], 1, my_type, req.peer, req.tag, req.comm,
+                            &mpi_requests[1]));
+        check_mpi(MPI_Irecv(data_to_exchange[2], 1, my_type, req.peer, req.tag, req.comm,
+                            &mpi_requests[2]));
     }
 };
 

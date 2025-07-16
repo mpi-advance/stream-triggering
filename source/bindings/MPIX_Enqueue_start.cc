@@ -3,13 +3,15 @@
 
 extern "C" {
 
-int MPIS_Enqueue_start(MPIS_Queue queue, MPIS_Request request)
+int MPIS_Enqueue_start(MPIS_Queue queue, MPIS_Request* request)
 {
     using namespace Communication;
-    Queue*                   the_queue   = (Queue*)(queue);
-    std::shared_ptr<Request> the_request = convert_request(request);
+    Queue* the_queue = (Queue*)(queue);
 
-    the_queue->enqueue_operation(the_request);
+    std::shared_ptr<Request>* internal_request =
+        convert_request_ptr(request, RequestState::MATCHED);
+
+    the_queue->enqueue_operation(*internal_request);
 
     return MPIS_SUCCESS;
 }

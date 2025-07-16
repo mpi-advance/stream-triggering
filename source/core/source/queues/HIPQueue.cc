@@ -1,6 +1,5 @@
 #include "queues/HIPQueue.hpp"
 
-#include "abstract/match.hpp"
 #include "misc/print.hpp"
 #include "safety/hip.hpp"
 #include "safety/mpi.hpp"

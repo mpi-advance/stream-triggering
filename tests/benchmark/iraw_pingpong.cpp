@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
     // Make requests
     MPIS_Request my_reqs[2];
     MPIS_Request my_other_reqs[2];
-    // MPIS_Request queue_reqs[2]; TODO
+    MPIS_Request match_reqs[2];
     int offset = sizeof(int) * BUFFER_SIZE;
     if (0 == rank % 2)
     {
@@ -90,10 +90,9 @@ int main(int argc, char* argv[])
                        MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
     }
 
-    MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[1], MPI_STATUS_IGNORE);
+    MPIS_Matchall(2, my_reqs, MPI_STATUS_IGNORE);
+    MPIS_Imatch(&my_other_reqs[0], &match_reqs[0]);
+    MPIS_Imatch(&my_other_reqs[1], &match_reqs[1]);
     MPI_Barrier(MPI_COMM_WORLD);
 
     void* active_send_buffer = send_buf;
