@@ -117,10 +117,14 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
         char          value[string_size];
         int           flag = 0;
         // Pre MPI-4.0
-        force_mpi(MPI_Info_get(req.info, info_key, string_size, value, &flag));
+        if (MPI_INFO_NULL != req.info)
+        {
+            force_mpi(MPI_Info_get(req.info, info_key, string_size, value, &flag));
+        }
 
         if (0 == strcmp(value, "COARSE"))
         {
+            Print::out("Using coarse-grained memory!");
             using SendType = CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::COARSE>;
             converted_request =
                 std::make_unique<SendType>(local_completion, req, domain, ep, my_queue,
@@ -128,6 +132,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
         }
         else
         {
+            Print::out("Assuming fine-grained memory!");
             using SendType = CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::FINE>;
             converted_request =
                 std::make_unique<SendType>(local_completion, req, domain, ep, my_queue,
