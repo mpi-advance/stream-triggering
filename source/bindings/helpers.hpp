@@ -5,9 +5,8 @@
 #include <type_traits>
 
 #include "abstract/request.hpp"
-#include "stream-triggering.h"
-
 #include "misc/print.hpp"
+#include "stream-triggering.h"
 
 enum RequestState
 {
@@ -31,6 +30,16 @@ struct MPISException : public std::runtime_error
 
     int code;
 };
+
+static inline void init_debugs()
+{
+    // #ifndef NDEBUG
+    //  Setup printing rank
+    int rank = -1;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    Print::initialize_rank(rank);
+    // #endif
+}
 
 // Functions for extracting C++ request from C type (if it's correct request
 // type)

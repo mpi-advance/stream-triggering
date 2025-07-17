@@ -689,6 +689,7 @@ public:
     CXIQueue(hipStream_t* stream_addr)
         : comm_base(MPI_COMM_WORLD), the_stream(stream_addr)
     {
+        Print::out("CXI Queue init-ed");
         int size;
         force_mpi(MPI_Comm_size(comm_base, &size));
         force_mpi(MPI_Comm_rank(comm_base, &my_rank));

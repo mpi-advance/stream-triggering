@@ -20,7 +20,10 @@ public:
     using InternalRequest = QueueEntry;
     using UserRequest     = std::shared_ptr<Request>;
 
-    ThreadQueue() : thr(&ThreadQueue::progress, this) {}
+    ThreadQueue() : thr(&ThreadQueue::progress, this)
+    {
+        Print::out("Thread Queue init-ed");
+    }
     ~ThreadQueue()
     {
         shutdown = true;
@@ -40,7 +43,7 @@ public:
 
     void enqueue_startall(std::vector<UserRequest> requests) override
     {
-        for(auto& req: requests)
+        for (auto& req : requests)
         {
             enqueue_operation(req);
         }
