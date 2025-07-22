@@ -38,6 +38,7 @@ static inline void init_debugs()
     int rank = -1;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     Print::initialize_rank(rank);
+    Print::out("Initialized");
     // #endif
 }
 

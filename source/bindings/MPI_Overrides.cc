@@ -3,7 +3,7 @@
 #include "helpers.hpp"
 #ifdef USE_CXI
 #include "safety/hip.hpp"
-#endif 
+#endif
 
 extern "C" {
 #ifdef USE_CXI
@@ -19,6 +19,8 @@ int MPI_Init_thread(int* argc, char*** argv, int required, int* provided)
 
 int MPI_Init(int* argc, char*** argv)
 {
+    force_hip(hipInit(0));
+    force_hip(hipSetDevice(6));
     int error_code = PMPI_Init(argc, argv);
     init_debugs();
     return error_code;

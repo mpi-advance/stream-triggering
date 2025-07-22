@@ -505,7 +505,7 @@ private:
 
     struct iovec chain_iovec;
 
-    static constexpr int MAX_COMP_VALUES = 16384;
+    static constexpr int MAX_COMP_VALUES = 100000;
     int                  index           = 0;
     std::vector<int>     completion_addrs;
 };
