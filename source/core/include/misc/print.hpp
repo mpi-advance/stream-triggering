@@ -5,7 +5,7 @@
 
 namespace Print
 {
-inline int rank = -1;
+inline int rank = -10;
 
 inline void initialize_rank(int new_rank)
 {
