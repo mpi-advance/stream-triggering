@@ -1,4 +1,6 @@
 #include <mpi.h>
+#include <iostream>
+
 
 #include "helpers.hpp"
 #ifdef USE_CXI
@@ -24,5 +26,10 @@ int MPI_Init(int* argc, char*** argv)
     int error_code = PMPI_Init(argc, argv);
     init_debugs();
     return error_code;
+}
+
+void MPIS_Hello_world()
+{
+    std::cout << "Hello world!" << std::endl;
 }
 }

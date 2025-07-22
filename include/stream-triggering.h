@@ -33,6 +33,9 @@ enum MPIS_Queue_type
 
 extern MPIS_Queue ACTIVE_QUEUE;
 
+
+void MPIS_Hello_world();
+
 // APIs from 7/25/24
 
 /* Queue Management */
