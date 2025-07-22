@@ -30,6 +30,8 @@ int MPI_Init(int* argc, char*** argv)
 
 void MPIS_Hello_world()
 {
-    std::cout << "Hello world!" << std::endl;
+    force_hip(hipInit(0));
+    force_hip(hipSetDevice(6));
+    init_debugs();
 }
 }
