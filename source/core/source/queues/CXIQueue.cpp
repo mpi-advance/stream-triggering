@@ -210,6 +210,7 @@ void CXIQueue::enqueue_waitall()
 {
     for (auto req : active_requests)
     {
+        Print::out("Waiting on request:", req);
         request_map.at(req)->wait_gpu(the_stream);
     }
     active_requests.clear();
