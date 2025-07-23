@@ -43,7 +43,7 @@ public:
     {
         int size = -1;
         check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out("Request made with address:", _buffer, size, _count);
+        Print::out("Request made with address, size, count, tag, and ID:", _buffer, size, _count, tag, myID);
     };
 
     bool is_matched()

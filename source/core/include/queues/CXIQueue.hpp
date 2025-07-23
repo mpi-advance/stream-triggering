@@ -750,6 +750,7 @@ private:
 
     void inline enqueue_request(Request& req)
     {
+        Print::out("Staring request:", req.getID());
         CXIObjects& cxi_stuff = request_map.at(req.getID());
         cxi_stuff->start(the_stream, queue_thresholds, *the_gpu_counter);
 

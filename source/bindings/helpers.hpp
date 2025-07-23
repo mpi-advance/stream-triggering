@@ -8,6 +8,10 @@
 #include "misc/print.hpp"
 #include "stream-triggering.h"
 
+#ifdef USE_CXI
+#include "safety/hip.hpp"
+#endif
+
 enum RequestState
 {
     ONGOING   = -1,
@@ -40,6 +44,14 @@ static inline void init_debugs()
     Print::initialize_rank(rank);
     Print::out("Initialized");
     // #endif
+}
+
+static inline void init_device()
+{
+#ifdef USE_GFX90A
+    force_hip(hipInit(0));
+    force_hip(hipSetDevice(6));
+#endif
 }
 
 // Functions for extracting C++ request from C type (if it's correct request
