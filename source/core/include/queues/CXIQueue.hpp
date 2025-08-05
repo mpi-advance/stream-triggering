@@ -38,7 +38,8 @@ static inline void print_dfwq_entry(struct fi_deferred_work* dfwq_entry,
     Print::out("Local IOVEC:", dfwq_entry->op.rma->msg.msg_iov->iov_base,
                dfwq_entry->op.rma->msg.msg_iov->iov_len);
     Print::out("Remote IOVEC:", dfwq_entry->op.rma->msg.rma_iov->addr,
-               dfwq_entry->op.rma->msg.rma_iov->len, dfwq_entry->op.rma->msg.rma_iov->key);
+               dfwq_entry->op.rma->msg.rma_iov->len,
+               dfwq_entry->op.rma->msg.rma_iov->key);
 
     Print::out("--- End", entry_name, "---");
 }
@@ -105,6 +106,7 @@ public:
 
     void regsiter_counter(struct fid_cntr* p_cntr)
     {
+        Print::out("Currently in use:", space_used);
         progress_cntr = p_cntr;
     }
 
@@ -113,29 +115,29 @@ public:
         space_used++;
     }
 
+    void clear_counter(struct fid_cntr* completion_cntr, uint64_t max_threshold)
+    {
+        Print::out("Clearing counter");
+        uint64_t last_value = get_last_known_counter_value(completion_cntr);
+        uint64_t new_value  = progress_until(completion_cntr, max_threshold);
+        Print::out("Space used before clearing:", space_used);
+        space_used -= (new_value - last_value);
+        Print::out("Space used after clearing:", space_used);
+        known_completion_map.erase(completion_cntr);
+    }
+
     void make_space(struct fid_cntr* completion_cntr, uint64_t space_amount = 1)
     {
+        Print::out("Asked to make space:", space_amount, space_used);
         if ((space_used + space_amount) >= total_space)
         {
-            uint64_t last_value = 0;
-            if (known_completion_map.contains(completion_cntr))
-            {
-                last_value = known_completion_map.at(completion_cntr);
-            }
-            else
-            {
-                known_completion_map.insert({completion_cntr, 0});
-            }
-
-            uint64_t curr_completed = fi_cntr_read(completion_cntr);
-            while ((curr_completed - last_value) < space_amount)
-            {
-                progress();
-                curr_completed = fi_cntr_read(completion_cntr);
-            }
-
-            space_used -= (curr_completed - last_value);
-            known_completion_map.at(completion_cntr) = curr_completed;
+            uint64_t last_value = get_last_known_counter_value(completion_cntr);
+            uint64_t desired = last_value + space_amount;
+            uint64_t new_comp_value = progress_until(completion_cntr,desired);
+            known_completion_map.at(completion_cntr) = new_comp_value;
+            Print::out("Space used before making space:", space_used);
+            space_used -= (new_comp_value - last_value);
+            Print::out("Space used after making space:", space_used);
         }
     }
 
@@ -145,6 +147,33 @@ public:
     }
 
 private:
+    inline uint64_t get_last_known_counter_value(struct fid_cntr* cntr)
+    {
+        uint64_t last_value = 0;
+        if (known_completion_map.contains(cntr))
+        {
+            last_value = known_completion_map.at(cntr);
+        }
+        else
+        {
+            known_completion_map.insert({cntr, 0});
+        }
+        return last_value;
+    }
+
+    uint64_t progress_until(struct fid_cntr* cntr, uint64_t desired)
+    {
+        uint64_t curr_completed = fi_cntr_read(cntr);
+        Print::out("Aiming for:", desired, "at:", curr_completed);
+        while (curr_completed < desired)
+        {
+            progress();
+            curr_completed = fi_cntr_read(cntr);
+        }
+        Print::out("Ended up with:", curr_completed);
+        return curr_completed;
+    }
+
     // Control of DFWQ Space
     const uint64_t total_space = 84;
     uint64_t       space_used  = 0;
@@ -478,9 +507,9 @@ public:
         chain_work_local.threshold++;
         chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
 
-        print_dfwq_entry(&chain_work_remote, "Chain work remote completion");
+        // print_dfwq_entry(&chain_work_remote, "Chain work remote completion");
         check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
-        print_dfwq_entry(&chain_work_local, "Chain work local completion");
+        // print_dfwq_entry(&chain_work_local, "Chain work local completion");
         check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
     }
 
@@ -492,6 +521,11 @@ public:
     uint64_t* get_rma_iov_key_addr()
     {
         return &(remote_rma_iov.key);
+    }
+
+    uint64_t get_threshold()
+    {
+        return chain_work_remote.threshold;
     }
 
 private:
@@ -586,6 +620,7 @@ public:
 
     ~CXISend()
     {
+        my_queue.clear_counter(completion_c, my_chained_completions.get_threshold());
         // Free counter
         force_libfabric(fi_close(&completion_a->fid));
         force_libfabric(fi_close(&completion_b->fid));
@@ -602,7 +637,7 @@ public:
 
         // Queue up send of data
         my_queue.make_space(completion_c);
-        print_dfwq_entry(&work_entry, "Send");
+        // print_dfwq_entry(&work_entry, "Send");
         force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
 
         // Queue up chained actions
@@ -723,6 +758,7 @@ public:
 
     void host_wait() override
     {
+        Print::out("Waiting on device!");
         force_hip(hipStreamSynchronize(*the_stream));
     }
 

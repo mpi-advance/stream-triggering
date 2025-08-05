@@ -52,7 +52,7 @@ public:
 
         MPI_Request* mpi_requests = req.get_match_requests(3);
 
-        Print::out(" (Recv) Matching with:", req.peer, "and tag", req.tag);
+        Print::out("(Recv) Matching with:", req.peer, "and tag", req.tag);
         check_mpi(MPI_Isend(data_to_exchange[0], 1, my_type, req.peer, req.tag, req.comm,
                             &mpi_requests[0]));
         check_mpi(MPI_Isend(data_to_exchange[1], 1, my_type, req.peer, req.tag, req.comm,

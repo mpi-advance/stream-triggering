@@ -4,15 +4,16 @@ int main(int argc, char* argv[])
 {
     int mode;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+    // MPI_Init(&argc, &argv);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // I want "two params"
-    check_param_size(&argc, 2,
-                     "<program> <number of iterations> <buffer size>");
+    check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
 
     // Input parameters
+    int num_warmups = 10;
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
     read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
@@ -26,8 +27,7 @@ int main(int argc, char* argv[])
     allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE);
     allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE);
 
-    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
-                                             BUFFER_SIZE);
+    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
     device_sync();
 
 #if defined(NEED_HIP)
@@ -56,7 +56,8 @@ int main(int argc, char* argv[])
 #ifndef FINE_GRAINED_TEST
     MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
 #else
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
+    // MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
+    mem_info = MPI_INFO_NULL;
 #endif
 
 #define SEND_REQ (rank ^ 1)
@@ -67,17 +68,17 @@ int main(int argc, char* argv[])
     // MPIS_Request queue_reqs[2]; TODO
     if (0 == rank % 2)
     {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[SEND_REQ]);
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[RECV_REQ]);
     }
     else
     {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[RECV_REQ]);
+        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[SEND_REQ]);
     }
 
     MPIS_Request barrier_req;
@@ -87,56 +88,62 @@ int main(int argc, char* argv[])
     MPIS_Match(my_reqs[1]);
     MPIS_Match(barrier_req);
 
+    auto do_cycles = [&](int num_cycles) {
+        for (int i = 0; i < num_cycles; i++)
+        {
+            if (0 == rank)
+            {
+#ifdef THREAD_BACKEND
+                MPIS_Queue_wait(my_queue);
+#endif
+                // Ping side
+                pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)send_buf,
+                                                                      BUFFER_SIZE, i);
+#ifdef THREAD_BACKEND
+                check_gpu(hipDeviceSynchronize());
+#endif
+                MPIS_Enqueue_startall(my_queue, 2, my_reqs);
+                MPIS_Enqueue_waitall(my_queue);
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                //     (int*)recv_buf, BUFFER_SIZE, i, rank);
+            }
+            else
+            {
+                MPIS_Enqueue_start(my_queue, my_reqs[RECV_REQ]);
+                MPIS_Enqueue_waitall(my_queue);
+#ifdef THREAD_BACKEND
+                MPIS_Queue_wait(my_queue);
+#endif
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                //     (int*)recv_buf, BUFFER_SIZE, i, rank);
+                pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                    (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
+#ifdef THREAD_BACKEND
+                check_gpu(hipDeviceSynchronize());
+#endif
+                MPIS_Enqueue_start(my_queue, my_reqs[SEND_REQ]);
+                MPIS_Enqueue_waitall(my_queue);
+            }
+
+            MPIS_Enqueue_start(my_queue, barrier_req);
+        }
+
+        // std::cout << rank << " at final wait!" << std::endl;
+
+        MPIS_Enqueue_waitall(my_queue);
+        MPIS_Queue_wait(my_queue);
+    };
+
+    do_cycles(num_warmups);
+    MPI_Barrier(MPI_COMM_WORLD);
     double start = MPI_Wtime();
-    for (int i = 0; i < num_iters; i++)
-    {
-        if (0 == rank)
-        {
-#ifdef THREAD_BACKEND
-            MPIS_Queue_wait(my_queue);
-#endif
-            // Ping side
-            pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)send_buf, BUFFER_SIZE, i);
-#ifdef THREAD_BACKEND
-            check_gpu(hipDeviceSynchronize());
-#endif
-            MPIS_Enqueue_startall(my_queue, 2, my_reqs);
-            MPIS_Enqueue_waitall(my_queue);
-            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //     (int*)recv_buf, BUFFER_SIZE, i, rank);
-        }
-        else
-        {
-            MPIS_Enqueue_start(my_queue, my_reqs[RECV_REQ]);
-            MPIS_Enqueue_waitall(my_queue);
-#ifdef THREAD_BACKEND
-            MPIS_Queue_wait(my_queue);
-#endif
-            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //     (int*)recv_buf, BUFFER_SIZE, i, rank);
-            pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
-#ifdef THREAD_BACKEND
-            check_gpu(hipDeviceSynchronize());
-#endif
-            MPIS_Enqueue_start(my_queue, my_reqs[SEND_REQ]);
-            MPIS_Enqueue_waitall(my_queue);
-        }
-
-        MPIS_Enqueue_start(my_queue, barrier_req);
-    }
-
-    // std::cout << rank << " at final wait!" << std::endl;
-
-    MPIS_Enqueue_waitall(my_queue);
-    MPIS_Queue_wait(my_queue);
+    do_cycles(num_iters);
     double end = MPI_Wtime();
 
     // Final check
     device_sync();
-    print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-        (int*)recv_buf, BUFFER_SIZE, num_iters - 1, rank);
+    print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
+                                                           num_iters - 1, rank);
     device_sync();
 
     // Cleanup
