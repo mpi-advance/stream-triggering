@@ -15,11 +15,34 @@
 #include <numeric>
 #include <vector>
 
+#include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 #include "misc/print.hpp"
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
+
+static inline MPI_Count get_size_of_buffer(Request& req)
+{
+    int size = -1;
+    check_mpi(MPI_Type_size(req.datatype, &size));
+    return size * req.count;
+}
+
+static inline void print_dfwq_entry(struct fi_deferred_work* dfwq_entry,
+                                    std::string              entry_name)
+{
+    Print::out("--- Start:", entry_name);
+
+    Print::out("Threshold:", dfwq_entry->threshold);
+    Print::out("Local IOVEC:", dfwq_entry->op.rma->msg.msg_iov->iov_base,
+               dfwq_entry->op.rma->msg.msg_iov->iov_len);
+    Print::out("Remote IOVEC:", dfwq_entry->op.rma->msg.rma_iov->addr,
+               dfwq_entry->op.rma->msg.rma_iov->len,
+               dfwq_entry->op.rma->msg.rma_iov->key);
+
+    Print::out("--- End", entry_name, "---");
+}
 
 class Buffer
 {
@@ -57,7 +80,7 @@ public:
 
     size_t equalize_counter()
     {
-        size_t diff = _value - _counter_value;
+        size_t diff    = _value - _counter_value;
         _counter_value = _value;
         return diff;
     }
@@ -81,39 +104,57 @@ class DeferredWorkQueue
 public:
     DeferredWorkQueue() = default;
 
-    void regsiter_counter(struct fid_cntr* p_cntr)
+    void register_progress_counter(struct fid_cntr* p_cntr)
     {
+        Print::out("Currently in use:", space_used);
         progress_cntr = p_cntr;
+    }
+
+    void register_completion_counter(struct fid_cntr* c_cntr)
+    {
+        if (!known_completion_map.contains(c_cntr))
+        {
+            Print::out("Adding completion counter:", c_cntr);
+            known_completion_map.insert({c_cntr, 0});
+        }
     }
 
     void consume()
     {
+        Print::out("*** Consumed");
         space_used++;
     }
 
-    void make_space(struct fid_cntr* completion_cntr, uint64_t space_amount = 1)
+    void clear_completion_counter(struct fid_cntr* completion_cntr,
+                                  uint64_t         max_threshold)
     {
-        if ((space_used + space_amount) >= total_space)
-        {
-            uint64_t last_value = 0;
-            if (known_completion_map.contains(completion_cntr))
-            {
-                last_value = known_completion_map.at(completion_cntr);
-            }
-            else
-            {
-                known_completion_map.insert({completion_cntr, 0});
-            }
+        Print::out("Clearing counter to:", max_threshold);
+        uint64_t last_value = known_completion_map.at(completion_cntr);
+        Print::out("[Counter, space] used before clearing:", last_value, space_used);
 
-            uint64_t curr_completed = fi_cntr_read(completion_cntr);
-            while ((curr_completed - last_value) < space_amount)
+        uint64_t new_value = fi_cntr_read(completion_cntr);
+        while (new_value != max_threshold)
+        {
+            progress();
+            new_value = fi_cntr_read(completion_cntr);
+        }
+
+        // Cleanup
+        space_used -= (new_value - last_value);
+        Print::out("[Counter, space] used after clearing:", new_value, space_used);
+        known_completion_map.erase(completion_cntr);
+    }
+
+    void make_space(struct fid_cntr* completion_cntr)
+    {
+        Print::out("*** Asked to make space at", space_used);
+        if ((space_used + 1) >= total_space)
+        {
+            while ((space_used + 1) >= total_space)
             {
                 progress();
-                curr_completed = fi_cntr_read(completion_cntr);
+                update_space_free();
             }
-
-            space_used -= (curr_completed - last_value);
-            known_completion_map.at(completion_cntr) = curr_completed;
         }
     }
 
@@ -122,7 +163,29 @@ public:
         return fi_cntr_read(progress_cntr);
     }
 
+    void print_status()
+    {
+        Print::always("Space in use:", space_used);
+    }
+
 private:
+    inline void update_space_free()
+    {
+        for (auto& [counter, value] : known_completion_map)
+        {
+            uint64_t last_value = value;
+            uint64_t curr_value = fi_cntr_read(counter);
+            if (curr_value != last_value)
+            {
+                Print::out("*** Counter", counter, "was updated from", last_value, "to",
+                           curr_value);
+                space_used -= (curr_value - last_value);
+                Print::out("*** Space in use:", space_used);
+                value = curr_value;
+            }
+        }
+    }
+
     // Control of DFWQ Space
     const uint64_t total_space = 84;
     uint64_t       space_used  = 0;
@@ -154,11 +217,10 @@ public:
         check_libfabric(fi_open_ops(&(counter->fid), FI_CXI_COUNTER_OPS, 0,
                                     (void**)&counter_ops, NULL));
         // Get the MMIO Address of the counter
-        check_libfabric(counter_ops->get_mmio_addr(&counter->fid, &mmio_addr,
-                                                   &mmio_addr_len));
+        check_libfabric(
+            counter_ops->get_mmio_addr(&counter->fid, &mmio_addr, &mmio_addr_len));
         // Register MMIO Address w/ HIP
-        force_hip(
-            hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
+        force_hip(hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
         // Get GPU version of MMIO address
         force_hip(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
     }
@@ -251,7 +313,7 @@ public:
             throw std::runtime_error("Out of space for completion buffer");
         if (nullptr == my_mr)
             throw std::runtime_error("Buffer is not registered with libfabric");
-        void*    x = ((char*)buffer) + (sizeof(size_t) * current_index);
+        void*    x            = ((char*)buffer) + (sizeof(size_t) * current_index);
         uint64_t offset_value = current_index * DEFAULT_ITEM_SIZE;
         current_index++;
         return Buffer(x, DEFAULT_SIZE, fi_mr_key(my_mr), offset_value);
@@ -263,14 +325,16 @@ public:
 
     static constexpr size_t DEFAULT_ITEMS     = 1000;
     static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(size_t);
-    static constexpr size_t DEFAULT_SIZE = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+    static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
 };
 
 class CXIRequest
 {
 public:
-    CXIRequest(Buffer local_completion_buffer)
-        : completion_buffer(local_completion_buffer), num_times_started(0)
+    CXIRequest(GPUMemoryType _memory_type, Buffer local_completion_buffer)
+        : memory_type(_memory_type),
+          completion_buffer(local_completion_buffer),
+          num_times_started(0)
     {
     }
     virtual ~CXIRequest() = default;
@@ -284,21 +348,28 @@ public:
 
     virtual void wait_gpu(hipStream_t* the_stream) = 0;
 
+    virtual GPUMemoryType get_gpu_memory_type()
+    {
+        return memory_type;
+    }
+
 protected:
     virtual void start_host(hipStream_t* the_stream, Threshold& threshold,
                             CXICounter& trigger_cntr) = 0;
     virtual void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                            CXICounter& trigger_cntr)  = 0;
 
-    Buffer completion_buffer;
-    size_t num_times_started;
+    GPUMemoryType memory_type;
+    Buffer        completion_buffer;
+    size_t        num_times_started;
 };
 
 class FakeBarrier : public CXIRequest
 {
 public:
+    // Uses "GPUMemoryType::FINE" because this doesn't need a flush
     FakeBarrier(Buffer buffer, MPI_Comm comm, DeferredWorkQueue& dwq)
-        : CXIRequest(buffer),
+        : CXIRequest(GPUMemoryType::FINE, buffer),
           comm_to_use(comm),
           finished(true),
           progress_engine(dwq)
@@ -307,13 +378,11 @@ public:
         force_hip(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_start_location = 0;
-        force_hip(hipHostGetDevicePointer(&gpu_start_location,
-                                          host_start_location, 0));
+        force_hip(hipHostGetDevicePointer(&gpu_start_location, host_start_location, 0));
         force_hip(hipHostMalloc((void**)&host_wait_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_wait_location = 0;
-        force_hip(
-            hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
+        force_hip(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
     }
 
     ~FakeBarrier()
@@ -325,8 +394,8 @@ public:
 
     void wait_gpu(hipStream_t* the_stream) override
     {
-        force_hip(hipStreamWaitValue64(*the_stream, gpu_wait_location,
-                                       num_times_started, 0));
+        force_hip(
+            hipStreamWaitValue64(*the_stream, gpu_wait_location, num_times_started, 0));
     }
 
 protected:
@@ -347,22 +416,21 @@ protected:
         }
         /* Launch thread */
         finished = false;
-        thr = std::thread(&FakeBarrier::thread_function, this, threshold.value());
+        thr      = std::thread(&FakeBarrier::thread_function, this, threshold.value());
     }
 
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override
     {
-        force_hip(hipStreamWriteValue64(*the_stream, gpu_start_location,
-                                        threshold.value(), 0));
+        force_hip(
+            hipStreamWriteValue64(*the_stream, gpu_start_location, threshold.value(), 0));
     }
 
 private:
     void thread_function(size_t thread_threshold)
     {
         /* Wait for signal from GPU */
-        while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) <
-               thread_threshold)
+        while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) < thread_threshold)
         {
             // Do nothing
         }
@@ -401,9 +469,8 @@ template <bool FENCE = false>
 class ChainedRMA
 {
 public:
-    ChainedRMA(Buffer local_completion, Buffer remote_completion,
-               struct fid_ep* ep, fi_addr_t partner, fi_addr_t self,
-               struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
+    ChainedRMA(Buffer local_completion, struct fid_ep* ep, fi_addr_t partner,
+               fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
                struct fid_cntr* local_cntr, void** comp_desc = nullptr)
         : completion_addrs(MAX_COMP_VALUES)
     {
@@ -421,8 +488,10 @@ public:
         chain_iovec = {};
 
         // RMA Send using offsets in remote buffer (not virtual addresses)
-        local_rma_iov  = local_completion;   // Type cast of Buffer class
-        remote_rma_iov = remote_completion;  // Type cast of Buffer class
+        /* Filled in by the type cast of Buffer class */
+        local_rma_iov = local_completion;
+        /* The first and last values should be filled in by the match! */
+        remote_rma_iov = {0, CompletionBuffer::DEFAULT_ITEM_SIZE, 0};
 
         local_base_rma.ep  = ep;
         local_base_rma.msg = {
@@ -462,10 +531,25 @@ public:
         chain_work_local.threshold++;
         chain_iovec = {&completion_addrs.at(index++), sizeof(int)};
 
-        check_libfabric(
-            fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
-        check_libfabric(
-            fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
+        // print_dfwq_entry(&chain_work_remote, "Chain work remote completion");
+        check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_remote));
+        // print_dfwq_entry(&chain_work_local, "Chain work local completion");
+        check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
+    }
+
+    uint64_t* get_rma_iov_addr_addr()
+    {
+        return &(remote_rma_iov.addr);
+    }
+
+    uint64_t* get_rma_iov_key_addr()
+    {
+        return &(remote_rma_iov.key);
+    }
+
+    uint64_t get_threshold()
+    {
+        return chain_work_remote.threshold;
     }
 
 private:
@@ -479,7 +563,7 @@ private:
 
     struct iovec chain_iovec;
 
-    static constexpr int MAX_COMP_VALUES = 16384;
+    static constexpr int MAX_COMP_VALUES = 100000;
     int                  index           = 0;
     std::vector<int>     completion_addrs;
 };
@@ -490,39 +574,27 @@ enum CommunicationType
     TWO_SIDED = 2,
 };
 
-enum GPUMemoryType
-{
-    COARSE = 1,
-    FINE   = 2,
-};
-
-template <CommunicationType MODE, GPUMemoryType G>
+template <CommunicationType MODE>
 class CXISend : public CXIWait
 {
-    using FI_DFWQ_TYPE =
-        std::conditional_t<MODE == CommunicationType::ONE_SIDED,
-                           struct fi_op_rma, struct fi_op_msg>;
+    using FI_DFWQ_TYPE = std::conditional_t<MODE == CommunicationType::ONE_SIDED,
+                                            struct fi_op_rma, struct fi_op_msg>;
 
 public:
-    CXISend(Buffer local_completion, Buffer remote_completion,
-            Buffer data_buffer, struct fid_domain* domain,
+    CXISend(Buffer local_completion, Request& user_request, struct fid_domain* domain,
             struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
             fi_addr_t self)
-        : CXIRequest(local_completion),
+        : CXIRequest(user_request.get_memory_type(), local_completion),
           CXIWait(),
           domain_ptr(domain),
           my_queue(dwq),
           completion_a(CXICounter::alloc_counter(domain)),
           completion_b(CXICounter::alloc_counter(domain)),
           completion_c(CXICounter::alloc_counter(domain)),
-          my_chained_completions(local_completion, remote_completion, main_ep,
-                                 partner, self, completion_a, completion_b,
-                                 completion_c)
+          my_chained_completions(local_completion, main_ep, partner, self, completion_a,
+                                 completion_b, completion_c)
     {
-        // local_completion.print();
-        // remote_completion.print();
-        // data_buffer.print();
-
+        my_queue.register_completion_counter(completion_c);
         work_entry          = {};
         message_description = {};
         msg_iov             = {};
@@ -544,8 +616,10 @@ public:
         }
         work_entry.op.rma = &message_description;
 
-        msg_iov     = {data_buffer.address, data_buffer.len};
-        msg_rma_iov = {0, data_buffer.len, data_buffer.mr_key};
+        auto data_len = static_cast<size_t>(get_size_of_buffer(user_request));
+        msg_iov       = {user_request.buffer, data_len};
+        /* Last field will be filled in by the match! */
+        msg_rma_iov = {0, data_len, 0};
 
         message_description.ep            = main_ep;
         message_description.msg.msg_iov   = &msg_iov;
@@ -554,10 +628,19 @@ public:
         // No harm in doing this if mode is not one_sided
         message_description.msg.rma_iov       = &msg_rma_iov;
         message_description.msg.rma_iov_count = 1;
+
+        /* Start requests to get data from peer */
+        std::vector<uint64_t*> matching_data(3);
+        matching_data.at(0) = &msg_rma_iov.key;
+        matching_data.at(1) = my_chained_completions.get_rma_iov_key_addr();
+        matching_data.at(2) = my_chained_completions.get_rma_iov_addr_addr();
+        Communication::OneSideMatch::take(matching_data, user_request);
     }
 
     ~CXISend()
     {
+        my_queue.clear_completion_counter(completion_c,
+                                          my_chained_completions.get_threshold());
         // Free counter
         force_libfabric(fi_close(&completion_a->fid));
         force_libfabric(fi_close(&completion_b->fid));
@@ -572,10 +655,20 @@ public:
         // Adjust the triggering counter to use
         work_entry.triggering_cntr = trigger_cntr.counter;
 
-        // Queue up send of data
+        // Make sure we can add at 1 iteration (3 DFWQ entries technically)
         my_queue.make_space(completion_c);
-        force_libfabric(
-            fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+
+        // print_dfwq_entry(&work_entry, "Send");
+        try
+        {
+            // Queue up send of data
+            force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+        }
+        catch (std::exception& e)
+        {
+            my_queue.print_status();
+            throw e;
+        }
 
         // Queue up chained actions
         my_chained_completions.queue_work(domain_ptr);
@@ -606,20 +699,27 @@ private:
 class CXIRecvOneSided : public CXIWait
 {
 public:
-    CXIRecvOneSided(Buffer& comp_buffer, Buffer& data_buffer,
-                    struct fid_domain* domain, struct fid_ep* main_ep)
-        : CXIRequest(comp_buffer)
+    CXIRecvOneSided(Buffer& comp_buffer, Request& user_request, struct fid_domain* domain,
+                    struct fid_ep* main_ep)
+        : CXIRequest(user_request.get_memory_type(), comp_buffer)
     {
         uint64_t recv_key_requested = getMRID();
 
-        force_libfabric(fi_mr_reg(domain, data_buffer.address, data_buffer.len,
-                                  FI_REMOTE_WRITE, 0, recv_key_requested,
-                                  FI_MR_ALLOCATED, &my_mr, NULL));
+        force_libfabric(fi_mr_reg(domain, user_request.buffer,
+                                  get_size_of_buffer(user_request), FI_REMOTE_WRITE, 0,
+                                  recv_key_requested, FI_MR_ALLOCATED, &my_mr, NULL));
         force_libfabric(fi_mr_bind(my_mr, &(main_ep)->fid, 0));
 
         // Enable MR
         force_libfabric(fi_mr_enable(my_mr));
-        data_buffer.mr_key = fi_mr_key(my_mr);
+        mr_key_storage = fi_mr_key(my_mr);
+
+        // Start match process
+        std::vector<uint64_t*> matching_data(3);
+        matching_data.at(0) = &mr_key_storage;
+        matching_data.at(1) = &completion_buffer.mr_key;
+        matching_data.at(2) = &completion_buffer.offset;
+        Communication::OneSideMatch::give(matching_data, user_request);
     }
 
     ~CXIRecvOneSided()
@@ -643,6 +743,7 @@ public:
 private:
     // Allocated Libfabric Objects
     struct fid_mr* my_mr;
+    uint64_t       mr_key_storage;
 };
 
 class CXIQueue : public Queue
@@ -653,6 +754,7 @@ public:
     CXIQueue(hipStream_t* stream_addr)
         : comm_base(MPI_COMM_WORLD), the_stream(stream_addr)
     {
+        Print::out("CXI Queue init-ed");
         int size;
         force_mpi(MPI_Comm_size(comm_base, &size));
         force_mpi(MPI_Comm_rank(comm_base, &my_rank));
@@ -664,21 +766,31 @@ public:
 
     ~CXIQueue()
     {
+        MPI_Barrier(comm_base);
         libfabric_teardown();
     }
 
     void enqueue_operation(std::shared_ptr<Request> qe) override
     {
         queue_thresholds.increment_threshold();
+        if (GPUMemoryType::COARSE == qe->get_memory_type())
+        {
+            flush_memory(the_stream);
+        }
         enqueue_request(*qe);
     }
 
-    void enqueue_startall(
-        std::vector<std::shared_ptr<Request>> requests) override
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
+        bool shouldFlush = true;
         queue_thresholds.increment_threshold();
         for (auto& req : requests)
         {
+            if (shouldFlush && GPUMemoryType::COARSE == req->get_memory_type())
+            {
+                flush_memory(the_stream);
+                shouldFlush = false;
+            }
             enqueue_request(*req);
         }
     }
@@ -687,6 +799,7 @@ public:
 
     void host_wait() override
     {
+        Print::out("Waiting on device!");
         force_hip(hipStreamSynchronize(*the_stream));
     }
 
@@ -698,8 +811,7 @@ public:
             Buffer blank(qe->buffer, 0, 0, 0);
             /* Add request to map */
             request_map.insert(std::make_pair(
-                qe->getID(),
-                std::make_unique<FakeBarrier>(blank, qe->comm, my_queue)));
+                qe->getID(), std::make_unique<FakeBarrier>(blank, qe->comm, my_queue)));
         }
         else
         {
@@ -712,14 +824,17 @@ private:
     void peer_setup(int rank);
     void prepare_cxi_mr_key(Request&);
     void libfabric_teardown();
+    void flush_memory(hipStream_t*);
 
     void inline enqueue_request(Request& req)
     {
+        Print::out("Staring request:", req.getID());
         CXIObjects& cxi_stuff = request_map.at(req.getID());
         cxi_stuff->start(the_stream, queue_thresholds, *the_gpu_counter);
 
         // Keep track of active requests
         active_requests.push_back(req.getID());
+        Print::out("... done");
     }
 
     // Persistent Libfabric objects

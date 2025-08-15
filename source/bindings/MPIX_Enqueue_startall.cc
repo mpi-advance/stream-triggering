@@ -8,9 +8,11 @@ int MPIS_Enqueue_startall(MPIS_Queue queue, int len, MPIS_Request requests[])
     Queue*                                the_queue = (Queue*)(queue);
     std::vector<std::shared_ptr<Request>> all_requests(len);
 
+    Print::out("Enqueueing",len,"requests.");
+
     for (int i = 0; i < len; ++i)
     {
-        all_requests[i] = convert_request(requests[i]);
+        all_requests[i] = *convert_request_ptr(&requests[i], RequestState::MATCHED);
     }
 
     the_queue->enqueue_startall(all_requests);

@@ -38,4 +38,6 @@ AllowShortIfStatementsOnASingleLine: Never
 IndentAccessModifiers: false
 NamespaceIndentation: None
 
+ColumnLimit: 90
+
 

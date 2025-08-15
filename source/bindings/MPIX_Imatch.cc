@@ -3,7 +3,7 @@
 
 extern "C" {
 
-int MPIS_Match(MPIS_Request* request, MPI_Status* status)
+int MPIS_Imatch(MPIS_Request* request, MPIS_Request* match_request)
 {
     using namespace Communication;
     std::shared_ptr<Request>* internal_request =
@@ -11,8 +11,11 @@ int MPIS_Match(MPIS_Request* request, MPI_Status* status)
     Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
 
     the_queue->match(*internal_request);
+
+    (*match_request) =
+        new MPIS_Request_struct{RequestState::ONGOING, (uintptr_t)(internal_request)};
+
     (*request)->state = RequestState::MATCHED;
-    (*internal_request)->wait_on_match();
 
     return MPIS_SUCCESS;
 }

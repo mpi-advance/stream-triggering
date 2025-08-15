@@ -1,6 +1,5 @@
 #include "queues/CXIQueue.hpp"
 
-#include "abstract/match.hpp"
 #include "safety/hip.hpp"
 #include "safety/libfabric.hpp"
 
@@ -14,8 +13,8 @@ void CXIQueue::libfabric_setup(int num_ranks)
     hints = fi_allocinfo();
 
     // set our requirements for the providers
-    hints->caps = FI_SHARED_AV | FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE |
-                  FI_HMEM | FI_TRIGGER;
+    hints->caps = FI_SHARED_AV | FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM |
+                  FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
     hints->ep_attr->type = FI_EP_RDM;  // Must use for connection-less
     hints->tx_attr->caps =
@@ -75,7 +74,7 @@ void CXIQueue::libfabric_setup(int num_ranks)
     my_buffer.register_mr(domain, ep);
 
     // Register progress counter
-    my_queue.regsiter_counter(recv_ctr);
+    my_queue.register_progress_counter(recv_ctr);
 }
 
 void CXIQueue::peer_setup(int size)
@@ -89,8 +88,7 @@ void CXIQueue::peer_setup(int size)
     // All other ranks
     char* all_names = new char[_array_size * size];
     memset(all_names, 0, _array_size * size * sizeof(char));
-    force_mpi(
-        MPI_Allgather(name, 4, MPI_CHAR, all_names, 4, MPI_CHAR, comm_base));
+    force_mpi(MPI_Allgather(name, 4, MPI_CHAR, all_names, 4, MPI_CHAR, comm_base));
     check_libfabric(fi_av_insert(av, all_names, size, peers.data(), 0, 0));
 
     delete[] all_names;
@@ -98,84 +96,32 @@ void CXIQueue::peer_setup(int size)
 
 void CXIQueue::prepare_cxi_mr_key(Request& req)
 {
-    MPI_Datatype the_type = req.datatype;
-    int          size     = -1;
-    check_mpi(MPI_Type_size(the_type, &size));
-    int total_size = size * req.count;
-
-    size_t req_id = req.getID();
-
+    /* New request that prepares the user's request to be enqueued later*/
+    std::unique_ptr<CXIRequest> converted_request = nullptr;
+    /* Buffer for local completion RMAs */
     Buffer local_completion = my_buffer.alloc_buffer();
-    /* The data_area buffer does not have an MR key yet,
-     * and will always have an offset of 0 since it's the user's
-     * buffer from MPI! Note that only the receiver will ever
-     * introduce an MR for this -- the sender doesn't have
-     * an MR key for the data it is sending */
-    Buffer data_area = Buffer(req.buffer, total_size, 0, 0);
 
-    /* Data exchanged (receiver sends this, sender receives this)
-     * 1. Data buffer mr key
-     * 2. Remote completion buffer mr
+    /* Data to be exchanged (receiver sends this, sender receives this)
+     * 1. MR key for receive buffer
+     * 2. Remote completion buffer mr key
      * 3. Remote completion buffer offset  */
     if (Communication::Operation::RECV == req.operation)
     {
-        /*  Will add MR key to data_buffer! */
-        std::unique_ptr<CXIRecvOneSided> temp_object =
-            std::make_unique<CXIRecvOneSided>(local_completion, data_area,
-                                              domain, ep);
-
-        std::vector<uint64_t> matching_data(3);
-        matching_data.at(0) = data_area.mr_key;
-        matching_data.at(1) = local_completion.mr_key;
-        matching_data.at(2) = local_completion.offset;
-        Communication::OneSideMatch::give(matching_data, req.peer, req.comm);
-        req.toggle_match();
-
-        request_map.insert(std::make_pair(req_id, std::move(temp_object)));
+        converted_request =
+            std::make_unique<CXIRecvOneSided>(local_completion, req, domain, ep);
     }
     else if (Communication::Operation::SEND == req.operation)
     {
-        std::vector<uint64_t> peer_mr_data =
-            Communication::OneSideMatch::take<uint64_t>(3, req.peer, req.comm);
-        req.toggle_match();
-
-        data_area.mr_key = peer_mr_data.at(0);
-        Buffer remote_completion =
-            Buffer(0, CompletionBuffer::DEFAULT_SIZE, peer_mr_data.at(1),
-                   peer_mr_data.at(2));
-
-        constexpr int string_size = 10;
-        char          info_key[]  = "MPIS_GPU_MEM_TYPE";
-        char          value[string_size];
-        int           flag = 0;
-        // Pre MPI-4.0
-        force_mpi(MPI_Info_get(req.info, info_key, string_size, value, &flag));
-
-        if (0 == strcmp(value, "COARSE"))
-        {
-            using SendType =
-                CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::COARSE>;
-            std::unique_ptr<SendType> temp_object = std::make_unique<SendType>(
-                local_completion, remote_completion, data_area, domain, ep,
-                my_queue, peers.at(req.peer), peers.at(my_rank));
-
-            request_map.insert(std::make_pair(req_id, std::move(temp_object)));
-        }
-        else
-        {
-            using SendType =
-                CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::FINE>;
-            std::unique_ptr<SendType> temp_object = std::make_unique<SendType>(
-                local_completion, remote_completion, data_area, domain, ep,
-                my_queue, peers.at(req.peer), peers.at(my_rank));
-
-            request_map.insert(std::make_pair(req_id, std::move(temp_object)));
-        }
+        converted_request = std::make_unique<CXISend<CommunicationType::ONE_SIDED>>(
+            local_completion, req, domain, ep, my_queue, peers.at(req.peer),
+            peers.at(my_rank));
     }
     else
     {
         throw std::runtime_error("Operation not supported");
     }
+
+    request_map.insert(std::make_pair(req.getID(), std::move(converted_request)));
 }
 
 void CXIQueue::libfabric_teardown()
@@ -197,8 +143,7 @@ __global__ void add_to_counter(uint64_t* cntr, size_t value)
     *cntr = value;
 }
 
-__global__ void wait_on_completion(volatile size_t* comp_addr,
-                                   size_t           goal_value)
+__global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value)
 {
     size_t curr_value = *comp_addr;
     while (curr_value < goal_value)
@@ -214,27 +159,22 @@ __global__ void flush_buffer()
 
 void CXIWait::wait_gpu(hipStream_t* the_stream)
 {
-    wait_on_completion<<<1, 1, 0, *the_stream>>>(
-        (size_t*)completion_buffer.address, num_times_started);
+    wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)completion_buffer.address,
+                                                 num_times_started);
 }
 
-template <CommunicationType MODE, GPUMemoryType G>
-void CXISend<MODE, G>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
-                                 CXICounter& trigger_cntr)
+template <CommunicationType MODE>
+void CXISend<MODE>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                              CXICounter& trigger_cntr)
 {
-    if constexpr (GPUMemoryType::COARSE == G)
-    {
-        flush_buffer<<<1, 1, 0, *the_stream>>>();
-    }
-
-    if(threshold.value() == threshold.counter_value())
+    if (threshold.value() == threshold.counter_value())
     {
         // No need to trigger counter, as eventually it should be what we want.
         return;
     }
 
-    size_t counter_bump = threshold.equalize_counter();
-    uint64_t* cntr_addr = (uint64_t*)trigger_cntr.gpu_mmio_addr;
+    size_t    counter_bump = threshold.equalize_counter();
+    uint64_t* cntr_addr    = (uint64_t*)trigger_cntr.gpu_mmio_addr;
     add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
 }
 
@@ -242,7 +182,14 @@ void CXIQueue::enqueue_waitall()
 {
     for (auto req : active_requests)
     {
+        Print::out("Waiting on request:", req);
         request_map.at(req)->wait_gpu(the_stream);
     }
     active_requests.clear();
+}
+
+void CXIQueue::flush_memory(hipStream_t* the_stream)
+{
+    Print::out("Enqueuing buffer_wbl2 kernel");
+    flush_buffer<<<1, 1, 0, *the_stream>>>();
 }
