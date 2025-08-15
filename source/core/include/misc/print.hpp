@@ -23,16 +23,23 @@ void print_out_r(const T& arg, Args&&... args)
 }
 
 template <bool UseRanks = true, typename... Args>
-void out(Args&&... args)
+void always(Args&&... args)
 {
-#ifndef NDEBUG
     if constexpr (UseRanks)
     {
         std::cout << "Rank: " << Print::rank << " - ";
     }
     print_out_r(std::forward<Args>(args)...);
+}
+
+template <bool UseRanks = true, typename... Args>
+void out(Args&&... args)
+{
+#ifndef NDEBUG
+    always<UseRanks>(std::forward<Args>(args)...);
 #endif
 }
+
 }  // namespace Print
 
 #endif

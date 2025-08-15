@@ -51,6 +51,7 @@ static inline void init_device()
 #ifdef USE_GFX90A
     force_hip(hipInit(0));
     force_hip(hipSetDevice(6));
+    Print::out("Initialized Device to 6");
 #endif
 }
 

@@ -74,7 +74,7 @@ void CXIQueue::libfabric_setup(int num_ranks)
     my_buffer.register_mr(domain, ep);
 
     // Register progress counter
-    my_queue.regsiter_counter(recv_ctr);
+    my_queue.register_progress_counter(recv_ctr);
 }
 
 void CXIQueue::peer_setup(int size)
@@ -112,32 +112,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     }
     else if (Communication::Operation::SEND == req.operation)
     {
-        constexpr int string_size = 10;
-        char          info_key[]  = "MPIS_GPU_MEM_TYPE";
-        char          value[string_size];
-        int           flag = 0;
-        // Pre MPI-4.0
-        if (MPI_INFO_NULL != req.info)
-        {
-            force_mpi(MPI_Info_get(req.info, info_key, string_size, value, &flag));
-        }
-
-        if (0 == strcmp(value, "COARSE"))
-        {
-            Print::out("Using coarse-grained memory!");
-            using SendType = CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::COARSE>;
-            converted_request =
-                std::make_unique<SendType>(local_completion, req, domain, ep, my_queue,
-                                           peers.at(req.peer), peers.at(my_rank));
-        }
-        else
-        {
-            Print::out("Assuming fine-grained memory!");
-            using SendType = CXISend<CommunicationType::ONE_SIDED, GPUMemoryType::FINE>;
-            converted_request =
-                std::make_unique<SendType>(local_completion, req, domain, ep, my_queue,
-                                           peers.at(req.peer), peers.at(my_rank));
-        }
+        converted_request = std::make_unique<CXISend<CommunicationType::ONE_SIDED>>(
+            local_completion, req, domain, ep, my_queue, peers.at(req.peer),
+            peers.at(my_rank));
     }
     else
     {
@@ -186,19 +163,14 @@ void CXIWait::wait_gpu(hipStream_t* the_stream)
                                                  num_times_started);
 }
 
-template <CommunicationType MODE, GPUMemoryType G>
-void CXISend<MODE, G>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
-                                 CXICounter& trigger_cntr)
+template <CommunicationType MODE>
+void CXISend<MODE>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                              CXICounter& trigger_cntr)
 {
     if (threshold.value() == threshold.counter_value())
     {
         // No need to trigger counter, as eventually it should be what we want.
         return;
-    }
-
-    if constexpr (GPUMemoryType::COARSE == G)
-    {
-        flush_buffer<<<1, 1, 0, *the_stream>>>();
     }
 
     size_t    counter_bump = threshold.equalize_counter();
@@ -214,4 +186,10 @@ void CXIQueue::enqueue_waitall()
         request_map.at(req)->wait_gpu(the_stream);
     }
     active_requests.clear();
+}
+
+void CXIQueue::flush_memory(hipStream_t* the_stream)
+{
+    Print::out("Enqueuing buffer_wbl2 kernel");
+    flush_buffer<<<1, 1, 0, *the_stream>>>();
 }

@@ -2,6 +2,7 @@
 #define ST_REQUEST_QUEUE
 
 #include <vector>
+#include <string.h>
 
 #include "misc/print.hpp"
 #include "safety/mpi.hpp"
@@ -14,6 +15,12 @@ enum Operation
     SEND,
     RECV,
     BARRIER
+};
+
+enum GPUMemoryType
+{
+    COARSE = 1,
+    FINE   = 2,
 };
 
 class Request
@@ -43,7 +50,29 @@ public:
     {
         int size = -1;
         check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out("Request made with address, size, count, tag, and ID:", _buffer, size, _count, tag, myID);
+        Print::out("Request made with address, size, count, tag, and ID:", _buffer, size,
+                   _count, tag, myID);
+
+        constexpr int string_size = 10;
+        char          info_key[]  = "MPIS_GPU_MEM_TYPE";
+        char          value[string_size];
+        int           flag = 0;
+        // Pre MPI-4.0
+        if (MPI_INFO_NULL != _info)
+        {
+            force_mpi(MPI_Info_get(_info, info_key, string_size, value, &flag));
+        }
+
+        if (0 == strcmp(value, "FINE"))
+        {
+            Print::out("Using fine-grained memory!");
+            memory_type = GPUMemoryType::FINE;
+        }
+        else
+        {
+            Print::out("Using coarse-grained memory!");
+            memory_type = GPUMemoryType::COARSE;
+        }
     };
 
     bool is_matched()
@@ -70,8 +99,14 @@ public:
         matched = true;
     }
 
+    GPUMemoryType get_memory_type()
+    {
+        return memory_type;
+    }
+
 protected:
     size_t                   myID;
+    GPUMemoryType            memory_type;
     std::vector<MPI_Request> match_requests;
     std::vector<MPI_Status>  match_statuses;
     bool                     matched = false;

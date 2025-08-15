@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
                 MPIS_Queue_wait(my_queue);
 #endif
                 // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                //      (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+                //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND

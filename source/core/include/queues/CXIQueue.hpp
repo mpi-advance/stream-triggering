@@ -104,40 +104,57 @@ class DeferredWorkQueue
 public:
     DeferredWorkQueue() = default;
 
-    void regsiter_counter(struct fid_cntr* p_cntr)
+    void register_progress_counter(struct fid_cntr* p_cntr)
     {
         Print::out("Currently in use:", space_used);
         progress_cntr = p_cntr;
     }
 
+    void register_completion_counter(struct fid_cntr* c_cntr)
+    {
+        if (!known_completion_map.contains(c_cntr))
+        {
+            Print::out("Adding completion counter:", c_cntr);
+            known_completion_map.insert({c_cntr, 0});
+        }
+    }
+
     void consume()
     {
+        Print::out("*** Consumed");
         space_used++;
     }
 
-    void clear_counter(struct fid_cntr* completion_cntr, uint64_t max_threshold)
+    void clear_completion_counter(struct fid_cntr* completion_cntr,
+                                  uint64_t         max_threshold)
     {
-        Print::out("Clearing counter");
-        uint64_t last_value = get_last_known_counter_value(completion_cntr);
-        uint64_t new_value  = progress_until(completion_cntr, max_threshold);
-        Print::out("Space used before clearing:", space_used);
+        Print::out("Clearing counter to:", max_threshold);
+        uint64_t last_value = known_completion_map.at(completion_cntr);
+        Print::out("[Counter, space] used before clearing:", last_value, space_used);
+
+        uint64_t new_value = fi_cntr_read(completion_cntr);
+        while (new_value != max_threshold)
+        {
+            progress();
+            new_value = fi_cntr_read(completion_cntr);
+        }
+
+        // Cleanup
         space_used -= (new_value - last_value);
-        Print::out("Space used after clearing:", space_used);
+        Print::out("[Counter, space] used after clearing:", new_value, space_used);
         known_completion_map.erase(completion_cntr);
     }
 
-    void make_space(struct fid_cntr* completion_cntr, uint64_t space_amount = 1)
+    void make_space(struct fid_cntr* completion_cntr)
     {
-        Print::out("Asked to make space:", space_amount, space_used);
-        if ((space_used + space_amount) >= total_space)
+        Print::out("*** Asked to make space at", space_used);
+        if ((space_used + 1) >= total_space)
         {
-            uint64_t last_value = get_last_known_counter_value(completion_cntr);
-            uint64_t desired = last_value + space_amount;
-            uint64_t new_comp_value = progress_until(completion_cntr,desired);
-            known_completion_map.at(completion_cntr) = new_comp_value;
-            Print::out("Space used before making space:", space_used);
-            space_used -= (new_comp_value - last_value);
-            Print::out("Space used after making space:", space_used);
+            while ((space_used + 1) >= total_space)
+            {
+                progress();
+                update_space_free();
+            }
         }
     }
 
@@ -146,32 +163,27 @@ public:
         return fi_cntr_read(progress_cntr);
     }
 
-private:
-    inline uint64_t get_last_known_counter_value(struct fid_cntr* cntr)
+    void print_status()
     {
-        uint64_t last_value = 0;
-        if (known_completion_map.contains(cntr))
-        {
-            last_value = known_completion_map.at(cntr);
-        }
-        else
-        {
-            known_completion_map.insert({cntr, 0});
-        }
-        return last_value;
+        Print::always("Space in use:", space_used);
     }
 
-    uint64_t progress_until(struct fid_cntr* cntr, uint64_t desired)
+private:
+    inline void update_space_free()
     {
-        uint64_t curr_completed = fi_cntr_read(cntr);
-        Print::out("Aiming for:", desired, "at:", curr_completed);
-        while (curr_completed < desired)
+        for (auto& [counter, value] : known_completion_map)
         {
-            progress();
-            curr_completed = fi_cntr_read(cntr);
+            uint64_t last_value = value;
+            uint64_t curr_value = fi_cntr_read(counter);
+            if (curr_value != last_value)
+            {
+                Print::out("*** Counter", counter, "was updated from", last_value, "to",
+                           curr_value);
+                space_used -= (curr_value - last_value);
+                Print::out("*** Space in use:", space_used);
+                value = curr_value;
+            }
         }
-        Print::out("Ended up with:", curr_completed);
-        return curr_completed;
     }
 
     // Control of DFWQ Space
@@ -319,8 +331,10 @@ public:
 class CXIRequest
 {
 public:
-    CXIRequest(Buffer local_completion_buffer)
-        : completion_buffer(local_completion_buffer), num_times_started(0)
+    CXIRequest(GPUMemoryType _memory_type, Buffer local_completion_buffer)
+        : memory_type(_memory_type),
+          completion_buffer(local_completion_buffer),
+          num_times_started(0)
     {
     }
     virtual ~CXIRequest() = default;
@@ -334,21 +348,31 @@ public:
 
     virtual void wait_gpu(hipStream_t* the_stream) = 0;
 
+    virtual GPUMemoryType get_gpu_memory_type()
+    {
+        return memory_type;
+    }
+
 protected:
     virtual void start_host(hipStream_t* the_stream, Threshold& threshold,
                             CXICounter& trigger_cntr) = 0;
     virtual void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                            CXICounter& trigger_cntr)  = 0;
 
-    Buffer completion_buffer;
-    size_t num_times_started;
+    GPUMemoryType memory_type;
+    Buffer        completion_buffer;
+    size_t        num_times_started;
 };
 
 class FakeBarrier : public CXIRequest
 {
 public:
+    // Uses "GPUMemoryType::FINE" because this doesn't need a flush
     FakeBarrier(Buffer buffer, MPI_Comm comm, DeferredWorkQueue& dwq)
-        : CXIRequest(buffer), comm_to_use(comm), finished(true), progress_engine(dwq)
+        : CXIRequest(GPUMemoryType::FINE, buffer),
+          comm_to_use(comm),
+          finished(true),
+          progress_engine(dwq)
     {
         // Setup GPU memory locations
         force_hip(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
@@ -550,13 +574,7 @@ enum CommunicationType
     TWO_SIDED = 2,
 };
 
-enum GPUMemoryType
-{
-    COARSE = 1,
-    FINE   = 2,
-};
-
-template <CommunicationType MODE, GPUMemoryType G>
+template <CommunicationType MODE>
 class CXISend : public CXIWait
 {
     using FI_DFWQ_TYPE = std::conditional_t<MODE == CommunicationType::ONE_SIDED,
@@ -566,7 +584,7 @@ public:
     CXISend(Buffer local_completion, Request& user_request, struct fid_domain* domain,
             struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
             fi_addr_t self)
-        : CXIRequest(local_completion),
+        : CXIRequest(user_request.get_memory_type(), local_completion),
           CXIWait(),
           domain_ptr(domain),
           my_queue(dwq),
@@ -576,6 +594,7 @@ public:
           my_chained_completions(local_completion, main_ep, partner, self, completion_a,
                                  completion_b, completion_c)
     {
+        my_queue.register_completion_counter(completion_c);
         work_entry          = {};
         message_description = {};
         msg_iov             = {};
@@ -620,7 +639,8 @@ public:
 
     ~CXISend()
     {
-        my_queue.clear_counter(completion_c, my_chained_completions.get_threshold());
+        my_queue.clear_completion_counter(completion_c,
+                                          my_chained_completions.get_threshold());
         // Free counter
         force_libfabric(fi_close(&completion_a->fid));
         force_libfabric(fi_close(&completion_b->fid));
@@ -635,10 +655,20 @@ public:
         // Adjust the triggering counter to use
         work_entry.triggering_cntr = trigger_cntr.counter;
 
-        // Queue up send of data
+        // Make sure we can add at 1 iteration (3 DFWQ entries technically)
         my_queue.make_space(completion_c);
+
         // print_dfwq_entry(&work_entry, "Send");
-        force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+        try
+        {
+            // Queue up send of data
+            force_libfabric(fi_control(&domain_ptr->fid, FI_QUEUE_WORK, &work_entry));
+        }
+        catch (std::exception& e)
+        {
+            my_queue.print_status();
+            throw e;
+        }
 
         // Queue up chained actions
         my_chained_completions.queue_work(domain_ptr);
@@ -671,7 +701,7 @@ class CXIRecvOneSided : public CXIWait
 public:
     CXIRecvOneSided(Buffer& comp_buffer, Request& user_request, struct fid_domain* domain,
                     struct fid_ep* main_ep)
-        : CXIRequest(comp_buffer)
+        : CXIRequest(user_request.get_memory_type(), comp_buffer)
     {
         uint64_t recv_key_requested = getMRID();
 
@@ -736,20 +766,31 @@ public:
 
     ~CXIQueue()
     {
+        MPI_Barrier(comm_base);
         libfabric_teardown();
     }
 
     void enqueue_operation(std::shared_ptr<Request> qe) override
     {
         queue_thresholds.increment_threshold();
+        if (GPUMemoryType::COARSE == qe->get_memory_type())
+        {
+            flush_memory(the_stream);
+        }
         enqueue_request(*qe);
     }
 
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
+        bool shouldFlush = true;
         queue_thresholds.increment_threshold();
         for (auto& req : requests)
         {
+            if (shouldFlush && GPUMemoryType::COARSE == req->get_memory_type())
+            {
+                flush_memory(the_stream);
+                shouldFlush = false;
+            }
             enqueue_request(*req);
         }
     }
@@ -783,6 +824,7 @@ private:
     void peer_setup(int rank);
     void prepare_cxi_mr_key(Request&);
     void libfabric_teardown();
+    void flush_memory(hipStream_t*);
 
     void inline enqueue_request(Request& req)
     {
@@ -792,6 +834,7 @@ private:
 
         // Keep track of active requests
         active_requests.push_back(req.getID());
+        Print::out("... done");
     }
 
     // Persistent Libfabric objects
