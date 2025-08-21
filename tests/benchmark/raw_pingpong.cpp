@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "timers.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -16,6 +17,7 @@ int main(int argc, char* argv[])
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
     read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    Timing::init_timers(num_iters);
 
     // Make Buffers
     int BLOCK_SIZE = 128;
@@ -65,7 +67,6 @@ int main(int argc, char* argv[])
     // Make requests
     MPIS_Request my_reqs[2];
     MPIS_Request my_other_reqs[2];
-    // MPIS_Request queue_reqs[2]; TODO
     int offset = sizeof(int) * BUFFER_SIZE;
     if (0 == rank % 2)
     {
@@ -105,7 +106,7 @@ int main(int argc, char* argv[])
     MPIS_Request* active_request_ptr   = my_reqs;
     MPIS_Request* inactive_request_ptr = my_other_reqs;
 
-    auto do_cycles = [&](int num_cycles) {
+    auto do_cycles = [&]<bool TIMERS>(int num_cycles) {
         for (int i = 0; i < num_cycles; i++)
         {
             if (0 == rank)
@@ -117,7 +118,7 @@ int main(int argc, char* argv[])
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)active_send_buffer, BUFFER_SIZE, i);
 #ifdef THREAD_BACKEND
-                check_gpu(hipDeviceSynchronize());
+                device_sync();
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
                 MPIS_Enqueue_waitall(my_queue);
@@ -136,12 +137,16 @@ int main(int argc, char* argv[])
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
-                check_gpu(hipDeviceSynchronize());
+                device_sync();
 #endif
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[SEND_REQ]);
                 MPIS_Enqueue_waitall(my_queue);
             }
 
+            if constexpr (TIMERS)
+            {
+                Timing::add_timer(i);
+            }
             void* temp_send      = active_send_buffer;
             active_send_buffer   = inactive_send_buffer;
             inactive_send_buffer = temp_send;
@@ -158,10 +163,11 @@ int main(int argc, char* argv[])
         MPIS_Queue_wait(my_queue);
     };
 
-    do_cycles(num_warmups);
+    do_cycles.template operator()<false>(num_warmups);
     MPI_Barrier(MPI_COMM_WORLD);
+    Timing::set_base_timer();
     double start = MPI_Wtime();
-    do_cycles(num_iters);
+    do_cycles.template operator()<true>(num_iters);
     double end = MPI_Wtime();
 
     // Final check
@@ -179,6 +185,8 @@ int main(int argc, char* argv[])
     MPIS_Queue_free(&my_queue);
 
     std::cout << rank << " is done: " << end - start << std::endl;
+    Timing::print_timers(rank);
+    Timing::free_timers();
 
     MPI_Finalize();
 

@@ -3,7 +3,7 @@
 set -e
 
 module load craype-accel-amd-gfx90a
-module load rocm/6.3.1
+module load rocm
 
 if [ $# -eq 0 ]; then
     echo "Building in debug mode"

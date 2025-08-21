@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "timers.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -16,6 +17,7 @@ int main(int argc, char* argv[])
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
     read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    Timing::init_timers(num_iters);
 
     // Make Buffers
     int BLOCK_SIZE = 128;
@@ -57,7 +59,7 @@ int main(int argc, char* argv[])
                       &my_reqs[SEND_REQ]);
     }
 
-    auto do_cycles = [&](int num_cycles) {
+    auto do_cycles = [&]<bool TIMERS>(int num_cycles) {
         for (int i = 0; i < num_cycles; i++)
         {
             if (0 == rank)
@@ -83,14 +85,20 @@ int main(int argc, char* argv[])
                 MPI_Start(&my_reqs[SEND_REQ]);
                 MPI_Wait(&my_reqs[SEND_REQ], MPI_STATUS_IGNORE);
             }
+
+            if constexpr (TIMERS)
+            {
+                Timing::add_timer(i);
+            }
         }
     };
 
-    do_cycles(num_warmups);
+    do_cycles.template operator()<false>(num_warmups);
     MPI_Barrier(MPI_COMM_WORLD);
-    double start = MPI_Wtime();
-    do_cycles(num_iters);
-    double end = MPI_Wtime();
+    Timing::set_base_timer();
+    double             start = MPI_Wtime();
+    do_cycles.template operator()<true>(num_iters);
+    double             end = MPI_Wtime();
 
     // Final check
     device_sync();
@@ -103,6 +111,8 @@ int main(int argc, char* argv[])
     MPI_Request_free(&my_reqs[RECV_REQ]);
 
     std::cout << rank << " is done: " << end - start << std::endl;
+    Timing::print_timers(rank);
+    Timing::free_timers();
 
     MPI_Finalize();
 
