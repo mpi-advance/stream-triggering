@@ -1,8 +1,0 @@
-<map id="source/core/include/safety/libfabric.hpp" name="source/core/include/safety/libfabric.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="75,5,227,45"/>
-<area shape="rect" id="Node000002" href="$CXIQueue_8hpp.html" title=" " alt="" coords="5,93,175,133"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="132,58,106,95,101,92,128,55"/>
-<area shape="rect" id="Node000003" href="$CXIQueue_8cpp.html" title=" " alt="" coords="67,181,235,221"/>
-<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="174,56,190,93,193,113,190,134,180,160,167,183,162,180,175,158,185,133,188,113,185,94,169,58"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="114,143,140,180,136,183,109,146"/>
-</map>

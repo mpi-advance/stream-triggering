@@ -1,7 +1,0 @@
-<map id="QueueEntry::start_host" name="QueueEntry::start_host">
-<area shape="rect" id="Node000001" title=" " alt="" coords="245,31,416,56"/>
-<area shape="rect" id="Node000002" href="$classQueueEntry.html#a8f659be5ca567a79d376ac372af33eeb" title=" " alt="" coords="34,5,169,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="231,35,168,28,169,23,231,30"/>
-<area shape="rect" id="Node000003" href="$classHIPQueueEntry.html#ad1fc083b538cd3501d3e9ee9eb7e887b" title=" " alt="" coords="5,55,197,80"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="232,56,198,60,197,55,231,51"/>
-</map>

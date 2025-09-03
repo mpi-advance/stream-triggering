@@ -1,7 +1,0 @@
-<map id="HPEQueueEntryP2P::start" name="HPEQueueEntryP2P::start">
-<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,192,31"/>
-<area shape="rect" id="Node000002" href="$MPIX__Enqueue__start_8cc.html#ae04cdace317bc39b2cbf329adc823438" title=" " alt="" coords="240,5,395,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="192,15,226,15,226,21,192,21"/>
-<area shape="rect" id="Node000003" href="$classQueue.html#a5742ab529246e2f836eb2158b4cd5836" title=" " alt="" coords="443,5,640,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="395,15,429,15,429,21,395,21"/>
-</map>
