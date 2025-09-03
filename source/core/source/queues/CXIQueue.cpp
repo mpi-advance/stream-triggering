@@ -28,6 +28,35 @@ void CXIQueue::libfabric_setup(int num_ranks)
     // Get information on available providers given our requirements in
     // hints
     force_libfabric(fi_getinfo(FI_VERSION(1, 15), 0, 0, 0, hints, &fi));
+
+    /* Code specific to tioga -- ADD REASON */
+#ifdef USE_GFX90A
+    int device = -1;
+    force_hip(hipGetDevice(&device));
+    int pci_bus_id = -1;
+    force_hip(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, device));
+
+    while (fi != nullptr)
+    {
+        Print::out(fi->nic->bus_attr->attr.pci.domain_id,
+                   std::to_string(fi->nic->bus_attr->attr.pci.bus_id),
+                   std::to_string(fi->nic->bus_attr->attr.pci.device_id));
+
+        if ((int)fi->nic->bus_attr->attr.pci.bus_id == (pci_bus_id - 1) ||
+            (int)fi->nic->bus_attr->attr.pci.bus_id == (pci_bus_id + 4))
+        {
+            Print::out("FOUND!");
+            break;
+        }
+        fi = fi->next;
+    }
+#endif
+
+    if (fi == nullptr)
+    {
+        throw std::runtime_error("Unable to select FI provider");
+    }
+
     fi_freeinfo(hints);  // deallocate hints
 
     // Create the fabric from the provider information

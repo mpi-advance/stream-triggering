@@ -33,8 +33,8 @@ void check_hip_error(const hipError_t err, const char* filename, const int line)
 {
     if (err != hipSuccess)
     {
-        std::cout << "(" << err << ") in " << filename << " on line " << line
-                  << " : " << hipGetErrorString(err) << std::endl;
+        std::cout << "(" << err << ") in " << filename << " on line " << line << " : "
+                  << hipGetErrorString(err) << std::endl;
         if constexpr (shouldThrow)
         {
             throw std::runtime_error(hipGetErrorString(err));
@@ -47,8 +47,7 @@ void allocate_gpu_memory(void** location, size_t size)
 #ifndef FINE_GRAINED_TEST
     force_gpu(hipMalloc(location, size));
 #else
-    force_gpu(hipExtMallocWithFlags(location, size,
-                                    hipDeviceMallocFinegrained));
+    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
 #endif
 }
 
@@ -71,13 +70,12 @@ void device_sync()
     }
 
 template <bool shouldThrow = false>
-void check_cuda_error(const cudaError_t err, const char* filename,
-                      const int line)
+void check_cuda_error(const cudaError_t err, const char* filename, const int line)
 {
     if (err != cudaSuccess)
     {
-        std::cout << "(" << err << ") in " << filename << " on line " << line
-                  << " : " << cudaGetErrorString(err) << std::endl;
+        std::cout << "(" << err << ") in " << filename << " on line " << line << " : "
+                  << cudaGetErrorString(err) << std::endl;
         if constexpr (shouldThrow)
         {
             throw std::runtime_error(cudaGetErrorString(err));
@@ -96,9 +94,8 @@ void check_cuda_error(const CUresult code, const char* filename, const int line)
         cuGetErrorName(code, &name);
         cuGetErrorString(code, &strg);
 
-        std::cout << "(" << code << ") in " << filename << " on line " << line
-                  << " : " << std::string(name) << " - " << std::string(strg)
-                  << std::endl;
+        std::cout << "(" << code << ") in " << filename << " on line " << line << " : "
+                  << std::string(name) << " - " << std::string(strg) << std::endl;
         if constexpr (shouldThrow)
         {
             throw std::runtime_error("CU CUDA Error");
@@ -128,6 +125,16 @@ __global__ void init_buffers(int* send_buf, int* recv_buf, int buffer_len)
     recv_buf[index] = -1;
 }
 
+__global__ void init_buffers2(int* send_buf, int* recv_buf, int buffer_len, int rank)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    send_buf[index] = (100 * rank) + index;
+    recv_buf[index] = -1;
+}
+
 __global__ void pack_buffer(int* buffer, int buffer_len, int iteration)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -146,8 +153,17 @@ __global__ void pack_buffer2(int* buffer, int* recvd_buffer, int buffer_len)
     buffer[index] = recvd_buffer[index];
 }
 
-__global__ void print_buffer(volatile int* buffer, int buffer_len,
-                             int iteration, int rank)
+__global__ void pack_buffer3(int* buffer, int* recvd_buffer, int buffer_len)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    buffer[index] += recvd_buffer[index];
+}
+
+__global__ void print_buffer(volatile int* buffer, int buffer_len, int iteration,
+                             int rank)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= buffer_len)
@@ -155,13 +171,21 @@ __global__ void print_buffer(volatile int* buffer, int buffer_len,
 
     if (buffer[index] != iteration * 100)
     {
-        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n",
-               rank, index, buffer[index], iteration * 100);
+        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
+               index, buffer[index], iteration * 100);
     }
 }
 
-static void inline check_param_size(int* argc, int num_params,
-                                    std::string usage)
+__global__ void print_buffer2(volatile int* buffer, int buffer_len, int rank)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    printf("<GPU %d> Buffer value @ index: %d is: %d\n", rank, index, buffer[index]);
+}
+
+static void inline check_param_size(int* argc, int num_params, std::string usage)
 {
     if ((*argc) != (1 + num_params))
     {
@@ -170,8 +194,7 @@ static void inline check_param_size(int* argc, int num_params,
     }
 }
 
-static void inline read_iter_buffer_input(char*** argv, int* num_iters,
-                                          int* buffer_size)
+static void inline read_iter_buffer_input(char*** argv, int* num_iters, int* buffer_size)
 {
     (*num_iters)   = std::atoi((*argv)[1]);
     (*buffer_size) = std::atoi((*argv)[2]);
