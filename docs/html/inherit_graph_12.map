@@ -1,0 +1,13 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$classQueue.html" title=" " alt="" coords="5,104,69,129"/>
+<area shape="rect" id="Node000001" href="$classCXIQueue.html" title=" " alt="" coords="181,5,268,31"/>
+<area shape="poly" id="edge5_Node000000_Node000001" title=" " alt="" coords="55,91,82,64,116,40,148,27,181,20,182,25,150,32,119,44,86,68,59,95"/>
+<area shape="rect" id="Node000002" href="$classCudaQueue.html" title=" " alt="" coords="176,55,273,80"/>
+<area shape="poly" id="edge6_Node000000_Node000002" title=" " alt="" coords="82,99,117,89,175,75,176,80,118,94,83,104"/>
+<area shape="rect" id="Node000003" href="$classHIPQueue.html" title=" " alt="" coords="181,104,268,129"/>
+<area shape="poly" id="edge7_Node000000_Node000003" title=" " alt="" coords="83,114,181,114,181,119,83,119"/>
+<area shape="rect" id="Node000004" href="$classHPEQueue.html" title=" " alt="" coords="179,153,270,179"/>
+<area shape="poly" id="edge8_Node000000_Node000004" title=" " alt="" coords="83,128,118,138,179,153,178,159,117,143,82,133"/>
+<area shape="rect" id="Node000005" href="$classThreadQueue.html" title=" " alt="" coords="117,203,332,228"/>
+<area shape="poly" id="edge9_Node000000_Node000005" title=" " alt="" coords="60,138,86,164,119,188,150,200,148,205,116,192,83,169,56,142"/>
+</map>

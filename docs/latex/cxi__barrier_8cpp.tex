@@ -1,0 +1,130 @@
+\doxysection{tests/barrier/cxi\+\_\+barrier.cpp File Reference}
+\hypertarget{cxi__barrier_8cpp}{}\label{cxi__barrier_8cpp}\index{tests/barrier/cxi\_barrier.cpp@{tests/barrier/cxi\_barrier.cpp}}
+{\ttfamily \#include $<$hip/hip\+\_\+runtime.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+{\ttfamily \#include "{}mpi.\+h"{}}\newline
+{\ttfamily \#include "{}stream-\/triggering.\+h"{}}\newline
+Include dependency graph for cxi\+\_\+barrier.\+cpp\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cxi__barrier_8cpp__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{cxi__barrier_8cpp_a917eb546e24360532af32dd6daa8be02}{check\+\_\+hip}}(\mbox{\hyperlink{classThreadQueue}{function}})
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{cxi__barrier_8cpp_a16b302d6e25f38e76d33849b533cfb08}{force\+\_\+hip}}(\mbox{\hyperlink{classThreadQueue}{function}})
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{cxi__barrier_8cpp_a123e039baab8363aff7d298a18b7cc4e}{SEND\+\_\+\+REQ}}~(rank \texorpdfstring{$^\wedge$}{\string^} 1)
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{cxi__barrier_8cpp_a3224f598b452e44d0323da994708aa1d}{RECV\+\_\+\+REQ}}~(rank \& 1)
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+{\footnotesize template$<$\mbox{\hyperlink{classThreadQueue}{bool}} should\+Throw = false$>$ }\\\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{cxi__barrier_8cpp_a1b227ecedf709c65ce2e5a6cc3d7e199}{check\+\_\+hip\+\_\+error}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{hip\+Error\+\_\+t}} \mbox{\hyperlink{classThreadQueue}{err}}, \mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{char}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{filename}}, \mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{line}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{cxi__barrier_8cpp_aca251cee9d2d9ae6ce9d6b59b51c319e}{init\+\_\+buffers}} (\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{threaded_8cpp_a8bc4f4c11eb55e192a06dd55e91ff621}{send\+\_\+buf}}, \mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{threaded_8cpp_a9548b6c8041a80453a072258f9be0b35}{recv\+\_\+buf}}, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{buffer\+\_\+len}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{cxi__barrier_8cpp_ab6ef6e9d25e382a580f62af5bb16b659}{pack\+\_\+buffer}} (\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}buffer, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{buffer\+\_\+len}}, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{iteration}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{cxi__barrier_8cpp_a3306444ecf0149ddb7a914343036f672}{pack\+\_\+buffer2}} (\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}buffer, \mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{recvd\+\_\+buffer}}, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{buffer\+\_\+len}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{cxi__barrier_8cpp_ae830b62d39973312f12d080cfd5546c9}{print\+\_\+buffer}} (\mbox{\hyperlink{classThreadQueue}{volatile}} \mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}buffer, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{buffer\+\_\+len}}, \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{iteration}}, \mbox{\hyperlink{classThreadQueue}{int}} rank)
+\item 
+\mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{cxi__barrier_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4}{main}} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\Hypertarget{cxi__barrier_8cpp_a917eb546e24360532af32dd6daa8be02}\label{cxi__barrier_8cpp_a917eb546e24360532af32dd6daa8be02} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!check\_hip@{check\_hip}}
+\index{check\_hip@{check\_hip}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{check\_hip}{check\_hip}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} check\+\_\+hip(\begin{DoxyParamCaption}\item[{}]{\mbox{\hyperlink{classThreadQueue}{function}} }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{keyword}{auto}\ \mbox{\hyperlink{classThreadQueue}{err}}\ =\ \mbox{\hyperlink{classThreadQueue}{function}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{\(\backslash\)}}}
+\DoxyCodeLine{\mbox{\hyperlink{classThreadQueue}{\ \ \ \ \ \ \ \ check\_hip\_error}}(\mbox{\hyperlink{classThreadQueue}{err}},\ \mbox{\hyperlink{classThreadQueue}{\_\_FILE\_\_}},\ \mbox{\hyperlink{classThreadQueue}{\_\_LINE\_\_}});\ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \}}
+
+\end{DoxyCode}
+\Hypertarget{cxi__barrier_8cpp_a16b302d6e25f38e76d33849b533cfb08}\label{cxi__barrier_8cpp_a16b302d6e25f38e76d33849b533cfb08} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!force\_hip@{force\_hip}}
+\index{force\_hip@{force\_hip}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{force\_hip}{force\_hip}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} force\+\_\+hip(\begin{DoxyParamCaption}\item[{}]{\mbox{\hyperlink{classThreadQueue}{function}} }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{keyword}{auto}\ \mbox{\hyperlink{classThreadQueue}{err}}\ =\ \mbox{\hyperlink{classThreadQueue}{function}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{\(\backslash\)}}}
+\DoxyCodeLine{\mbox{\hyperlink{classThreadQueue}{\ \ \ \ \ \ \ \ check\_hip\_error<true>}}(\mbox{\hyperlink{classThreadQueue}{err}},\ \mbox{\hyperlink{classThreadQueue}{\_\_FILE\_\_}},\ \mbox{\hyperlink{classThreadQueue}{\_\_LINE\_\_}});\ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \}}
+
+\end{DoxyCode}
+\Hypertarget{cxi__barrier_8cpp_a3224f598b452e44d0323da994708aa1d}\label{cxi__barrier_8cpp_a3224f598b452e44d0323da994708aa1d} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!RECV\_REQ@{RECV\_REQ}}
+\index{RECV\_REQ@{RECV\_REQ}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{RECV\_REQ}{RECV\_REQ}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} RECV\+\_\+\+REQ~(rank \& 1)}
+
+\Hypertarget{cxi__barrier_8cpp_a123e039baab8363aff7d298a18b7cc4e}\label{cxi__barrier_8cpp_a123e039baab8363aff7d298a18b7cc4e} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!SEND\_REQ@{SEND\_REQ}}
+\index{SEND\_REQ@{SEND\_REQ}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{SEND\_REQ}{SEND\_REQ}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} SEND\+\_\+\+REQ~(rank \texorpdfstring{$^\wedge$}{\string^} 1)}
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{cxi__barrier_8cpp_a1b227ecedf709c65ce2e5a6cc3d7e199}\label{cxi__barrier_8cpp_a1b227ecedf709c65ce2e5a6cc3d7e199} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!check\_hip\_error@{check\_hip\_error}}
+\index{check\_hip\_error@{check\_hip\_error}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{check\_hip\_error()}{check\_hip\_error()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} should\+Throw = false$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} check\+\_\+hip\+\_\+error (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{hip\+Error\+\_\+t}}}]{err,  }\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{char}} \texorpdfstring{$\ast$}{*}}]{filename,  }\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}}}]{line }\end{DoxyParamCaption})}
+
+\Hypertarget{cxi__barrier_8cpp_aca251cee9d2d9ae6ce9d6b59b51c319e}\label{cxi__barrier_8cpp_aca251cee9d2d9ae6ce9d6b59b51c319e} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!init\_buffers@{init\_buffers}}
+\index{init\_buffers@{init\_buffers}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{init\_buffers()}{init\_buffers()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} init\+\_\+buffers (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{send\+\_\+buf,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{recv\+\_\+buf,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{buffer\+\_\+len }\end{DoxyParamCaption})}
+
+\Hypertarget{cxi__barrier_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4}\label{cxi__barrier_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!main@{main}}
+\index{main@{main}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{main()}{main()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{int}} main (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cxi__barrier_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4_cgraph}
+\end{center}
+\end{figure}
+\Hypertarget{cxi__barrier_8cpp_ab6ef6e9d25e382a580f62af5bb16b659}\label{cxi__barrier_8cpp_ab6ef6e9d25e382a580f62af5bb16b659} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!pack\_buffer@{pack\_buffer}}
+\index{pack\_buffer@{pack\_buffer}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{pack\_buffer()}{pack\_buffer()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} pack\+\_\+buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{buffer,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{buffer\+\_\+len,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{iteration }\end{DoxyParamCaption})}
+
+\Hypertarget{cxi__barrier_8cpp_a3306444ecf0149ddb7a914343036f672}\label{cxi__barrier_8cpp_a3306444ecf0149ddb7a914343036f672} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!pack\_buffer2@{pack\_buffer2}}
+\index{pack\_buffer2@{pack\_buffer2}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{pack\_buffer2()}{pack\_buffer2()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} pack\+\_\+buffer2 (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{buffer,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{recvd\+\_\+buffer,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{buffer\+\_\+len }\end{DoxyParamCaption})}
+
+\Hypertarget{cxi__barrier_8cpp_ae830b62d39973312f12d080cfd5546c9}\label{cxi__barrier_8cpp_ae830b62d39973312f12d080cfd5546c9} 
+\index{cxi\_barrier.cpp@{cxi\_barrier.cpp}!print\_buffer@{print\_buffer}}
+\index{print\_buffer@{print\_buffer}!cxi\_barrier.cpp@{cxi\_barrier.cpp}}
+\doxysubsubsection{\texorpdfstring{print\_buffer()}{print\_buffer()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} print\+\_\+buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{volatile}} \mbox{\hyperlink{classThreadQueue}{int}} \texorpdfstring{$\ast$}{*}}]{buffer,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{buffer\+\_\+len,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{iteration,  }\item[{\mbox{\hyperlink{classThreadQueue}{int}}}]{rank }\end{DoxyParamCaption})}
+

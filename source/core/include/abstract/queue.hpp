@@ -10,6 +10,10 @@
 
 using namespace Communication;
 
+/**
+ * Base Virtual Queue class
+ * Contains virtual functions to be overridden as necessary
+*/
 class Queue
 {
 public:

@@ -1,0 +1,120 @@
+\doxysection{entry.\+hpp}
+\hypertarget{entry_8hpp_source}{}\label{entry_8hpp_source}\index{source/core/include/abstract/entry.hpp@{source/core/include/abstract/entry.hpp}}
+\mbox{\hyperlink{entry_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ ST\_ABSTRACT\_QUEUE\_ENTRY}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ ST\_ABSTRACT\_QUEUE\_ENTRY}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <memory>}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{request_8hpp}{request.hpp}}"{}}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{using\ namespace\ }\mbox{\hyperlink{namespaceCommunication}{Communication}};}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{comment}{//\ Common\ class\ for\ MPI-\/based\ backends\ (Thread,\ HIP,\ CUDA)}}
+\DoxyCodeLine{00011\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classQueueEntry}{QueueEntry}}}
+\DoxyCodeLine{00012\ \{}
+\DoxyCodeLine{00013\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00014\ \ \ \ \ \textcolor{keyword}{explicit}\ \mbox{\hyperlink{classQueueEntry_a2c453a6159b2c6cca510e7587b13670a}{QueueEntry}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{req}})\ :\ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}(\mbox{\hyperlink{classThreadQueue}{req}}),\ \mbox{\hyperlink{classQueueEntry_a8dd40be5b7af40092be4b96ad294f2a7}{threshold}}(0)}
+\DoxyCodeLine{00015\ \ \ \ \ \{}
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{switch}\ (\mbox{\hyperlink{classThreadQueue}{req}}-\/>operation)}
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00018\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{case}\ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a5eede13bb50919b88c572539ccfb278b}{Communication::Operation::SEND}}:}
+\DoxyCodeLine{00019\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Send\_init}}(\mbox{\hyperlink{classThreadQueue}{req}}-\/>buffer,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>count,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>datatype,}
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{req}}-\/>peer,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>tag,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>comm,}
+\DoxyCodeLine{00021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}));}
+\DoxyCodeLine{00022\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break};}
+\DoxyCodeLine{00023\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{case}\ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452afbd3c3a492b560c49a4cb5a8d62c6b7e}{Communication::Operation::RECV}}:}
+\DoxyCodeLine{00024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Recv\_init}}(\mbox{\hyperlink{classThreadQueue}{req}}-\/>buffer,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>count,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>datatype,}
+\DoxyCodeLine{00025\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{req}}-\/>peer,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>tag,\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>comm,}
+\DoxyCodeLine{00026\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}));}
+\DoxyCodeLine{00027\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break};}
+\DoxyCodeLine{00028\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{case}\ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}{Communication::Operation::BARRIER}}:}
+\DoxyCodeLine{00029\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break};}
+\DoxyCodeLine{00030\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{default}:}
+\DoxyCodeLine{00031\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\textcolor{stringliteral}{"{}Invalid\ Request"{}});}
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{break};}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00034\ \ \ \ \ \}}
+\DoxyCodeLine{00035\ }
+\DoxyCodeLine{00036\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{classQueueEntry_a2641c1c2263594ce73bdb2248b1106c2}{\string~QueueEntry}}()}
+\DoxyCodeLine{00037\ \ \ \ \ \{}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classThreadQueue}{MPI\_REQUEST\_NULL}}\ !=\ \mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}\ \&\&\ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}\ \&\&}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}-\/>operation\ !=\ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}{Communication::Operation::BARRIER}})}
+\DoxyCodeLine{00040\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Request\_free}}(\&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}));}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00043\ \ \ \ \ \}}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \ \ \ \ \textcolor{comment}{//\ No\ copying}}
+\DoxyCodeLine{00046\ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a20156c22ea9c051230494368ecc0fff2}{QueueEntry}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\ \mbox{\hyperlink{classThreadQueue}{other}})\ \ \ \ \ \ \ \ \ \ \ \ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00047\ \ \ \ \ \mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\ \mbox{\hyperlink{classQueueEntry_a8b5fd71be708e95cc27bf3084a0f735a}{operator=}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\ \mbox{\hyperlink{classThreadQueue}{other}})\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{comment}{//\ Only\ Moving}}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a5f7e0a65862a0da91e4f25057e7da801}{QueueEntry}}(\mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\&\ \mbox{\hyperlink{classThreadQueue}{other}})\ \mbox{\hyperlink{classThreadQueue}{noexcept}}}
+\DoxyCodeLine{00051\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}(\mbox{\hyperlink{classThreadQueue}{other}}.mpi\_request),}
+\DoxyCodeLine{00052\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}(\mbox{\hyperlink{classThreadQueue}{other}}.original\_request)}
+\DoxyCodeLine{00053\ \ \ \ \ \{}
+\DoxyCodeLine{00054\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ clear\ other\ structs}}
+\DoxyCodeLine{00055\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.mpi\_request\ =\ \mbox{\hyperlink{classThreadQueue}{MPI\_REQUEST\_NULL}};}
+\DoxyCodeLine{00056\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.original\_request.reset();}
+\DoxyCodeLine{00057\ \ \ \ \ \}}
+\DoxyCodeLine{00058\ \ \ \ \ \mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\ \mbox{\hyperlink{classQueueEntry_a9cc1ffeb4e748a3a047a996ebcc22e29}{operator=}}(\mbox{\hyperlink{classQueueEntry}{QueueEntry}}\&\&\ \mbox{\hyperlink{classThreadQueue}{other}})\ \textcolor{keyword}{noexcept}}
+\DoxyCodeLine{00059\ \ \ \ \ \{}
+\DoxyCodeLine{00060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\textcolor{keyword}{this}\ !=\ \&\mbox{\hyperlink{classThreadQueue}{other}})}
+\DoxyCodeLine{00061\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00062\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}\ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{other}}.mpi\_request;}
+\DoxyCodeLine{00063\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}\ =\ \mbox{\hyperlink{classThreadQueue}{other}}.original\_request;}
+\DoxyCodeLine{00064\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ clear\ other}}
+\DoxyCodeLine{00065\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.mpi\_request\ =\ \mbox{\hyperlink{classThreadQueue}{MPI\_REQUEST\_NULL}};}
+\DoxyCodeLine{00066\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.original\_request.reset();}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00068\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00069\ \ \ \ \ \}}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00071\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueueEntry_aee2af118a2a4467639db8097512f7937}{start\_host}}()}
+\DoxyCodeLine{00072\ \ \ \ \ \{}
+\DoxyCodeLine{00073\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}-\/>operation\ ==\ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}{Communication::Operation::BARRIER}})}
+\DoxyCodeLine{00074\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00075\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Ibarrier}}(\mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}-\/>comm,\ \&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}));}
+\DoxyCodeLine{00076\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00077\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{00078\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00079\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Start}}(\&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}));}
+\DoxyCodeLine{00080\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00081\ \ \ \ \ \}}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueueEntry_a5037452ef15e443e8815080cfa833402}{start\_gpu}}(\textcolor{keywordtype}{void}*\ \mbox{\hyperlink{classThreadQueue}{stream}})}
+\DoxyCodeLine{00084\ \ \ \ \ \{}
+\DoxyCodeLine{00085\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Does\ nothing\ in\ base\ class.}}
+\DoxyCodeLine{00086\ \ \ \ \ \}}
+\DoxyCodeLine{00087\ }
+\DoxyCodeLine{00088\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueueEntry_a8f659be5ca567a79d376ac372af33eeb}{start}}(\textcolor{keywordtype}{void}*\ \mbox{\hyperlink{classThreadQueue}{stream}})}
+\DoxyCodeLine{00089\ \ \ \ \ \{}
+\DoxyCodeLine{00090\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a8dd40be5b7af40092be4b96ad294f2a7}{threshold}}++;}
+\DoxyCodeLine{00091\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_aee2af118a2a4467639db8097512f7937}{start\_host}}();}
+\DoxyCodeLine{00092\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a5037452ef15e443e8815080cfa833402}{start\_gpu}}(\mbox{\hyperlink{classThreadQueue}{stream}});}
+\DoxyCodeLine{00093\ \ \ \ \ \}}
+\DoxyCodeLine{00094\ }
+\DoxyCodeLine{00095\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueueEntry_ad2a8d3b5c72d36ede841d6e90fc02875}{wait\_gpu}}(\textcolor{keywordtype}{void}*\ \mbox{\hyperlink{classThreadQueue}{stream}})}
+\DoxyCodeLine{00096\ \ \ \ \ \{}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Does\ nothing\ in\ base\ class.}}
+\DoxyCodeLine{00098\ \ \ \ \ \}}
+\DoxyCodeLine{00099\ }
+\DoxyCodeLine{00100\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classQueueEntry_a65af2e8fd8fa7783e6ac4b6cbd9d30fa}{done}}()}
+\DoxyCodeLine{00101\ \ \ \ \ \{}
+\DoxyCodeLine{00102\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ value\ =\ 0;}
+\DoxyCodeLine{00103\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Test}}(\&\mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}},\ \&value,\ \mbox{\hyperlink{classThreadQueue}{MPI\_STATUS\_IGNORE}}));}
+\DoxyCodeLine{00104\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ value;}
+\DoxyCodeLine{00105\ \ \ \ \ \}}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00107\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00108\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{int64\_t}}\ \mbox{\hyperlink{classQueueEntry_a8dd40be5b7af40092be4b96ad294f2a7}{threshold}}\ =\ 0;}
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00110\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Request}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\_request}}\ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{MPI\_REQUEST\_NULL}};}
+\DoxyCodeLine{00111\ \ \ \ \ std::shared\_ptr<Request>\ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\_request}}\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00112\ \};}
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00114\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

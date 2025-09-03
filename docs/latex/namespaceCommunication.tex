@@ -1,0 +1,79 @@
+\doxysection{Communication Namespace Reference}
+\hypertarget{namespaceCommunication}{}\label{namespaceCommunication}\index{Communication@{Communication}}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classCommunication_1_1BlankMatch}{Blank\+Match}}
+\item 
+class \mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}}
+\item 
+class \mbox{\hyperlink{classCommunication_1_1OneSideMatch}{One\+Side\+Match}}
+\item 
+class \mbox{\hyperlink{classCommunication_1_1Request}{Request}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452}{Operation}} \{ \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a5eede13bb50919b88c572539ccfb278b}{SEND}}
+, \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452afbd3c3a492b560c49a4cb5a8d62c6b7e}{RECV}}
+, \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}{BARRIER}}
+ \}
+\item 
+enum \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \{ \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0a531c74101ac5c04706a9e2b58c5af0da}{COARSE}} = 1
+, \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0ae290afb6eb0d81a62f79dd3eec3e9cda}{FINE}} = 2
+ \}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+{\footnotesize template$<$\mbox{\hyperlink{classThreadQueue}{typename}} \mbox{\hyperlink{classThreadQueue}{T}} $>$ }\\\mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Datatype}} \mbox{\hyperlink{namespaceCommunication_ab8113e0af5558a4fa96f02a0fd456c28}{type\+\_\+to\+\_\+use}} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Enumeration Type Documentation}
+\Hypertarget{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}\label{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0} 
+\index{Communication@{Communication}!GPUMemoryType@{GPUMemoryType}}
+\index{GPUMemoryType@{GPUMemoryType}!Communication@{Communication}}
+\doxysubsubsection{\texorpdfstring{GPUMemoryType}{GPUMemoryType}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{enum}} \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{Communication\+::\+GPUMemory\+Type}}}
+
+\begin{DoxyEnumFields}{Enumerator}
+\raisebox{\heightof{T}}[0pt][0pt]{\index{COARSE@{COARSE}!Communication@{Communication}}\index{Communication@{Communication}!COARSE@{COARSE}}}\Hypertarget{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0a531c74101ac5c04706a9e2b58c5af0da}\label{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0a531c74101ac5c04706a9e2b58c5af0da} 
+COARSE&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{FINE@{FINE}!Communication@{Communication}}\index{Communication@{Communication}!FINE@{FINE}}}\Hypertarget{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0ae290afb6eb0d81a62f79dd3eec3e9cda}\label{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0ae290afb6eb0d81a62f79dd3eec3e9cda} 
+FINE&\\
+\hline
+
+\end{DoxyEnumFields}
+\Hypertarget{namespaceCommunication_aab88a880cff454aa6315495785620452}\label{namespaceCommunication_aab88a880cff454aa6315495785620452} 
+\index{Communication@{Communication}!Operation@{Operation}}
+\index{Operation@{Operation}!Communication@{Communication}}
+\doxysubsubsection{\texorpdfstring{Operation}{Operation}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{enum}} \mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452}{Communication\+::\+Operation}}}
+
+\begin{DoxyEnumFields}{Enumerator}
+\raisebox{\heightof{T}}[0pt][0pt]{\index{SEND@{SEND}!Communication@{Communication}}\index{Communication@{Communication}!SEND@{SEND}}}\Hypertarget{namespaceCommunication_aab88a880cff454aa6315495785620452a5eede13bb50919b88c572539ccfb278b}\label{namespaceCommunication_aab88a880cff454aa6315495785620452a5eede13bb50919b88c572539ccfb278b} 
+SEND&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{RECV@{RECV}!Communication@{Communication}}\index{Communication@{Communication}!RECV@{RECV}}}\Hypertarget{namespaceCommunication_aab88a880cff454aa6315495785620452afbd3c3a492b560c49a4cb5a8d62c6b7e}\label{namespaceCommunication_aab88a880cff454aa6315495785620452afbd3c3a492b560c49a4cb5a8d62c6b7e} 
+RECV&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{BARRIER@{BARRIER}!Communication@{Communication}}\index{Communication@{Communication}!BARRIER@{BARRIER}}}\Hypertarget{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}\label{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e} 
+BARRIER&\\
+\hline
+
+\end{DoxyEnumFields}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{namespaceCommunication_ab8113e0af5558a4fa96f02a0fd456c28}\label{namespaceCommunication_ab8113e0af5558a4fa96f02a0fd456c28} 
+\index{Communication@{Communication}!type\_to\_use@{type\_to\_use}}
+\index{type\_to\_use@{type\_to\_use}!Communication@{Communication}}
+\doxysubsubsection{\texorpdfstring{type\_to\_use()}{type\_to\_use()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{typename}} \mbox{\hyperlink{classThreadQueue}{T}} $>$ \\
+\mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Datatype}} Communication\+::type\+\_\+to\+\_\+use (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [constexpr]}}
+

@@ -1,0 +1,186 @@
+\doxysection{common.\+hpp}
+\hypertarget{common_8hpp_source}{}\label{common_8hpp_source}\index{tests/benchmark/common.hpp@{tests/benchmark/common.hpp}}
+\mbox{\hyperlink{common_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ BENCHMARK\_COMMON}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ BENCHMARK\_COMMON}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifdef\ NEED\_HIP}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <hip/hip\_runtime.h>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#elif\ NEED\_CUDA}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}cuda.h"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}cuda\_runtime.h"{}}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ <unistd.h>}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ <iostream>}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ "{}mpi.h"{}}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{stream-triggering_8h}{stream-\/triggering.h}}"{}}}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#if\ NEED\_HIP}}
+\DoxyCodeLine{00019\ \textcolor{preprocessor}{\#define\ check\_gpu(function)\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00020\ \textcolor{preprocessor}{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00021\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ auto\ err\ =\ function;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00022\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ check\_hip\_error(err,\ \_\_FILE\_\_,\ \_\_LINE\_\_);\ \(\backslash\)}}
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\ \ \ \ \}}}
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00025\ \textcolor{preprocessor}{\#define\ force\_gpu(function)\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00026\ \textcolor{preprocessor}{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00027\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ auto\ err\ =\ function;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00028\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ check\_hip\_error<true>(err,\ \_\_FILE\_\_,\ \_\_LINE\_\_);\ \(\backslash\)}}
+\DoxyCodeLine{00029\ \textcolor{preprocessor}{\ \ \ \ \}}}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \textcolor{keyword}{template}\ <\textcolor{keywordtype}{bool}\ shouldThrow\ =\ false>}
+\DoxyCodeLine{00032\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{hip_8hpp_a1b227ecedf709c65ce2e5a6cc3d7e199}{check\_hip\_error}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classThreadQueue}{hipError\_t}}\ \mbox{\hyperlink{classThreadQueue}{err}},\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classThreadQueue}{filename}},\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{line}})}
+\DoxyCodeLine{00033\ \{}
+\DoxyCodeLine{00034\ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classThreadQueue}{err}}\ !=\ \mbox{\hyperlink{classThreadQueue}{hipSuccess}})}
+\DoxyCodeLine{00035\ \ \ \ \ \{}
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ std::cout\ <<\ \textcolor{stringliteral}{"{}("{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{err}}\ <<\ \textcolor{stringliteral}{"{})\ in\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{filename}}\ <<\ \textcolor{stringliteral}{"{}\ on\ line\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{line}}}
+\DoxyCodeLine{00037\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <<\ \textcolor{stringliteral}{"{}\ :\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{hipGetErrorString}}(\mbox{\hyperlink{classThreadQueue}{err}})\ <<\ std::endl;}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (\mbox{\hyperlink{classThreadQueue}{shouldThrow}})}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00040\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\mbox{\hyperlink{classThreadQueue}{hipGetErrorString}}(\mbox{\hyperlink{classThreadQueue}{err}}));}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00042\ \ \ \ \ \}}
+\DoxyCodeLine{00043\ \}}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classThreadQueue}{allocate\_gpu\_memory}}(\textcolor{keywordtype}{void}**\ \mbox{\hyperlink{classThreadQueue}{location}},\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{size}})}
+\DoxyCodeLine{00046\ \{}
+\DoxyCodeLine{00047\ \textcolor{preprocessor}{\#ifndef\ FINE\_GRAINED\_TEST}}
+\DoxyCodeLine{00048\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{force\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipMalloc}}(\mbox{\hyperlink{classThreadQueue}{location}},\ \mbox{\hyperlink{classThreadQueue}{size}}));}
+\DoxyCodeLine{00049\ \textcolor{preprocessor}{\#else}}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{force\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipExtMallocWithFlags}}(\mbox{\hyperlink{classThreadQueue}{location}},\ \mbox{\hyperlink{classThreadQueue}{size}},}
+\DoxyCodeLine{00051\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipDeviceMallocFinegrained}}));}
+\DoxyCodeLine{00052\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00053\ \}}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classThreadQueue}{device\_sync}}()}
+\DoxyCodeLine{00056\ \{}
+\DoxyCodeLine{00057\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{check\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipDeviceSynchronize}}());}
+\DoxyCodeLine{00058\ \}}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ \textcolor{preprocessor}{\#elif\ NEED\_CUDA}}
+\DoxyCodeLine{00061\ \textcolor{preprocessor}{\#define\ check\_gpu(function)\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00062\ \textcolor{preprocessor}{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00063\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ auto\ err\ =\ function;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00064\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ check\_cuda\_error(err,\ \_\_FILE\_\_,\ \_\_LINE\_\_);\ \(\backslash\)}}
+\DoxyCodeLine{00065\ \textcolor{preprocessor}{\ \ \ \ \}}}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00067\ \textcolor{preprocessor}{\#define\ force\_gpu(function)\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00068\ \textcolor{preprocessor}{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00069\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ auto\ err\ =\ function;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}}
+\DoxyCodeLine{00070\ \textcolor{preprocessor}{\ \ \ \ \ \ \ \ check\_cuda\_error<true>(err,\ \_\_FILE\_\_,\ \_\_LINE\_\_);\ \(\backslash\)}}
+\DoxyCodeLine{00071\ \textcolor{preprocessor}{\ \ \ \ \}}}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00073\ \textcolor{keyword}{template}\ <\textcolor{keywordtype}{bool}\ shouldThrow\ =\ false>}
+\DoxyCodeLine{00074\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{cuda_8hpp_a777e0ed1178f729b03237cc60c393d09}{check\_cuda\_error}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classThreadQueue}{cudaError\_t}}\ \mbox{\hyperlink{classThreadQueue}{err}},\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classThreadQueue}{filename}},}
+\DoxyCodeLine{00075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{line}})}
+\DoxyCodeLine{00076\ \{}
+\DoxyCodeLine{00077\ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classThreadQueue}{err}}\ !=\ \mbox{\hyperlink{classThreadQueue}{cudaSuccess}})}
+\DoxyCodeLine{00078\ \ \ \ \ \{}
+\DoxyCodeLine{00079\ \ \ \ \ \ \ \ \ std::cout\ <<\ \textcolor{stringliteral}{"{}("{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{err}}\ <<\ \textcolor{stringliteral}{"{})\ in\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{filename}}\ <<\ \textcolor{stringliteral}{"{}\ on\ line\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{line}}}
+\DoxyCodeLine{00080\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <<\ \textcolor{stringliteral}{"{}\ :\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{cudaGetErrorString}}(\mbox{\hyperlink{classThreadQueue}{err}})\ <<\ std::endl;}
+\DoxyCodeLine{00081\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (\mbox{\hyperlink{classThreadQueue}{shouldThrow}})}
+\DoxyCodeLine{00082\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00083\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\mbox{\hyperlink{classThreadQueue}{cudaGetErrorString}}(\mbox{\hyperlink{classThreadQueue}{err}}));}
+\DoxyCodeLine{00084\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00085\ \ \ \ \ \}}
+\DoxyCodeLine{00086\ \}}
+\DoxyCodeLine{00087\ }
+\DoxyCodeLine{00088\ \textcolor{keyword}{template}\ <\textcolor{keywordtype}{bool}\ shouldThrow\ =\ false>}
+\DoxyCodeLine{00089\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{cuda_8hpp_a777e0ed1178f729b03237cc60c393d09}{check\_cuda\_error}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classThreadQueue}{CUresult}}\ code,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classThreadQueue}{filename}},\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{line}})}
+\DoxyCodeLine{00090\ \{}
+\DoxyCodeLine{00091\ \ \ \ \ \textcolor{keywordflow}{if}\ (code\ !=\ \mbox{\hyperlink{classThreadQueue}{CUDA\_SUCCESS}})}
+\DoxyCodeLine{00092\ \ \ \ \ \{}
+\DoxyCodeLine{00093\ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classThreadQueue}{name}}\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00094\ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classThreadQueue}{strg}}\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{cuGetErrorName}}(code,\ \&\mbox{\hyperlink{classThreadQueue}{name}});}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{cuGetErrorString}}(code,\ \&\mbox{\hyperlink{classThreadQueue}{strg}});}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00099\ \ \ \ \ \ \ \ \ std::cout\ <<\ \textcolor{stringliteral}{"{}("{}}\ <<\ code\ <<\ \textcolor{stringliteral}{"{})\ in\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{filename}}\ <<\ \textcolor{stringliteral}{"{}\ on\ line\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{line}}}
+\DoxyCodeLine{00100\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <<\ \textcolor{stringliteral}{"{}\ :\ "{}}\ <<\ std::string(\mbox{\hyperlink{classThreadQueue}{name}})\ <<\ \textcolor{stringliteral}{"{}\ -\/\ "{}}\ <<\ std::string(\mbox{\hyperlink{classThreadQueue}{strg}})}
+\DoxyCodeLine{00101\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <<\ std::endl;}
+\DoxyCodeLine{00102\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (\mbox{\hyperlink{classThreadQueue}{shouldThrow}})}
+\DoxyCodeLine{00103\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00104\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\textcolor{stringliteral}{"{}CU\ CUDA\ Error"{}});}
+\DoxyCodeLine{00105\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00106\ \ \ \ \ \}}
+\DoxyCodeLine{00107\ \}}
+\DoxyCodeLine{00108\ }
+\DoxyCodeLine{00109\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classThreadQueue}{allocate\_gpu\_memory}}(\textcolor{keywordtype}{void}**\ \mbox{\hyperlink{classThreadQueue}{location}},\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{size}})}
+\DoxyCodeLine{00110\ \{}
+\DoxyCodeLine{00111\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{force\_gpu}}(\mbox{\hyperlink{classThreadQueue}{cudaMalloc}}(\mbox{\hyperlink{classThreadQueue}{location}},\ \mbox{\hyperlink{classThreadQueue}{size}}));}
+\DoxyCodeLine{00112\ \}}
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00114\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classThreadQueue}{device\_sync}}()}
+\DoxyCodeLine{00115\ \{}
+\DoxyCodeLine{00116\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{check\_gpu}}(\mbox{\hyperlink{classThreadQueue}{cudaDeviceSynchronize}}());}
+\DoxyCodeLine{00117\ \}}
+\DoxyCodeLine{00118\ }
+\DoxyCodeLine{00119\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00120\ }
+\DoxyCodeLine{00121\ \mbox{\hyperlink{classThreadQueue}{\_\_global\_\_}}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{common_8hpp_aca251cee9d2d9ae6ce9d6b59b51c319e}{init\_buffers}}(\textcolor{keywordtype}{int}*\ \mbox{\hyperlink{threaded_8cpp_a8bc4f4c11eb55e192a06dd55e91ff621}{send\_buf}},\ \textcolor{keywordtype}{int}*\ \mbox{\hyperlink{threaded_8cpp_a9548b6c8041a80453a072258f9be0b35}{recv\_buf}},\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00122\ \{}
+\DoxyCodeLine{00123\ \ \ \ \ \textcolor{keywordtype}{int}\ index\ =\ \mbox{\hyperlink{classThreadQueue}{blockIdx}}.x\ *\ \mbox{\hyperlink{classThreadQueue}{blockDim}}.x\ +\ \mbox{\hyperlink{classThreadQueue}{threadIdx}}.x;}
+\DoxyCodeLine{00124\ \ \ \ \ \textcolor{keywordflow}{if}\ (index\ >=\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00125\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return};}
+\DoxyCodeLine{00126\ }
+\DoxyCodeLine{00127\ \ \ \ \ \mbox{\hyperlink{threaded_8cpp_a8bc4f4c11eb55e192a06dd55e91ff621}{send\_buf}}[index]\ =\ 0;}
+\DoxyCodeLine{00128\ \ \ \ \ \mbox{\hyperlink{threaded_8cpp_a9548b6c8041a80453a072258f9be0b35}{recv\_buf}}[index]\ =\ -\/1;}
+\DoxyCodeLine{00129\ \}}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ \mbox{\hyperlink{classThreadQueue}{\_\_global\_\_}}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{common_8hpp_ab6ef6e9d25e382a580f62af5bb16b659}{pack\_buffer}}(\textcolor{keywordtype}{int}*\ buffer,\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}},\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{iteration}})}
+\DoxyCodeLine{00132\ \{}
+\DoxyCodeLine{00133\ \ \ \ \ \textcolor{keywordtype}{int}\ index\ =\ \mbox{\hyperlink{classThreadQueue}{blockIdx}}.x\ *\ \mbox{\hyperlink{classThreadQueue}{blockDim}}.x\ +\ \mbox{\hyperlink{classThreadQueue}{threadIdx}}.x;}
+\DoxyCodeLine{00134\ \ \ \ \ \textcolor{keywordflow}{if}\ (index\ >=\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00135\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return};}
+\DoxyCodeLine{00136\ }
+\DoxyCodeLine{00137\ \ \ \ \ buffer[index]\ =\ \mbox{\hyperlink{classThreadQueue}{iteration}}\ *\ 100;}
+\DoxyCodeLine{00138\ \}}
+\DoxyCodeLine{00139\ }
+\DoxyCodeLine{00140\ \mbox{\hyperlink{classThreadQueue}{\_\_global\_\_}}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{common_8hpp_a3306444ecf0149ddb7a914343036f672}{pack\_buffer2}}(\textcolor{keywordtype}{int}*\ buffer,\ \textcolor{keywordtype}{int}*\ \mbox{\hyperlink{classThreadQueue}{recvd\_buffer}},\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00141\ \{}
+\DoxyCodeLine{00142\ \ \ \ \ \textcolor{keywordtype}{int}\ index\ =\ \mbox{\hyperlink{classThreadQueue}{blockIdx}}.x\ *\ \mbox{\hyperlink{classThreadQueue}{blockDim}}.x\ +\ \mbox{\hyperlink{classThreadQueue}{threadIdx}}.x;}
+\DoxyCodeLine{00143\ \ \ \ \ \textcolor{keywordflow}{if}\ (index\ >=\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00144\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return};}
+\DoxyCodeLine{00145\ }
+\DoxyCodeLine{00146\ \ \ \ \ buffer[index]\ =\ \mbox{\hyperlink{classThreadQueue}{recvd\_buffer}}[index];}
+\DoxyCodeLine{00147\ \}}
+\DoxyCodeLine{00148\ }
+\DoxyCodeLine{00149\ \mbox{\hyperlink{classThreadQueue}{\_\_global\_\_}}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{common_8hpp_ae830b62d39973312f12d080cfd5546c9}{print\_buffer}}(\textcolor{keyword}{volatile}\ \textcolor{keywordtype}{int}*\ buffer,\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}},}
+\DoxyCodeLine{00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{iteration}},\ \textcolor{keywordtype}{int}\ rank)}
+\DoxyCodeLine{00151\ \{}
+\DoxyCodeLine{00152\ \ \ \ \ \textcolor{keywordtype}{int}\ index\ =\ \mbox{\hyperlink{classThreadQueue}{blockIdx}}.x\ *\ \mbox{\hyperlink{classThreadQueue}{blockDim}}.x\ +\ \mbox{\hyperlink{classThreadQueue}{threadIdx}}.x;}
+\DoxyCodeLine{00153\ \ \ \ \ \textcolor{keywordflow}{if}\ (index\ >=\ \mbox{\hyperlink{classThreadQueue}{buffer\_len}})}
+\DoxyCodeLine{00154\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return};}
+\DoxyCodeLine{00155\ }
+\DoxyCodeLine{00156\ \ \ \ \ \textcolor{keywordflow}{if}\ (buffer[index]\ !=\ \mbox{\hyperlink{classThreadQueue}{iteration}}\ *\ 100)}
+\DoxyCodeLine{00157\ \ \ \ \ \{}
+\DoxyCodeLine{00158\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{printf}}(\textcolor{stringliteral}{"{}<GPU\ \%d>\ Wrong\ buffer\ value\ @\ index:\ \%d\ Got:\ \%d\ Expected:\ \%d\(\backslash\)n"{}},}
+\DoxyCodeLine{00159\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rank,\ index,\ buffer[index],\ \mbox{\hyperlink{classThreadQueue}{iteration}}\ *\ 100);}
+\DoxyCodeLine{00160\ \ \ \ \ \}}
+\DoxyCodeLine{00161\ \}}
+\DoxyCodeLine{00162\ }
+\DoxyCodeLine{00163\ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \textcolor{keyword}{inline}\ check\_param\_size(\textcolor{keywordtype}{int}*\ \mbox{\hyperlink{classThreadQueue}{argc}},\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{num\_params}},}
+\DoxyCodeLine{00164\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::string\ \mbox{\hyperlink{classThreadQueue}{usage}})}
+\DoxyCodeLine{00165\ \{}
+\DoxyCodeLine{00166\ \ \ \ \ \textcolor{keywordflow}{if}\ ((*\mbox{\hyperlink{classThreadQueue}{argc}})\ !=\ (1\ +\ \mbox{\hyperlink{classThreadQueue}{num\_params}}))}
+\DoxyCodeLine{00167\ \ \ \ \ \{}
+\DoxyCodeLine{00168\ \ \ \ \ \ \ \ \ std::cerr\ <<\ \textcolor{stringliteral}{"{}Usage:\ "{}}\ <<\ \mbox{\hyperlink{classThreadQueue}{usage}}\ <<\ std::endl;}
+\DoxyCodeLine{00169\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Abort}}(\mbox{\hyperlink{classThreadQueue}{MPI\_COMM\_WORLD}},\ -\/1);}
+\DoxyCodeLine{00170\ \ \ \ \ \}}
+\DoxyCodeLine{00171\ \}}
+\DoxyCodeLine{00172\ }
+\DoxyCodeLine{00173\ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \textcolor{keyword}{inline}\ read\_iter\_buffer\_input(\textcolor{keywordtype}{char}***\ \mbox{\hyperlink{classThreadQueue}{argv}},\ \textcolor{keywordtype}{int}*\ \mbox{\hyperlink{threaded_8cpp_a9d7728de80b7157d94cb8c9f1e93b35b}{num\_iters}},}
+\DoxyCodeLine{00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}*\ \mbox{\hyperlink{classThreadQueue}{buffer\_size}})}
+\DoxyCodeLine{00175\ \{}
+\DoxyCodeLine{00176\ \ \ \ \ (*num\_iters)\ \ \ =\ std::atoi((*\mbox{\hyperlink{classThreadQueue}{argv}})[1]);}
+\DoxyCodeLine{00177\ \ \ \ \ (*buffer\_size)\ =\ std::atoi((*\mbox{\hyperlink{classThreadQueue}{argv}})[2]);}
+\DoxyCodeLine{00178\ \}}
+\DoxyCodeLine{00179\ }
+\DoxyCodeLine{00180\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

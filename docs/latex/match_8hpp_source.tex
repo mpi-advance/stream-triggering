@@ -1,0 +1,89 @@
+\doxysection{match.\+hpp}
+\hypertarget{match_8hpp_source}{}\label{match_8hpp_source}\index{source/core/include/abstract/match.hpp@{source/core/include/abstract/match.hpp}}
+\mbox{\hyperlink{match_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ ST\_ABSTRACT\_MATCH}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ ST\_ABSTRACT\_MATCH}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{request_8hpp}{abstract/request.hpp}}"{}}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{print_8hpp}{misc/print.hpp}}"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{mpi_8hpp}{safety/mpi.hpp}}"{}}}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{keyword}{namespace\ }\mbox{\hyperlink{namespaceCommunication}{Communication}}}
+\DoxyCodeLine{00011\ \{}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCommunication_1_1BlankMatch}{BlankMatch}}}
+\DoxyCodeLine{00014\ \{}
+\DoxyCodeLine{00015\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00016\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCommunication_1_1BlankMatch_ae0d2e8daed19a2173d2831b0282f95b2}{match}}(\textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{peer\_rank}},\ \textcolor{keywordtype}{int}\ tag,\ \mbox{\hyperlink{classThreadQueue}{MPI\_Request}}*\ \mbox{\hyperlink{classThreadQueue}{request}},}
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Comm}}\ comm\ =\ \mbox{\hyperlink{classThreadQueue}{MPI\_COMM\_WORLD}})}
+\DoxyCodeLine{00018\ \ \ \ \ \{}
+\DoxyCodeLine{00019\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Irecv}}(\textcolor{keyword}{nullptr},\ 0,\ \mbox{\hyperlink{classThreadQueue}{MPI\_BYTE}},\ \mbox{\hyperlink{classThreadQueue}{peer\_rank}},\ tag,\ comm,\ \mbox{\hyperlink{classThreadQueue}{request}}));}
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Send}}(\textcolor{keyword}{nullptr},\ 0,\ \mbox{\hyperlink{classThreadQueue}{MPI\_BYTE}},\ \mbox{\hyperlink{classThreadQueue}{peer\_rank}},\ tag,\ comm));}
+\DoxyCodeLine{00021\ \ \ \ \ \}}
+\DoxyCodeLine{00022\ \};}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00025\ \textcolor{keyword}{constexpr}\ \mbox{\hyperlink{classThreadQueue}{MPI\_Datatype}}\ \mbox{\hyperlink{namespaceCommunication_ab8113e0af5558a4fa96f02a0fd456c28}{type\_to\_use}}()}
+\DoxyCodeLine{00026\ \{}
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (4\ ==\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{T}}))}
+\DoxyCodeLine{00028\ \ \ \ \ \{}
+\DoxyCodeLine{00029\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{MPI\_INT}};}
+\DoxyCodeLine{00030\ \ \ \ \ \}}
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (8\ ==\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{T}}))}
+\DoxyCodeLine{00032\ \ \ \ \ \{}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{MPI\_LONG}};}
+\DoxyCodeLine{00034\ \ \ \ \ \}}
+\DoxyCodeLine{00035\ \ \ \ \ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{00036\ \ \ \ \ \{}
+\DoxyCodeLine{00037\ \textcolor{preprocessor}{\#ifdef\ ADVANCED\_CPP23}}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \textcolor{keyword}{static\_assert}(\textcolor{keyword}{false},\ \textcolor{stringliteral}{"{}Type\ not\ supported!"{}});}
+\DoxyCodeLine{00039\ \textcolor{preprocessor}{\#else}}
+\DoxyCodeLine{00040\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\textcolor{stringliteral}{"{}Type\ not\ supported\ for\ matching!"{}});}
+\DoxyCodeLine{00041\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00042\ \ \ \ \ \}}
+\DoxyCodeLine{00043\ \}}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCommunication_1_1OneSideMatch}{OneSideMatch}}}
+\DoxyCodeLine{00046\ \{}
+\DoxyCodeLine{00047\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00048\ \ \ \ \ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCommunication_1_1OneSideMatch_aca3c0db883654476671ece5bf14a34d5}{give}}(std::vector<T*>\&\ \mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}},\ \mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{req}})}
+\DoxyCodeLine{00050\ \ \ \ \ \{}
+\DoxyCodeLine{00051\ \ \ \ \ \ \ \ \ \textcolor{keyword}{constexpr}\ \mbox{\hyperlink{classThreadQueue}{MPI\_Datatype}}\ \mbox{\hyperlink{classThreadQueue}{my\_type}}\ =\ \mbox{\hyperlink{classThreadQueue}{type\_to\_use<T>}}();}
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Request}}*\ \mbox{\hyperlink{classThreadQueue}{mpi\_requests}}\ =\ \mbox{\hyperlink{classThreadQueue}{req}}.get\_match\_requests(3);}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}(Recv)\ Matching\ with:"{}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \textcolor{stringliteral}{"{}and\ tag"{}},\ \mbox{\hyperlink{classThreadQueue}{req}}.tag);}
+\DoxyCodeLine{00056\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Isend}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[0],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00057\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[0]));}
+\DoxyCodeLine{00058\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Isend}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[1],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00059\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[1]));}
+\DoxyCodeLine{00060\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Issend}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[2],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[2]));}
+\DoxyCodeLine{00062\ \ \ \ \ \}}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \ \ \ \ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCommunication_1_1OneSideMatch_afa6b4288ace1bd9629f84d116f302e4f}{take}}(std::vector<T*>\&\ \mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}},\ \mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{req}})}
+\DoxyCodeLine{00066\ \ \ \ \ \{}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ \textcolor{keyword}{constexpr}\ \mbox{\hyperlink{classThreadQueue}{MPI\_Datatype}}\ \mbox{\hyperlink{classThreadQueue}{my\_type}}\ =\ \mbox{\hyperlink{classThreadQueue}{type\_to\_use<T>}}();}
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00069\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Request}}*\ \mbox{\hyperlink{classThreadQueue}{mpi\_requests}}\ =\ \mbox{\hyperlink{classThreadQueue}{req}}.get\_match\_requests(3);}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00071\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}(Send)\ Matching\ with:"{}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \textcolor{stringliteral}{"{}and\ tag"{}},\ \mbox{\hyperlink{classThreadQueue}{req}}.tag);}
+\DoxyCodeLine{00072\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Irecv}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[0],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00073\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[0]));}
+\DoxyCodeLine{00074\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Irecv}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[1],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00075\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[1]));}
+\DoxyCodeLine{00076\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Irecv}}(\mbox{\hyperlink{classThreadQueue}{data\_to\_exchange}}[2],\ 1,\ \mbox{\hyperlink{classThreadQueue}{my\_type}},\ \mbox{\hyperlink{classThreadQueue}{req}}.peer,\ \mbox{\hyperlink{classThreadQueue}{req}}.tag,\ \mbox{\hyperlink{classThreadQueue}{req}}.comm,}
+\DoxyCodeLine{00077\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \&\mbox{\hyperlink{classThreadQueue}{mpi\_requests}}[2]));}
+\DoxyCodeLine{00078\ \ \ \ \ \}}
+\DoxyCodeLine{00079\ \};}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00081\ \}\ \ \textcolor{comment}{//\ namespace\ Communication}}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

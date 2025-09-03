@@ -1,0 +1,7 @@
+<map id="FakeBarrier::start_host" name="FakeBarrier::start_host">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,42,173,67"/>
+<area shape="rect" id="Node000002" href="$classDeferredWorkQueue.html#aa86a6eb53103e3a766a98bc9d40d30be" title=" " alt="" coords="221,5,384,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="174,40,207,36,208,41,174,46"/>
+<area shape="rect" id="Node000003" href="$classThreshold.html#aba7d4cf3b98d55d4da06818afe0ed85b" title=" " alt="" coords="237,70,368,95"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="174,63,224,70,223,75,174,68"/>
+</map>

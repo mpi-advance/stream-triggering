@@ -1,0 +1,101 @@
+\doxysection{helpers.\+hpp}
+\hypertarget{helpers_8hpp_source}{}\label{helpers_8hpp_source}\index{source/bindings/helpers.hpp@{source/bindings/helpers.hpp}}
+\mbox{\hyperlink{helpers_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ ST\_BINDING\_HELPERS}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ ST\_BINDING\_HELPERS}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <memory>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <type\_traits>}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{request_8hpp}{abstract/request.hpp}}"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{print_8hpp}{misc/print.hpp}}"{}}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{stream-triggering_8h}{stream-\/triggering.h}}"{}}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#ifdef\ USE\_CXI}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{hip_8hpp}{safety/hip.hpp}}"{}}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00017\ \textcolor{keyword}{enum}\ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dab}{RequestState}}}
+\DoxyCodeLine{00018\ \{}
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dabaea9e2a8ce4339ceb6af69f47c7610012}{ONGOING}}\ \ \ =\ -\/1,\ }
+\DoxyCodeLine{00020\ \ \ \ \ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2daba1281ac5b7ba5b42a08b8e2dfee5ec74c}{UNMATCHED}}\ =\ 0,\ }
+\DoxyCodeLine{00021\ \ \ \ \ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dabafa51dda37faacd52f548681cd05d4e31}{MATCHED}}\ \ \ =\ 1,\ }
+\DoxyCodeLine{00022\ \};}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request\_struct}}}
+\DoxyCodeLine{00025\ \{}
+\DoxyCodeLine{00026\ \ \ \ \ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dab}{RequestState}}\ \mbox{\hyperlink{structMPIS__Request__struct_a74c9b704bfcb7e1c4300a006bab07f80}{state}};}
+\DoxyCodeLine{00027\ \ \ \ \ uintptr\_t\ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct_a1749c2fbd460ebc325cfe40134789b8e}{internal\_request}};}
+\DoxyCodeLine{00028\ \};}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structMPISException}{MPISException}}\ :\ \textcolor{keyword}{public}\ std::runtime\_error}
+\DoxyCodeLine{00031\ \{}
+\DoxyCodeLine{00032\ \ \ \ \ \mbox{\hyperlink{structMPISException_adcd865d8af265c44ef89b238e6b4dd61}{MPISException}}(\textcolor{keywordtype}{int}\ error\_code,\ std::string\ err\_message)}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ :\ runtime\_error(err\_message),\ \mbox{\hyperlink{structMPISException_aa63a6b1f87a2729dbda0aa3da75b106e}{code}}(error\_code)}
+\DoxyCodeLine{00034\ \ \ \ \ \{}
+\DoxyCodeLine{00035\ \ \ \ \ \}}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{structMPISException_aa63a6b1f87a2729dbda0aa3da75b106e}{code}};}
+\DoxyCodeLine{00038\ \};}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ init\_debugs()}
+\DoxyCodeLine{00041\ \{}
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{comment}{//\ \#ifndef\ NDEBUG}}
+\DoxyCodeLine{00043\ \ \ \ \ \textcolor{comment}{//\ \ Setup\ printing\ rank}}
+\DoxyCodeLine{00044\ \ \ \ \ \textcolor{keywordtype}{int}\ rank\ =\ -\/1;}
+\DoxyCodeLine{00045\ \ \ \ \ MPI\_Comm\_rank(MPI\_COMM\_WORLD,\ \&rank);}
+\DoxyCodeLine{00046\ \ \ \ \ \mbox{\hyperlink{namespacePrint_aa63858dd8dc5b32163fa61ea40e270d4}{Print::initialize\_rank}}(rank);}
+\DoxyCodeLine{00047\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Initialized"{}});}
+\DoxyCodeLine{00048\ \ \ \ \ \textcolor{comment}{//\ \#endif}}
+\DoxyCodeLine{00049\ \}}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00051\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ init\_device()}
+\DoxyCodeLine{00052\ \{}
+\DoxyCodeLine{00053\ \textcolor{preprocessor}{\#ifdef\ USE\_GFX90A}}
+\DoxyCodeLine{00054\ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(hipInit(0));}
+\DoxyCodeLine{00055\ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(hipSetDevice(6));}
+\DoxyCodeLine{00056\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Initialized\ Device\ to\ 6"{}});}
+\DoxyCodeLine{00057\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00058\ \}}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ \textcolor{comment}{//\ Functions\ for\ extracting\ C++\ request\ from\ C\ type\ (if\ it's\ correct\ request}}
+\DoxyCodeLine{00061\ \textcolor{comment}{//\ type)}}
+\DoxyCodeLine{00062\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ std::shared\_ptr<Communication::Request>*\ convert\_request(}
+\DoxyCodeLine{00063\ \ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}\ request,\ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dab}{RequestState}}\ state)}
+\DoxyCodeLine{00064\ \{}
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{keywordflow}{if}\ (state\ !=\ request-\/>\mbox{\hyperlink{structMPIS__Request__struct_a74c9b704bfcb7e1c4300a006bab07f80}{state}})}
+\DoxyCodeLine{00066\ \ \ \ \ \{}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ \mbox{\hyperlink{structMPISException}{MPISException}}(\mbox{\hyperlink{group__errors_ga3bf260df710654b5f508289eacfd0df4}{MPIS\_INVALID\_REQUEST\_STATE}},\ \textcolor{stringliteral}{"{}Invalid\ Request\ state!"{}});}
+\DoxyCodeLine{00068\ \ \ \ \ \}}
+\DoxyCodeLine{00069\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{reinterpret\_cast<}std::shared\_ptr<Communication::Request>*\textcolor{keyword}{>}(}
+\DoxyCodeLine{00070\ \ \ \ \ \ \ \ \ (request-\/>\mbox{\hyperlink{structMPIS__Request__struct_a1749c2fbd460ebc325cfe40134789b8e}{internal\_request}}));}
+\DoxyCodeLine{00071\ \}}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00073\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ std::shared\_ptr<Communication::Request>*\ convert\_request\_ptr(}
+\DoxyCodeLine{00074\ \ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*\ request,\ \mbox{\hyperlink{helpers_8hpp_abbf149223655194c14baa78907cb2dab}{RequestState}}\ state)}
+\DoxyCodeLine{00075\ \{}
+\DoxyCodeLine{00076\ \ \ \ \ \textcolor{keywordflow}{if}\ (state\ !=\ (*request)-\/>state)}
+\DoxyCodeLine{00077\ \ \ \ \ \{}
+\DoxyCodeLine{00078\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ \mbox{\hyperlink{structMPISException}{MPISException}}(\mbox{\hyperlink{group__errors_ga3bf260df710654b5f508289eacfd0df4}{MPIS\_INVALID\_REQUEST\_STATE}},\ \textcolor{stringliteral}{"{}Invalid\ Request\ state!"{}});}
+\DoxyCodeLine{00079\ \ \ \ \ \}}
+\DoxyCodeLine{00080\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{reinterpret\_cast<}std::shared\_ptr<Communication::Request>*\textcolor{keyword}{>}(}
+\DoxyCodeLine{00081\ \ \ \ \ \ \ \ \ ((*request)-\/>internal\_request));}
+\DoxyCodeLine{00082\ \}}
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00084\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ std::shared\_ptr<Communication::Request>*\ convert\_request(}
+\DoxyCodeLine{00085\ \ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}\ request)}
+\DoxyCodeLine{00086\ \{}
+\DoxyCodeLine{00087\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{reinterpret\_cast<}std::shared\_ptr<Communication::Request>*\textcolor{keyword}{>}(}
+\DoxyCodeLine{00088\ \ \ \ \ \ \ \ \ (request-\/>\mbox{\hyperlink{structMPIS__Request__struct_a1749c2fbd460ebc325cfe40134789b8e}{internal\_request}}));}
+\DoxyCodeLine{00089\ \}}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00091\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ std::shared\_ptr<Communication::Request>*\ convert\_request\_ptr(}
+\DoxyCodeLine{00092\ \ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*\ request)}
+\DoxyCodeLine{00093\ \{}
+\DoxyCodeLine{00094\ \ \ \ \ \textcolor{keywordflow}{return}\ \textcolor{keyword}{reinterpret\_cast<}std::shared\_ptr<Communication::Request>*\textcolor{keyword}{>}(}
+\DoxyCodeLine{00095\ \ \ \ \ \ \ \ \ ((*request)-\/>internal\_request));}
+\DoxyCodeLine{00096\ \}}
+\DoxyCodeLine{00097\ }
+\DoxyCodeLine{00098\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}
