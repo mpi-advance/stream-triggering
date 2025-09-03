@@ -1,0 +1,39 @@
+\doxysection{queue.\+hpp}
+\hypertarget{queue_8hpp_source}{}\label{queue_8hpp_source}\index{source/core/include/abstract/queue.hpp@{source/core/include/abstract/queue.hpp}}
+\mbox{\hyperlink{queue_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ ST\_ABSTRACT\_QUEUE}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ ST\_ABSTRACT\_QUEUE}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <stdint.h>}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <memory>}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{request_8hpp}{request.hpp}}"{}}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{keyword}{using\ namespace\ }\mbox{\hyperlink{namespaceCommunication}{Communication}};}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00017\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classQueue}{Queue}}}
+\DoxyCodeLine{00018\ \{}
+\DoxyCodeLine{00019\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00020\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{classQueue_a6d58352c162587d198ed0b34d0d64c35}{\string~Queue}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueue_a5742ab529246e2f836eb2158b4cd5836}{enqueue\_operation}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{req}})\ =\ 0;}
+\DoxyCodeLine{00023\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueue_a374344cc95679b8536ef8b78ce3c7986}{enqueue\_startall}}(}
+\DoxyCodeLine{00024\ \ \ \ \ \ \ \ \ std::vector<std::shared\_ptr<Request>>\ \mbox{\hyperlink{classThreadQueue}{reqs}})\ =\ 0;}
+\DoxyCodeLine{00025\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueue_aad274e2063761755b768c409bec9747d}{enqueue\_waitall}}()\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ =\ 0;}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueue_a28d2d2fecae7bbbd2f7e76d15107dfa3}{host\_wait}}()\ =\ 0;}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00029\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classQueue_a39457bdf82e57ef7ae71a8f60d300641}{match}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{request}});}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keyword}{operator}\ \mbox{\hyperlink{classThreadQueue}{uintptr\_t}}()\textcolor{keyword}{\ const}}
+\DoxyCodeLine{00032\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (\mbox{\hyperlink{classThreadQueue}{uintptr\_t}})(*this);}
+\DoxyCodeLine{00034\ \ \ \ \ \}}
+\DoxyCodeLine{00035\ \};}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

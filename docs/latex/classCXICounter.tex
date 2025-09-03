@@ -1,0 +1,108 @@
+\doxysection{CXICounter Class Reference}
+\hypertarget{classCXICounter}{}\label{classCXICounter}\index{CXICounter@{CXICounter}}
+
+
+{\ttfamily \#include $<$CXIQueue.\+hpp$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classCXICounter_a5de256f4a9c3485fc0e9ca326f3f8780}{CXICounter}} (\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}domain)
+\item 
+\mbox{\hyperlink{classCXICounter_a79b2f6d3e1707835f575187d4b824097}{\texorpdfstring{$\sim$}{\string~}\+CXICounter}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXICounter_a79715e08bd4410a5e27f5c18d712c157}{print}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{static}} \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+cntr}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCXICounter_a0ed90de17a8ad751f6d03a23131dc48b}{alloc\+\_\+counter}} (\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}domain)
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+cntr}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fi\+\_\+cxi\+\_\+cntr\+\_\+ops}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCXICounter_a95a1d87efc940b694d33c3d631f72540}{counter\+\_\+ops}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\+\_\+addr}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCXICounter_a38c5d78155819039b87235f6be3c76d2}{mmio\+\_\+addr\+\_\+len}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCXICounter_a55196c496536eab6753c570c68d1a7e3}{gpu\+\_\+mmio\+\_\+addr}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classCXICounter_a5de256f4a9c3485fc0e9ca326f3f8780}\label{classCXICounter_a5de256f4a9c3485fc0e9ca326f3f8780} 
+\index{CXICounter@{CXICounter}!CXICounter@{CXICounter}}
+\index{CXICounter@{CXICounter}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{CXICounter()}{CXICounter()}}
+{\footnotesize\ttfamily CXICounter\+::\+CXICounter (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}}]{domain }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCXICounter_a79b2f6d3e1707835f575187d4b824097}\label{classCXICounter_a79b2f6d3e1707835f575187d4b824097} 
+\index{CXICounter@{CXICounter}!````~CXICounter@{\texorpdfstring{$\sim$}{\string~}CXICounter}}
+\index{````~CXICounter@{\texorpdfstring{$\sim$}{\string~}CXICounter}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}CXICounter()}{\string~CXICounter()}}
+{\footnotesize\ttfamily CXICounter\+::\texorpdfstring{$\sim$}{\string~}\+CXICounter (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classCXICounter_a0ed90de17a8ad751f6d03a23131dc48b}\label{classCXICounter_a0ed90de17a8ad751f6d03a23131dc48b} 
+\index{CXICounter@{CXICounter}!alloc\_counter@{alloc\_counter}}
+\index{alloc\_counter@{alloc\_counter}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{alloc\_counter()}{alloc\_counter()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{static}} \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+cntr}} \texorpdfstring{$\ast$}{*} CXICounter\+::alloc\+\_\+counter (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}}]{domain }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [static]}}
+
+\Hypertarget{classCXICounter_a79715e08bd4410a5e27f5c18d712c157}\label{classCXICounter_a79715e08bd4410a5e27f5c18d712c157} 
+\index{CXICounter@{CXICounter}!print@{print}}
+\index{print@{print}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{print()}{print()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} CXICounter\+::print (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=277pt]{classCXICounter_a79715e08bd4410a5e27f5c18d712c157_cgraph}
+\end{center}
+\end{figure}
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}\label{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a} 
+\index{CXICounter@{CXICounter}!counter@{counter}}
+\index{counter@{counter}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{counter}{counter}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+cntr}}\texorpdfstring{$\ast$}{*} CXICounter\+::counter}
+
+\Hypertarget{classCXICounter_a95a1d87efc940b694d33c3d631f72540}\label{classCXICounter_a95a1d87efc940b694d33c3d631f72540} 
+\index{CXICounter@{CXICounter}!counter\_ops@{counter\_ops}}
+\index{counter\_ops@{counter\_ops}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{counter\_ops}{counter\_ops}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fi\+\_\+cxi\+\_\+cntr\+\_\+ops}}\texorpdfstring{$\ast$}{*} CXICounter\+::counter\+\_\+ops}
+
+\Hypertarget{classCXICounter_a55196c496536eab6753c570c68d1a7e3}\label{classCXICounter_a55196c496536eab6753c570c68d1a7e3} 
+\index{CXICounter@{CXICounter}!gpu\_mmio\_addr@{gpu\_mmio\_addr}}
+\index{gpu\_mmio\_addr@{gpu\_mmio\_addr}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{gpu\_mmio\_addr}{gpu\_mmio\_addr}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}}\texorpdfstring{$\ast$}{*} CXICounter\+::gpu\+\_\+mmio\+\_\+addr}
+
+\Hypertarget{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}\label{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810} 
+\index{CXICounter@{CXICounter}!mmio\_addr@{mmio\_addr}}
+\index{mmio\_addr@{mmio\_addr}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{mmio\_addr}{mmio\_addr}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}}\texorpdfstring{$\ast$}{*} CXICounter\+::mmio\+\_\+addr}
+
+\Hypertarget{classCXICounter_a38c5d78155819039b87235f6be3c76d2}\label{classCXICounter_a38c5d78155819039b87235f6be3c76d2} 
+\index{CXICounter@{CXICounter}!mmio\_addr\_len@{mmio\_addr\_len}}
+\index{mmio\_addr\_len@{mmio\_addr\_len}!CXICounter@{CXICounter}}
+\doxysubsubsection{\texorpdfstring{mmio\_addr\_len}{mmio\_addr\_len}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} CXICounter\+::mmio\+\_\+addr\+\_\+len}
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{CXIQueue_8hpp}{CXIQueue.\+hpp}}\end{DoxyCompactItemize}

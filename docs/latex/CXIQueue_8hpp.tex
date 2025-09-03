@@ -1,0 +1,84 @@
+\doxysection{source/core/include/queues/\+CXIQueue.hpp File Reference}
+\hypertarget{CXIQueue_8hpp}{}\label{CXIQueue_8hpp}\index{source/core/include/queues/CXIQueue.hpp@{source/core/include/queues/CXIQueue.hpp}}
+{\ttfamily \#include $<$rdma/fabric.\+h$>$}\newline
+{\ttfamily \#include $<$rdma/fi\+\_\+cm.\+h$>$}\newline
+{\ttfamily \#include $<$rdma/fi\+\_\+domain.\+h$>$}\newline
+{\ttfamily \#include $<$rdma/fi\+\_\+endpoint.\+h$>$}\newline
+{\ttfamily \#include $<$rdma/fi\+\_\+trigger.\+h$>$}\newline
+{\ttfamily \#include $<$rdma/fi\+\_\+cxi\+\_\+ext.\+h$>$}\newline
+{\ttfamily \#include $<$map$>$}\newline
+{\ttfamily \#include $<$numeric$>$}\newline
+{\ttfamily \#include $<$vector$>$}\newline
+{\ttfamily \#include "{}abstract/match.\+hpp"{}}\newline
+{\ttfamily \#include "{}abstract/queue.\+hpp"{}}\newline
+{\ttfamily \#include "{}misc/print.\+hpp"{}}\newline
+{\ttfamily \#include "{}safety/hip.\+hpp"{}}\newline
+{\ttfamily \#include "{}safety/libfabric.\+hpp"{}}\newline
+{\ttfamily \#include "{}safety/mpi.\+hpp"{}}\newline
+Include dependency graph for CXIQueue.\+hpp\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{CXIQueue_8hpp__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=207pt]{CXIQueue_8hpp__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classBuffer}{Buffer}}
+\item 
+class \mbox{\hyperlink{classThreshold}{Threshold}}
+\item 
+class \mbox{\hyperlink{classDeferredWorkQueue}{Deferred\+Work\+Queue}}
+\item 
+class \mbox{\hyperlink{classCXICounter}{CXICounter}}
+\item 
+class \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}}
+\item 
+class \mbox{\hyperlink{classCXIRequest}{CXIRequest}}
+\item 
+class \mbox{\hyperlink{classFakeBarrier}{Fake\+Barrier}}
+\item 
+class \mbox{\hyperlink{classCXIWait}{CXIWait}}
+\item 
+class \mbox{\hyperlink{classChainedRMA}{Chained\+RMA$<$ FENCE $>$}}
+\item 
+class \mbox{\hyperlink{classCXISend}{CXISend$<$ MODE $>$}}
+\item 
+class \mbox{\hyperlink{classCXIRecvOneSided}{CXIRecv\+One\+Sided}}
+\item 
+class \mbox{\hyperlink{classCXIQueue}{CXIQueue}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5}{Communication\+Type}} \{ \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3}{ONE\+\_\+\+SIDED}} = 1
+, \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a5538fe03981f9b01bbd94749a0df900b}{TWO\+\_\+\+SIDED}} = 2
+ \}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Enumeration Type Documentation}
+\Hypertarget{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5}\label{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5} 
+\index{CXIQueue.hpp@{CXIQueue.hpp}!CommunicationType@{CommunicationType}}
+\index{CommunicationType@{CommunicationType}!CXIQueue.hpp@{CXIQueue.hpp}}
+\doxysubsubsection{\texorpdfstring{CommunicationType}{CommunicationType}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{enum}} \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5}{Communication\+Type}}}
+
+\begin{DoxyEnumFields}{Enumerator}
+\raisebox{\heightof{T}}[0pt][0pt]{\index{ONE\_SIDED@{ONE\_SIDED}!CXIQueue.hpp@{CXIQueue.hpp}}\index{CXIQueue.hpp@{CXIQueue.hpp}!ONE\_SIDED@{ONE\_SIDED}}}\Hypertarget{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3}\label{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3} 
+ONE\+\_\+\+SIDED&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{TWO\_SIDED@{TWO\_SIDED}!CXIQueue.hpp@{CXIQueue.hpp}}\index{CXIQueue.hpp@{CXIQueue.hpp}!TWO\_SIDED@{TWO\_SIDED}}}\Hypertarget{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a5538fe03981f9b01bbd94749a0df900b}\label{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a5538fe03981f9b01bbd94749a0df900b} 
+TWO\+\_\+\+SIDED&\\
+\hline
+
+\end{DoxyEnumFields}

@@ -1,0 +1,287 @@
+\doxysection{Thread\+Queue\texorpdfstring{$<$}{<} is\+Serialized \texorpdfstring{$>$}{>} Class Template Reference}
+\hypertarget{classThreadQueue}{}\label{classThreadQueue}\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+
+
+{\ttfamily \#include $<$Thread\+Queue.\+hpp$>$}
+
+
+
+Inheritance diagram for Thread\+Queue\texorpdfstring{$<$}{<} is\+Serialized \texorpdfstring{$>$}{>}\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=241pt]{classThreadQueue__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for Thread\+Queue\texorpdfstring{$<$}{<} is\+Serialized \texorpdfstring{$>$}{>}\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=283pt]{classThreadQueue__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue_adf0d28f56eb921a1a24cd0588577e3ed}{Internal\+Request}} = \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue_aec229fe883972faf840eff8bee71e106}{User\+Request}} = std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue_ac60400a47ddd1475725643210852c63c}{Thread\+Queue}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue_a77520ba49056e796d84dc8c68b1f9ade}{\texorpdfstring{$\sim$}{\string~}\+Thread\+Queue}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue_aa89e066075b0e33f401b0327791aa3ef}{enqueue\+\_\+operation}} (\mbox{\hyperlink{classThreadQueue_aec229fe883972faf840eff8bee71e106}{User\+Request}} \mbox{\hyperlink{classThreadQueue}{request}}) \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue_afd908300e0bea7f9f8e74e4c2f2297aa}{enqueue\+\_\+startall}} (std\+::vector$<$ \mbox{\hyperlink{classThreadQueue_aec229fe883972faf840eff8bee71e106}{User\+Request}} $>$ \mbox{\hyperlink{classThreadQueue}{requests}}) \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue_a087e3105b674412bcfa57d9289436e54}{enqueue\+\_\+waitall}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue_a0d0deef67e38a8852ea857ef3c135782}{host\+\_\+wait}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classQueue}{Queue}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classQueue_a6d58352c162587d198ed0b34d0d64c35}{\texorpdfstring{$\sim$}{\string~}\+Queue}} ()=\mbox{\hyperlink{classThreadQueue}{default}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueue_a5742ab529246e2f836eb2158b4cd5836}{enqueue\+\_\+operation}} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$ \mbox{\hyperlink{classThreadQueue}{req}})=0
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueue_a374344cc95679b8536ef8b78ce3c7986}{enqueue\+\_\+startall}} (std\+::vector$<$ std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$ $>$ \mbox{\hyperlink{classThreadQueue}{reqs}})=0
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueue_a39457bdf82e57ef7ae71a8f60d300641}{match}} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$ \mbox{\hyperlink{classThreadQueue}{request}})
+\item 
+\mbox{\hyperlink{classQueue_af228af61fa68c56aa8040df3c905ca08}{operator uintptr\+\_\+t}} () \mbox{\hyperlink{classThreadQueue}{const}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue_acadb7d14e6dc173ea598a8f3c95989be}{Bundle\+Iterator}} = std\+::vector$<$ \mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}} $>$\mbox{\hyperlink{classThreadQueue}{\+::iterator}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue_aa366b861e87f9a8911c9f52caa6200a1}{progress}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\+::atomic$<$ \mbox{\hyperlink{classThreadQueue}{int}} $>$ \mbox{\hyperlink{classThreadQueue_a016653d15f3bb0aa7bcb78d779eb0ab3}{busy}}
+\item 
+std\+::thread \mbox{\hyperlink{classThreadQueue_a8e41c7e032d3de3c8c5400aaf0c07b5a}{thr}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{bool}} \mbox{\hyperlink{classThreadQueue_ae49f73caa490ec861724c93212970222}{shutdown}} = \mbox{\hyperlink{classThreadQueue}{false}}
+\item 
+std\+::mutex \mbox{\hyperlink{classThreadQueue_adf92f9bbcd3ab79447dde5592f2d2e29}{queue\+\_\+guard}}
+\item 
+\mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}} \mbox{\hyperlink{classThreadQueue_a01422ecea2912e1b4993efa70548f852}{entries}}
+\item 
+std\+::queue$<$ \mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}} $>$ \mbox{\hyperlink{classThreadQueue_a49c2d9e769c0e573461a61aa3cb081ca}{pending}}
+\item 
+std\+::map$<$ \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}}, \mbox{\hyperlink{classThreadQueue_adf0d28f56eb921a1a24cd0588577e3ed}{Internal\+Request}} $>$ \mbox{\hyperlink{classThreadQueue_ab96aeb1376b4cc93434ecfe1623d288f}{request\+\_\+cache}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Typedef Documentation}
+\Hypertarget{classThreadQueue_acadb7d14e6dc173ea598a8f3c95989be}\label{classThreadQueue_acadb7d14e6dc173ea598a8f3c95989be} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!BundleIterator@{BundleIterator}}
+\index{BundleIterator@{BundleIterator}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{BundleIterator}{BundleIterator}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::\+Bundle\+Iterator =  std\+::vector$<$\mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}}$>$\mbox{\hyperlink{classThreadQueue}{\+::iterator}}\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_adf0d28f56eb921a1a24cd0588577e3ed}\label{classThreadQueue_adf0d28f56eb921a1a24cd0588577e3ed} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!InternalRequest@{InternalRequest}}
+\index{InternalRequest@{InternalRequest}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{InternalRequest}{InternalRequest}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::\+Internal\+Request =  \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}}}
+
+\Hypertarget{classThreadQueue_aec229fe883972faf840eff8bee71e106}\label{classThreadQueue_aec229fe883972faf840eff8bee71e106} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!UserRequest@{UserRequest}}
+\index{UserRequest@{UserRequest}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{UserRequest}{UserRequest}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{using}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::\+User\+Request =  std\+::shared\+\_\+ptr$<$\mbox{\hyperlink{classCommunication_1_1Request}{Request}}$>$}
+
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classThreadQueue_ac60400a47ddd1475725643210852c63c}\label{classThreadQueue_ac60400a47ddd1475725643210852c63c} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!ThreadQueue@{ThreadQueue}}
+\index{ThreadQueue@{ThreadQueue}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{ThreadQueue()}{ThreadQueue()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\mbox{\hyperlink{classThreadQueue}{\+::\+Thread\+Queue}} (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=330pt]{classThreadQueue_ac60400a47ddd1475725643210852c63c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_ac60400a47ddd1475725643210852c63c_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classThreadQueue_a77520ba49056e796d84dc8c68b1f9ade}\label{classThreadQueue_a77520ba49056e796d84dc8c68b1f9ade} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!````~ThreadQueue@{\texorpdfstring{$\sim$}{\string~}ThreadQueue}}
+\index{````~ThreadQueue@{\texorpdfstring{$\sim$}{\string~}ThreadQueue}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}ThreadQueue()}{\string~ThreadQueue()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::\texorpdfstring{$\sim$}{\string~}\mbox{\hyperlink{classThreadQueue}{Thread\+Queue}} (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classThreadQueue_aa89e066075b0e33f401b0327791aa3ef}\label{classThreadQueue_aa89e066075b0e33f401b0327791aa3ef} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!enqueue\_operation@{enqueue\_operation}}
+\index{enqueue\_operation@{enqueue\_operation}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{enqueue\_operation()}{enqueue\_operation()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::enqueue\+\_\+operation (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue_aec229fe883972faf840eff8bee71e106}{User\+Request}}}]{request }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_aa89e066075b0e33f401b0327791aa3ef_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_aa89e066075b0e33f401b0327791aa3ef_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classThreadQueue_afd908300e0bea7f9f8e74e4c2f2297aa}\label{classThreadQueue_afd908300e0bea7f9f8e74e4c2f2297aa} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!enqueue\_startall@{enqueue\_startall}}
+\index{enqueue\_startall@{enqueue\_startall}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{enqueue\_startall()}{enqueue\_startall()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::enqueue\+\_\+startall (\begin{DoxyParamCaption}\item[{std\+::vector$<$ \mbox{\hyperlink{classThreadQueue_aec229fe883972faf840eff8bee71e106}{User\+Request}} $>$}]{requests }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_afd908300e0bea7f9f8e74e4c2f2297aa_cgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classThreadQueue_a087e3105b674412bcfa57d9289436e54}\label{classThreadQueue_a087e3105b674412bcfa57d9289436e54} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!enqueue\_waitall@{enqueue\_waitall}}
+\index{enqueue\_waitall@{enqueue\_waitall}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{enqueue\_waitall()}{enqueue\_waitall()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::enqueue\+\_\+waitall (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classQueue_aad274e2063761755b768c409bec9747d}{Queue}}.
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_a087e3105b674412bcfa57d9289436e54_cgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classThreadQueue_a0d0deef67e38a8852ea857ef3c135782}\label{classThreadQueue_a0d0deef67e38a8852ea857ef3c135782} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!host\_wait@{host\_wait}}
+\index{host\_wait@{host\_wait}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{host\_wait()}{host\_wait()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::host\+\_\+wait (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classQueue_a28d2d2fecae7bbbd2f7e76d15107dfa3}{Queue}}.
+
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_a0d0deef67e38a8852ea857ef3c135782_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classThreadQueue_aa366b861e87f9a8911c9f52caa6200a1}\label{classThreadQueue_aa366b861e87f9a8911c9f52caa6200a1} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!progress@{progress}}
+\index{progress@{progress}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{progress()}{progress()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::progress (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [protected]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classThreadQueue_aa366b861e87f9a8911c9f52caa6200a1_cgraph}
+\end{center}
+\end{figure}
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{classThreadQueue_a016653d15f3bb0aa7bcb78d779eb0ab3}\label{classThreadQueue_a016653d15f3bb0aa7bcb78d779eb0ab3} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!busy@{busy}}
+\index{busy@{busy}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{busy}{busy}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+std\+::atomic$<$\mbox{\hyperlink{classThreadQueue}{int}}$>$ \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::busy\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_a01422ecea2912e1b4993efa70548f852}\label{classThreadQueue_a01422ecea2912e1b4993efa70548f852} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!entries@{entries}}
+\index{entries@{entries}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{entries}{entries}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::entries\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_a49c2d9e769c0e573461a61aa3cb081ca}\label{classThreadQueue_a49c2d9e769c0e573461a61aa3cb081ca} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!pending@{pending}}
+\index{pending@{pending}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{pending}{pending}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+std\+::queue$<$\mbox{\hyperlink{classCommunication_1_1Bundle}{Bundle}}$>$ \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::pending\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_adf92f9bbcd3ab79447dde5592f2d2e29}\label{classThreadQueue_adf92f9bbcd3ab79447dde5592f2d2e29} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!queue\_guard@{queue\_guard}}
+\index{queue\_guard@{queue\_guard}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{queue\_guard}{queue\_guard}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+std\+::mutex \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::queue\+\_\+guard\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_ab96aeb1376b4cc93434ecfe1623d288f}\label{classThreadQueue_ab96aeb1376b4cc93434ecfe1623d288f} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!request\_cache@{request\_cache}}
+\index{request\_cache@{request\_cache}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{request\_cache}{request\_cache}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+std\+::map$<$\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}}, \mbox{\hyperlink{classThreadQueue_adf0d28f56eb921a1a24cd0588577e3ed}{Internal\+Request}}$>$ \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::request\+\_\+cache\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_ae49f73caa490ec861724c93212970222}\label{classThreadQueue_ae49f73caa490ec861724c93212970222} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!shutdown@{shutdown}}
+\index{shutdown@{shutdown}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{shutdown}{shutdown}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+\mbox{\hyperlink{classThreadQueue}{bool}} \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::shutdown = \mbox{\hyperlink{classThreadQueue}{false}}\hspace{0.3cm}{\ttfamily [protected]}}
+
+\Hypertarget{classThreadQueue_a8e41c7e032d3de3c8c5400aaf0c07b5a}\label{classThreadQueue_a8e41c7e032d3de3c8c5400aaf0c07b5a} 
+\index{ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}!thr@{thr}}
+\index{thr@{thr}!ThreadQueue$<$ isSerialized $>$@{ThreadQueue$<$ isSerialized $>$}}
+\doxysubsubsection{\texorpdfstring{thr}{thr}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} is\+Serialized$>$ \\
+std\+::thread \mbox{\hyperlink{classThreadQueue}{Thread\+Queue}}$<$ \mbox{\hyperlink{classThreadQueue}{is\+Serialized}} $>$\+::thr\hspace{0.3cm}{\ttfamily [protected]}}
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{ThreadQueue_8hpp}{Thread\+Queue.\+hpp}}\end{DoxyCompactItemize}

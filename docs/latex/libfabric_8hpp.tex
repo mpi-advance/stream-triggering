@@ -1,0 +1,71 @@
+\doxysection{source/core/include/safety/libfabric.hpp File Reference}
+\hypertarget{libfabric_8hpp}{}\label{libfabric_8hpp}\index{source/core/include/safety/libfabric.hpp@{source/core/include/safety/libfabric.hpp}}
+{\ttfamily \#include $<$rdma/fabric.\+h$>$}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+Include dependency graph for libfabric.\+hpp\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=240pt]{libfabric_8hpp__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=253pt]{libfabric_8hpp__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\+\_\+libfabric}}(\mbox{\hyperlink{classThreadQueue}{function}})
+\item 
+\#\mbox{\hyperlink{classThreadQueue}{define}} \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\+\_\+libfabric}}(\mbox{\hyperlink{classThreadQueue}{function}})
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+{\footnotesize template$<$\mbox{\hyperlink{classThreadQueue}{bool}} should\+Throw = false$>$ }\\\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{libfabric_8hpp_adb9c56e9462ece6e8ff800a8e9e6b710}{check\+\_\+error}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{err}}, \mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{char}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{filename}}, \mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{classThreadQueue}{line}})
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\Hypertarget{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}\label{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153} 
+\index{libfabric.hpp@{libfabric.hpp}!check\_libfabric@{check\_libfabric}}
+\index{check\_libfabric@{check\_libfabric}!libfabric.hpp@{libfabric.hpp}}
+\doxysubsubsection{\texorpdfstring{check\_libfabric}{check\_libfabric}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} check\+\_\+libfabric(\begin{DoxyParamCaption}\item[{}]{\mbox{\hyperlink{classThreadQueue}{function}} }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{err}}\ =\ \mbox{\hyperlink{classThreadQueue}{function}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{\(\backslash\)}}}
+\DoxyCodeLine{\mbox{\hyperlink{classThreadQueue}{\ \ \ \ \ \ \ \ check\_error}}(\mbox{\hyperlink{classThreadQueue}{err}},\ \mbox{\hyperlink{classThreadQueue}{\_\_FILE\_\_}},\ \mbox{\hyperlink{classThreadQueue}{\_\_LINE\_\_}});\ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \}}
+
+\end{DoxyCode}
+\Hypertarget{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}\label{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20} 
+\index{libfabric.hpp@{libfabric.hpp}!force\_libfabric@{force\_libfabric}}
+\index{force\_libfabric@{force\_libfabric}!libfabric.hpp@{libfabric.hpp}}
+\doxysubsubsection{\texorpdfstring{force\_libfabric}{force\_libfabric}}
+{\footnotesize\ttfamily \#\mbox{\hyperlink{classThreadQueue}{define}} force\+\_\+libfabric(\begin{DoxyParamCaption}\item[{}]{\mbox{\hyperlink{classThreadQueue}{function}} }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\ \ \ \ \{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{err}}\ =\ \mbox{\hyperlink{classThreadQueue}{function}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{\(\backslash\)}}}
+\DoxyCodeLine{\mbox{\hyperlink{classThreadQueue}{\ \ \ \ \ \ \ \ check\_error<true>}}(\mbox{\hyperlink{classThreadQueue}{err}},\ \mbox{\hyperlink{classThreadQueue}{\_\_FILE\_\_}},\ \mbox{\hyperlink{classThreadQueue}{\_\_LINE\_\_}});\ \(\backslash\)}
+\DoxyCodeLine{\ \ \ \ \}}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{libfabric_8hpp_adb9c56e9462ece6e8ff800a8e9e6b710}\label{libfabric_8hpp_adb9c56e9462ece6e8ff800a8e9e6b710} 
+\index{libfabric.hpp@{libfabric.hpp}!check\_error@{check\_error}}
+\index{check\_error@{check\_error}!libfabric.hpp@{libfabric.hpp}}
+\doxysubsubsection{\texorpdfstring{check\_error()}{check\_error()}}
+{\footnotesize\ttfamily template$<$\mbox{\hyperlink{classThreadQueue}{bool}} should\+Throw = false$>$ \\
+\mbox{\hyperlink{classThreadQueue}{void}} check\+\_\+error (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}}}]{err,  }\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{char}} \texorpdfstring{$\ast$}{*}}]{filename,  }\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classThreadQueue}{int}}}]{line }\end{DoxyParamCaption})}
+

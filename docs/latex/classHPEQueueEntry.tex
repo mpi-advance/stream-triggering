@@ -1,0 +1,140 @@
+\doxysection{HPEQueue\+Entry Class Reference}
+\hypertarget{classHPEQueueEntry}{}\label{classHPEQueueEntry}\index{HPEQueueEntry@{HPEQueueEntry}}
+
+
+{\ttfamily \#include $<$HPEQueue.\+hpp$>$}
+
+
+
+Inheritance diagram for HPEQueue\+Entry\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=258pt]{classHPEQueueEntry__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for HPEQueue\+Entry\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=173pt]{classHPEQueueEntry__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classHPEQueueEntry_a6469444502a6504c744dd2d680e2b7de}{HPEQueue\+Entry}} (\mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Request}} \mbox{\hyperlink{classThreadQueue}{req}})
+\item 
+\mbox{\hyperlink{classHPEQueueEntry_a48598ab01703f0fbaedd56087cafe167}{\texorpdfstring{$\sim$}{\string~}\+HPEQueue\+Entry}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classHPEQueueEntry_ad6795f7f7f2cf2411dd2bead877e75b1}{prepare}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classHPEQueueEntry_a188ea0861bf3fe12ac740532fe5d8c41}{start}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{bool}} \mbox{\hyperlink{classHPEQueueEntry_abbbbc0ea4ee716ca56627ed94a48e3dc}{done}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classHPEQueueEntry_a63bb449ff0e49cf5106b1459a4aa232e}{progress}} () \mbox{\hyperlink{classThreadQueue}{override}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classQueueEntry_a2c453a6159b2c6cca510e7587b13670a}{Queue\+Entry}} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$ \mbox{\hyperlink{classThreadQueue}{req}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classQueueEntry_a2641c1c2263594ce73bdb2248b1106c2}{\texorpdfstring{$\sim$}{\string~}\+Queue\+Entry}} ()
+\item 
+\mbox{\hyperlink{classQueueEntry_a20156c22ea9c051230494368ecc0fff2}{Queue\+Entry}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \&\mbox{\hyperlink{classThreadQueue}{other}})=\mbox{\hyperlink{classThreadQueue}{delete}}
+\item 
+\mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \& \mbox{\hyperlink{classQueueEntry_a8b5fd71be708e95cc27bf3084a0f735a}{operator=}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \&\mbox{\hyperlink{classThreadQueue}{other}})=\mbox{\hyperlink{classThreadQueue}{delete}}
+\item 
+\mbox{\hyperlink{classQueueEntry_a5f7e0a65862a0da91e4f25057e7da801}{Queue\+Entry}} (\mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \&\&\mbox{\hyperlink{classThreadQueue}{other}}) \mbox{\hyperlink{classThreadQueue}{noexcept}}
+\item 
+\mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \& \mbox{\hyperlink{classQueueEntry_a9cc1ffeb4e748a3a047a996ebcc22e29}{operator=}} (\mbox{\hyperlink{classQueueEntry}{Queue\+Entry}} \&\&\mbox{\hyperlink{classThreadQueue}{other}}) \mbox{\hyperlink{classThreadQueue}{noexcept}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueueEntry_aee2af118a2a4467639db8097512f7937}{start\+\_\+host}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueueEntry_a5037452ef15e443e8815080cfa833402}{start\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{stream}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueueEntry_a8f659be5ca567a79d376ac372af33eeb}{start}} (\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{stream}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classQueueEntry_ad2a8d3b5c72d36ede841d6e90fc02875}{wait\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{stream}})
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Additional Inherited Members}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classQueueEntry}{Queue\+Entry}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{int64\+\_\+t}} \mbox{\hyperlink{classQueueEntry_a8dd40be5b7af40092be4b96ad294f2a7}{threshold}} = 0
+\item 
+\mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Request}} \mbox{\hyperlink{classQueueEntry_a806249eabf3fc38b0458e2729a700c94}{mpi\+\_\+request}} = \mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+REQUEST\+\_\+\+NULL}}
+\item 
+std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classCommunication_1_1Request}{Request}} $>$ \mbox{\hyperlink{classQueueEntry_a4597bbdb9088c03434faebf67a79ebfd}{original\+\_\+request}} = \mbox{\hyperlink{classThreadQueue}{nullptr}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classHPEQueueEntry_a6469444502a6504c744dd2d680e2b7de}\label{classHPEQueueEntry_a6469444502a6504c744dd2d680e2b7de} 
+\index{HPEQueueEntry@{HPEQueueEntry}!HPEQueueEntry@{HPEQueueEntry}}
+\index{HPEQueueEntry@{HPEQueueEntry}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{HPEQueueEntry()}{HPEQueueEntry()}}
+{\footnotesize\ttfamily HPEQueue\+Entry\+::\+HPEQueue\+Entry (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Request}}}]{req }\end{DoxyParamCaption})}
+
+\Hypertarget{classHPEQueueEntry_a48598ab01703f0fbaedd56087cafe167}\label{classHPEQueueEntry_a48598ab01703f0fbaedd56087cafe167} 
+\index{HPEQueueEntry@{HPEQueueEntry}!````~HPEQueueEntry@{\texorpdfstring{$\sim$}{\string~}HPEQueueEntry}}
+\index{````~HPEQueueEntry@{\texorpdfstring{$\sim$}{\string~}HPEQueueEntry}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}HPEQueueEntry()}{\string~HPEQueueEntry()}}
+{\footnotesize\ttfamily HPEQueue\+Entry\+::\texorpdfstring{$\sim$}{\string~}\+HPEQueue\+Entry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classHPEQueueEntry_abbbbc0ea4ee716ca56627ed94a48e3dc}\label{classHPEQueueEntry_abbbbc0ea4ee716ca56627ed94a48e3dc} 
+\index{HPEQueueEntry@{HPEQueueEntry}!done@{done}}
+\index{done@{done}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{done()}{done()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{bool}} HPEQueue\+Entry\+::done (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Reimplemented from \mbox{\hyperlink{classQueueEntry_a65af2e8fd8fa7783e6ac4b6cbd9d30fa}{Queue\+Entry}}.
+
+
+
+Reimplemented in \mbox{\hyperlink{classHPEQueueEntryP2P_adabc9b78d5f52ab212cef3a43f1caa24}{HPEQueue\+Entry\+P2\+P$<$ Direction $>$}}.
+
+\Hypertarget{classHPEQueueEntry_ad6795f7f7f2cf2411dd2bead877e75b1}\label{classHPEQueueEntry_ad6795f7f7f2cf2411dd2bead877e75b1} 
+\index{HPEQueueEntry@{HPEQueueEntry}!prepare@{prepare}}
+\index{prepare@{prepare}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{prepare()}{prepare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} HPEQueue\+Entry\+::prepare (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Reimplemented in \mbox{\hyperlink{classHPEQueueEntryP2P_a2803879f5386d41929e90904fa9a832c}{HPEQueue\+Entry\+P2\+P$<$ Direction $>$}}.
+
+\Hypertarget{classHPEQueueEntry_a63bb449ff0e49cf5106b1459a4aa232e}\label{classHPEQueueEntry_a63bb449ff0e49cf5106b1459a4aa232e} 
+\index{HPEQueueEntry@{HPEQueueEntry}!progress@{progress}}
+\index{progress@{progress}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{progress()}{progress()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} HPEQueue\+Entry\+::progress (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Reimplemented in \mbox{\hyperlink{classHPEQueueEntryP2P_a099333067b85fc541388dd5823eabc3d}{HPEQueue\+Entry\+P2\+P$<$ Direction $>$}}.
+
+\Hypertarget{classHPEQueueEntry_a188ea0861bf3fe12ac740532fe5d8c41}\label{classHPEQueueEntry_a188ea0861bf3fe12ac740532fe5d8c41} 
+\index{HPEQueueEntry@{HPEQueueEntry}!start@{start}}
+\index{start@{start}!HPEQueueEntry@{HPEQueueEntry}}
+\doxysubsubsection{\texorpdfstring{start()}{start()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} HPEQueue\+Entry\+::start (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Reimplemented in \mbox{\hyperlink{classHPEQueueEntryP2P_a275c2dd9d1cab3f7e5d9268965dbd888}{HPEQueue\+Entry\+P2\+P$<$ Direction $>$}}.
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{HPEQueue_8hpp}{HPEQueue.\+hpp}}\item 
+source/core/source/queues/\mbox{\hyperlink{HPEQueue_8cc}{HPEQueue.\+cc}}\end{DoxyCompactItemize}

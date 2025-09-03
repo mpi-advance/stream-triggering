@@ -1,0 +1,70 @@
+\doxysection{Cuda\+Queue.\+hpp}
+\hypertarget{CudaQueue_8hpp_source}{}\label{CudaQueue_8hpp_source}\index{source/core/include/queues/CudaQueue.hpp@{source/core/include/queues/CudaQueue.hpp}}
+\mbox{\hyperlink{CudaQueue_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ ST\_CUDA\_QUEUE}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ ST\_CUDA\_QUEUE}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <cuda.h>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <cuda\_runtime.h>}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ <atomic>}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <map>}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ <mutex>}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#include\ <queue>}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ <thread>}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{entry_8hpp}{abstract/entry.hpp}}"{}}}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{queue_8hpp}{abstract/queue.hpp}}"{}}}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCudaQueueEntry}{CudaQueueEntry}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classQueueEntry}{QueueEntry}}}
+\DoxyCodeLine{00017\ \{}
+\DoxyCodeLine{00018\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{classCudaQueueEntry_a6a2e2f580256b1824a72ecf7271ed2d0}{CudaQueueEntry}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{qe}});}
+\DoxyCodeLine{00020\ \ \ \ \ \mbox{\hyperlink{classCudaQueueEntry_af82b6b5a7cab52bccd1f4df29b52fe16}{\string~CudaQueueEntry}}();}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueueEntry_a66b0a6852d4cea118334ef5b0852e901}{start\_host}}()\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00023\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueueEntry_aa2467a2c347c7b65b3daf1cc427ccdd4}{start\_gpu}}(\textcolor{keywordtype}{void}*)\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00024\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueueEntry_a807dda1c60d37a14b80ed158645325a7}{wait\_gpu}}(\textcolor{keywordtype}{void}*)\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00025\ \ \ \ \ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classCudaQueueEntry_ac429350ef097599288c8574859a00ba3}{done}}()\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00028\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{int64\_t}}*\ \mbox{\hyperlink{classCudaQueueEntry_a281461546a2b41f783c2b208fcbd2b2c}{start\_location}};}
+\DoxyCodeLine{00029\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{int64\_t}}*\ \mbox{\hyperlink{classCudaQueueEntry_a6ea4c14e13932c7ccd78aaf1755daf35}{wait\_location}};}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{CUdeviceptr}}\ \mbox{\hyperlink{classCudaQueueEntry_ad21cffe90668e77a9996725a35cce86d}{start\_dev}};}
+\DoxyCodeLine{00032\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{CUdeviceptr}}\ \mbox{\hyperlink{classCudaQueueEntry_a472cd7b997cf3f29ace9e5b4abe69b83}{wait\_dev}};}
+\DoxyCodeLine{00033\ \};}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00038\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCudaQueue}{CudaQueue}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classQueue}{Queue}}}
+\DoxyCodeLine{00039\ \{}
+\DoxyCodeLine{00040\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{classCudaQueue_a8127948ed7d0613c441fc78991c67f05}{CudaQueue}}(\mbox{\hyperlink{classThreadQueue}{cudaStream\_t}}*);}
+\DoxyCodeLine{00042\ \ \ \ \ \mbox{\hyperlink{classCudaQueue_a1dfd1cb8a50b72c2c2b9566c4750b1e1}{\string~CudaQueue}}();}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueue_a699c26b2d1d4d2c283f181d996e4cdff}{enqueue\_operation}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{req}})\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00045\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueue_ad3fad3fc7e048ac279426eb49008e1c4}{enqueue\_startall}}(std::vector<std::shared\_ptr<Request>>\ \mbox{\hyperlink{classThreadQueue}{reqs}})\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00046\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueue_a45892781d2cfb99add87de6c97732481}{enqueue\_waitall}}()\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00047\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueue_afd68e5859ac3c2a07a39ecaea86bf7f5}{host\_wait}}()\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{cudaStream\_t}}*\ \mbox{\hyperlink{classCudaQueue_af313b44b6329d271f6b13d001c2da66e}{my\_stream}};}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \ \ \ \ std::thread\ \mbox{\hyperlink{classCudaQueue_a09d1309049e25794fc1546667dd9e184}{thr}};}
+\DoxyCodeLine{00053\ \ \ \ \ \textcolor{keywordtype}{bool}\ \ \ \ \ \ \ \ \mbox{\hyperlink{classCudaQueue_ac514851b5e6941f35fc880d552c2423f}{shutdown}}\ =\ \textcolor{keyword}{false};}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ std::mutex\ \ \ \ \ \ \ \mbox{\hyperlink{classCudaQueue_a4c709b435ff4e9c264728062d3cfa512}{queue\_guard}};}
+\DoxyCodeLine{00056\ \ \ \ \ std::atomic<int>\ \mbox{\hyperlink{classCudaQueue_abc92ce6fcf22dac68ca67cd94d54902d}{wait\_cntr}};}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ std::vector<std::reference\_wrapper<QueueEntry>>\ \mbox{\hyperlink{classCudaQueue_adf094d4ce8a0b30a39371343844e9bbb}{entries}};}
+\DoxyCodeLine{00059\ \ \ \ \ std::vector<std::reference\_wrapper<QueueEntry>>\ \mbox{\hyperlink{classCudaQueue_a82a53676f07e4d8f21e6c8330fdb522f}{s\_ongoing}};}
+\DoxyCodeLine{00060\ \ \ \ \ std::queue<std::reference\_wrapper<QueueEntry>>\ \ \mbox{\hyperlink{classCudaQueue_afc9f149396fd3b892d5536e5fb03de4d}{w\_ongoing}};}
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00062\ \ \ \ \ std::map<size\_t,\ CudaQueueEntry>\ \mbox{\hyperlink{classCudaQueue_a2415f188bfaaca9fd6a85dbca92f9e7a}{request\_cache}};}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCudaQueue_acf28d611426783c2f1b39537f8cbbd2e}{progress}}();}
+\DoxyCodeLine{00065\ \};}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00067\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

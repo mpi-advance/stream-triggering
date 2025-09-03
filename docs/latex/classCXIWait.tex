@@ -1,0 +1,76 @@
+\doxysection{CXIWait Class Reference}
+\hypertarget{classCXIWait}{}\label{classCXIWait}\index{CXIWait@{CXIWait}}
+
+
+{\ttfamily \#include $<$CXIQueue.\+hpp$>$}
+
+
+
+Inheritance diagram for CXIWait\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=312pt]{classCXIWait__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for CXIWait\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=209pt]{classCXIWait__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXIWait_a526bc0891af5cafbef335f8b60d3d068}{wait\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream) \mbox{\hyperlink{classThreadQueue}{override}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classCXIRequest_a8f47b80d3bfff9e4066110c006a94821}{CXIRequest}} (\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classThreadQueue}{\+\_\+memory\+\_\+type}}, \mbox{\hyperlink{classBuffer}{Buffer}} \mbox{\hyperlink{classThreadQueue}{local\+\_\+completion\+\_\+buffer}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classCXIRequest_a490d981ad25eb8ab9c926fcc548b8263}{\texorpdfstring{$\sim$}{\string~}\+CXIRequest}} ()=\mbox{\hyperlink{classThreadQueue}{default}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXIRequest_ae8e8a05bb0f12dfa939b577d92be0234}{start}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classCXIRequest_ad7f69a647d255ba3f2c6f56495a5f706}{get\+\_\+gpu\+\_\+memory\+\_\+type}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Additional Inherited Members}
+\doxysubsection*{Protected Member Functions inherited from \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXIRequest_a5c621d8ade8b8f552978804f9be32cd4}{start\+\_\+host}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}})=0
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXIRequest_a476524c9a3a91324c7aaa8d5e518113f}{start\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}})=0
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classCXIRequest_ad1b328ddf58e30223c26343ce3624dfb}{memory\+\_\+type}}
+\item 
+\mbox{\hyperlink{classBuffer}{Buffer}} \mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\+\_\+buffer}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\+\_\+times\+\_\+started}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classCXIWait_a526bc0891af5cafbef335f8b60d3d068}\label{classCXIWait_a526bc0891af5cafbef335f8b60d3d068} 
+\index{CXIWait@{CXIWait}!wait\_gpu@{wait\_gpu}}
+\index{wait\_gpu@{wait\_gpu}!CXIWait@{CXIWait}}
+\doxysubsubsection{\texorpdfstring{wait\_gpu()}{wait\_gpu()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} CXIWait\+::wait\+\_\+gpu (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{the\+\_\+stream }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classCXIRequest_ac6087de56e99af108e1afe0740541536}{CXIRequest}}.
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{CXIQueue_8hpp}{CXIQueue.\+hpp}}\item 
+source/core/source/queues/\mbox{\hyperlink{CXIQueue_8cpp}{CXIQueue.\+cpp}}\end{DoxyCompactItemize}

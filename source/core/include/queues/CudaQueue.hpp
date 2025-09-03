@@ -32,6 +32,9 @@ protected:
     CUdeviceptr wait_dev;
 };
 
+/**
+	Implementation of the Queue struct designed to work with CudaStreams
+*/
 class CudaQueue : public Queue
 {
 public:

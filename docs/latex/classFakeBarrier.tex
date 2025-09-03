@@ -1,0 +1,128 @@
+\doxysection{Fake\+Barrier Class Reference}
+\hypertarget{classFakeBarrier}{}\label{classFakeBarrier}\index{FakeBarrier@{FakeBarrier}}
+
+
+{\ttfamily \#include $<$CXIQueue.\+hpp$>$}
+
+
+
+Inheritance diagram for Fake\+Barrier\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=153pt]{classFakeBarrier__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for Fake\+Barrier\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=209pt]{classFakeBarrier__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classFakeBarrier_ade639dfebf535326d0373b55cbc16de4}{Fake\+Barrier}} (\mbox{\hyperlink{classBuffer}{Buffer}} buffer, \mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Comm}} comm, \mbox{\hyperlink{classDeferredWorkQueue}{Deferred\+Work\+Queue}} \&\mbox{\hyperlink{classThreadQueue}{dwq}})
+\item 
+\mbox{\hyperlink{classFakeBarrier_acde8de97c9ac2a0c347c1194c3b502d1}{\texorpdfstring{$\sim$}{\string~}\+Fake\+Barrier}} ()
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classFakeBarrier_a891ce9e69b9f5add325d7791069d9394}{wait\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream) \mbox{\hyperlink{classThreadQueue}{override}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classCXIRequest_a8f47b80d3bfff9e4066110c006a94821}{CXIRequest}} (\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classThreadQueue}{\+\_\+memory\+\_\+type}}, \mbox{\hyperlink{classBuffer}{Buffer}} \mbox{\hyperlink{classThreadQueue}{local\+\_\+completion\+\_\+buffer}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classCXIRequest_a490d981ad25eb8ab9c926fcc548b8263}{\texorpdfstring{$\sim$}{\string~}\+CXIRequest}} ()=\mbox{\hyperlink{classThreadQueue}{default}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCXIRequest_ae8e8a05bb0f12dfa939b577d92be0234}{start}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{virtual}} \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classCXIRequest_ad7f69a647d255ba3f2c6f56495a5f706}{get\+\_\+gpu\+\_\+memory\+\_\+type}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classFakeBarrier_ac1c996155a8927cf7f642209b6440d71}{start\+\_\+host}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}}) \mbox{\hyperlink{classThreadQueue}{override}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classFakeBarrier_a004ccfd39f6e44fe3cea3db28b5d7d35}{start\+\_\+gpu}} (\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}the\+\_\+stream, \mbox{\hyperlink{classThreshold}{Threshold}} \&threshold, \mbox{\hyperlink{classCXICounter}{CXICounter}} \&\mbox{\hyperlink{classThreadQueue}{trigger\+\_\+cntr}}) \mbox{\hyperlink{classThreadQueue}{override}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Additional Inherited Members}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemory\+Type}} \mbox{\hyperlink{classCXIRequest_ad1b328ddf58e30223c26343ce3624dfb}{memory\+\_\+type}}
+\item 
+\mbox{\hyperlink{classBuffer}{Buffer}} \mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\+\_\+buffer}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\+\_\+times\+\_\+started}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classFakeBarrier_ade639dfebf535326d0373b55cbc16de4}\label{classFakeBarrier_ade639dfebf535326d0373b55cbc16de4} 
+\index{FakeBarrier@{FakeBarrier}!FakeBarrier@{FakeBarrier}}
+\index{FakeBarrier@{FakeBarrier}!FakeBarrier@{FakeBarrier}}
+\doxysubsubsection{\texorpdfstring{FakeBarrier()}{FakeBarrier()}}
+{\footnotesize\ttfamily Fake\+Barrier\+::\+Fake\+Barrier (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classBuffer}{Buffer}}}]{buffer,  }\item[{\mbox{\hyperlink{classThreadQueue}{MPI\+\_\+\+Comm}}}]{comm,  }\item[{\mbox{\hyperlink{classDeferredWorkQueue}{Deferred\+Work\+Queue}} \&}]{dwq }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classFakeBarrier_acde8de97c9ac2a0c347c1194c3b502d1}\label{classFakeBarrier_acde8de97c9ac2a0c347c1194c3b502d1} 
+\index{FakeBarrier@{FakeBarrier}!````~FakeBarrier@{\texorpdfstring{$\sim$}{\string~}FakeBarrier}}
+\index{````~FakeBarrier@{\texorpdfstring{$\sim$}{\string~}FakeBarrier}!FakeBarrier@{FakeBarrier}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}FakeBarrier()}{\string~FakeBarrier()}}
+{\footnotesize\ttfamily Fake\+Barrier\+::\texorpdfstring{$\sim$}{\string~}\+Fake\+Barrier (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classFakeBarrier_a004ccfd39f6e44fe3cea3db28b5d7d35}\label{classFakeBarrier_a004ccfd39f6e44fe3cea3db28b5d7d35} 
+\index{FakeBarrier@{FakeBarrier}!start\_gpu@{start\_gpu}}
+\index{start\_gpu@{start\_gpu}!FakeBarrier@{FakeBarrier}}
+\doxysubsubsection{\texorpdfstring{start\_gpu()}{start\_gpu()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} Fake\+Barrier\+::start\+\_\+gpu (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{the\+\_\+stream,  }\item[{\mbox{\hyperlink{classThreshold}{Threshold}} \&}]{threshold,  }\item[{\mbox{\hyperlink{classCXICounter}{CXICounter}} \&}]{trigger\+\_\+cntr }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [protected]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classCXIRequest_a476524c9a3a91324c7aaa8d5e518113f}{CXIRequest}}.
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=337pt]{classFakeBarrier_a004ccfd39f6e44fe3cea3db28b5d7d35_cgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classFakeBarrier_ac1c996155a8927cf7f642209b6440d71}\label{classFakeBarrier_ac1c996155a8927cf7f642209b6440d71} 
+\index{FakeBarrier@{FakeBarrier}!start\_host@{start\_host}}
+\index{start\_host@{start\_host}!FakeBarrier@{FakeBarrier}}
+\doxysubsubsection{\texorpdfstring{start\_host()}{start\_host()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} Fake\+Barrier\+::start\+\_\+host (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{the\+\_\+stream,  }\item[{\mbox{\hyperlink{classThreshold}{Threshold}} \&}]{threshold,  }\item[{\mbox{\hyperlink{classCXICounter}{CXICounter}} \&}]{trigger\+\_\+cntr }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [protected]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classCXIRequest_a5c621d8ade8b8f552978804f9be32cd4}{CXIRequest}}.
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classFakeBarrier_ac1c996155a8927cf7f642209b6440d71_cgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classFakeBarrier_a891ce9e69b9f5add325d7791069d9394}\label{classFakeBarrier_a891ce9e69b9f5add325d7791069d9394} 
+\index{FakeBarrier@{FakeBarrier}!wait\_gpu@{wait\_gpu}}
+\index{wait\_gpu@{wait\_gpu}!FakeBarrier@{FakeBarrier}}
+\doxysubsubsection{\texorpdfstring{wait\_gpu()}{wait\_gpu()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} Fake\+Barrier\+::wait\+\_\+gpu (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{hip\+Stream\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{the\+\_\+stream }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classCXIRequest_ac6087de56e99af108e1afe0740541536}{CXIRequest}}.
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{CXIQueue_8hpp}{CXIQueue.\+hpp}}\end{DoxyCompactItemize}

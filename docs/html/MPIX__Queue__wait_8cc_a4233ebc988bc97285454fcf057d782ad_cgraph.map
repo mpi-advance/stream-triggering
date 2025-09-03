@@ -1,0 +1,5 @@
+<map id="MPIS_Queue_wait" name="MPIS_Queue_wait">
+<area shape="rect" id="Node000001" title="This function is a wrapper around the queues host_wait function." alt="" coords="5,5,144,31"/>
+<area shape="rect" id="Node000002" href="$classThreadQueue.html#a0d0deef67e38a8852ea857ef3c135782" title=" " alt="" coords="192,5,372,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,15,178,15,178,21,144,21"/>
+</map>

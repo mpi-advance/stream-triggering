@@ -1,0 +1,49 @@
+\doxysection{source/core/source/queues/\+CXIQueue.cpp File Reference}
+\hypertarget{CXIQueue_8cpp}{}\label{CXIQueue_8cpp}\index{source/core/source/queues/CXIQueue.cpp@{source/core/source/queues/CXIQueue.cpp}}
+{\ttfamily \#include "{}queues/\+CXIQueue.\+hpp"{}}\newline
+{\ttfamily \#include "{}safety/hip.\+hpp"{}}\newline
+{\ttfamily \#include "{}safety/libfabric.\+hpp"{}}\newline
+Include dependency graph for CXIQueue.\+cpp\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{CXIQueue_8cpp__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{CXIQueue_8cpp_ad7560e36c7511b385e7676430bffa6ec}{add\+\_\+to\+\_\+counter}} (\mbox{\hyperlink{classThreadQueue}{uint64\+\_\+t}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{cntr}}, \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} value)
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{CXIQueue_8cpp_a271ddf81140f43e0b57def42a30e9040}{wait\+\_\+on\+\_\+completion}} (\mbox{\hyperlink{classThreadQueue}{volatile}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{comp\+\_\+addr}}, \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classThreadQueue}{goal\+\_\+value}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{CXIQueue_8cpp_aa7eca9a4ce535070ac9fae3ab91329c1}{flush\+\_\+buffer}} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{CXIQueue_8cpp_ad7560e36c7511b385e7676430bffa6ec}\label{CXIQueue_8cpp_ad7560e36c7511b385e7676430bffa6ec} 
+\index{CXIQueue.cpp@{CXIQueue.cpp}!add\_to\_counter@{add\_to\_counter}}
+\index{add\_to\_counter@{add\_to\_counter}!CXIQueue.cpp@{CXIQueue.cpp}}
+\doxysubsubsection{\texorpdfstring{add\_to\_counter()}{add\_to\_counter()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} add\+\_\+to\+\_\+counter (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{uint64\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{cntr,  }\item[{\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}}}]{value }\end{DoxyParamCaption})}
+
+\Hypertarget{CXIQueue_8cpp_aa7eca9a4ce535070ac9fae3ab91329c1}\label{CXIQueue_8cpp_aa7eca9a4ce535070ac9fae3ab91329c1} 
+\index{CXIQueue.cpp@{CXIQueue.cpp}!flush\_buffer@{flush\_buffer}}
+\index{flush\_buffer@{flush\_buffer}!CXIQueue.cpp@{CXIQueue.cpp}}
+\doxysubsubsection{\texorpdfstring{flush\_buffer()}{flush\_buffer()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} flush\+\_\+buffer (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+\Hypertarget{CXIQueue_8cpp_a271ddf81140f43e0b57def42a30e9040}\label{CXIQueue_8cpp_a271ddf81140f43e0b57def42a30e9040} 
+\index{CXIQueue.cpp@{CXIQueue.cpp}!wait\_on\_completion@{wait\_on\_completion}}
+\index{wait\_on\_completion@{wait\_on\_completion}!CXIQueue.cpp@{CXIQueue.cpp}}
+\doxysubsubsection{\texorpdfstring{wait\_on\_completion()}{wait\_on\_completion()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{\+\_\+\+\_\+global\+\_\+\+\_\+}} \mbox{\hyperlink{classThreadQueue}{void}} wait\+\_\+on\+\_\+completion (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{volatile}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \texorpdfstring{$\ast$}{*}}]{comp\+\_\+addr,  }\item[{\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}}}]{goal\+\_\+value }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{CXIQueue_8cpp_a271ddf81140f43e0b57def42a30e9040_cgraph}
+\end{center}
+\end{figure}

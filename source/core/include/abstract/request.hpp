@@ -75,6 +75,10 @@ public:
         }
     };
 
+	/**
+		Function to access protected match state of Request
+		Function returns true if Request has been matched, false otherwise
+	*/
     bool is_matched()
     {
         return matched;

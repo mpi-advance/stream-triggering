@@ -1,0 +1,52 @@
+\doxysection{source/bindings/\+MPIX\+\_\+\+Queue\+\_\+init.cc File Reference}
+\hypertarget{MPIX__Queue__init_8cc}{}\label{MPIX__Queue__init_8cc}\index{source/bindings/MPIX\_Queue\_init.cc@{source/bindings/MPIX\_Queue\_init.cc}}
+{\ttfamily \#include "{}abstract/queue.\+hpp"{}}\newline
+{\ttfamily \#include "{}misc/print.\+hpp"{}}\newline
+{\ttfamily \#include "{}stream-\/triggering.\+h"{}}\newline
+{\ttfamily \#include $<$stdexcept$>$}\newline
+Include dependency graph for MPIX\+\_\+\+Queue\+\_\+init.\+cc\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{MPIX__Queue__init_8cc__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{int}} \mbox{\hyperlink{MPIX__Queue__init_8cc_a7bc8cc1872baa4183ff88b3ebd5611c8}{MPIS\+\_\+\+Queue\+\_\+init}} (\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\+\_\+\+Queue}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{queue}}, \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8}{MPIS\+\_\+\+Queue\+\_\+type}} \mbox{\hyperlink{classThreadQueue}{type}}, \mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{extra\+\_\+address}})
+\begin{DoxyCompactList}\small\item\em This function creates a \doxylink{classQueue}{Queue} with the supplied handle. Generated \doxylink{classQueue}{Queue} type depends on the MPIS\+\_\+\+Queue type supplied. ~\newline
+ \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{MPIX__Queue__init_8cc_a7bc8cc1872baa4183ff88b3ebd5611c8}\label{MPIX__Queue__init_8cc_a7bc8cc1872baa4183ff88b3ebd5611c8} 
+\index{MPIX\_Queue\_init.cc@{MPIX\_Queue\_init.cc}!MPIS\_Queue\_init@{MPIS\_Queue\_init}}
+\index{MPIS\_Queue\_init@{MPIS\_Queue\_init}!MPIX\_Queue\_init.cc@{MPIX\_Queue\_init.cc}}
+\doxysubsubsection{\texorpdfstring{MPIS\_Queue\_init()}{MPIS\_Queue\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{int}} MPIS\+\_\+\+Queue\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\+\_\+\+Queue}} \texorpdfstring{$\ast$}{*}}]{queue,  }\item[{\mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8}{MPIS\+\_\+\+Queue\+\_\+type}}}]{type,  }\item[{\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*}}]{extra\+\_\+address }\end{DoxyParamCaption})}
+
+
+
+This function creates a \doxylink{classQueue}{Queue} with the supplied handle. Generated \doxylink{classQueue}{Queue} type depends on the MPIS\+\_\+\+Queue type supplied. ~\newline
+ 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ out}}  & {\em queue} & pointer to the generated queue object \\
+\hline
+\mbox{\texttt{ in}}  & {\em type} & MPIS\+\_\+\+QUEUE\+\_\+\+Type to be created. \\
+\hline
+\mbox{\texttt{ in}}  & {\em extra\+\_\+address} & ??? \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+MPIS\+\_\+\+Success upon completion, throws error if there is already an ACTIVE\+\_\+\+QUEUE /ref \doxylink{classQueue}{Queue}, /ref MPIS\+\_\+\+Queue\+\_\+type 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=255pt]{MPIX__Queue__init_8cc_a7bc8cc1872baa4183ff88b3ebd5611c8_icgraph}
+\end{center}
+\end{figure}

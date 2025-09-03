@@ -1,0 +1,877 @@
+\doxysection{CXIQueue.\+hpp}
+\hypertarget{CXIQueue_8hpp_source}{}\label{CXIQueue_8hpp_source}\index{source/core/include/queues/CXIQueue.hpp@{source/core/include/queues/CXIQueue.hpp}}
+\mbox{\hyperlink{CXIQueue_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#ifndef\ ST\_CXI\_QUEUE}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#define\ ST\_CXI\_QUEUE}}
+\DoxyCodeLine{00004\ }
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <rdma/fabric.h>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <rdma/fi\_cm.h>}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ <rdma/fi\_domain.h>}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <rdma/fi\_endpoint.h>}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ <rdma/fi\_trigger.h>}}
+\DoxyCodeLine{00010\ \textcolor{comment}{//\ clang-\/format\ off}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ <rdma/fi\_cxi\_ext.h>}}
+\DoxyCodeLine{00012\ \textcolor{comment}{//\ clang-\/format\ on}}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#include\ <map>}}
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ <numeric>}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{match_8hpp}{abstract/match.hpp}}"{}}}
+\DoxyCodeLine{00019\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{queue_8hpp}{abstract/queue.hpp}}"{}}}
+\DoxyCodeLine{00020\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{print_8hpp}{misc/print.hpp}}"{}}}
+\DoxyCodeLine{00021\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{hip_8hpp}{safety/hip.hpp}}"{}}}
+\DoxyCodeLine{00022\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{libfabric_8hpp}{safety/libfabric.hpp}}"{}}}
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{mpi_8hpp}{safety/mpi.hpp}}"{}}}
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00025\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{classThreadQueue}{MPI\_Count}}\ get\_size\_of\_buffer(\mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{req}})}
+\DoxyCodeLine{00026\ \{}
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{size}}\ =\ -\/1;}
+\DoxyCodeLine{00028\ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_ad46cf60a842fbe542c6ad4591944877c}{check\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Type\_size}}(\mbox{\hyperlink{classThreadQueue}{req}}.datatype,\ \&\mbox{\hyperlink{classThreadQueue}{size}}));}
+\DoxyCodeLine{00029\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{size}}\ *\ \mbox{\hyperlink{classThreadQueue}{req}}.count;}
+\DoxyCodeLine{00030\ \}}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00032\ \textcolor{keyword}{static}\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ print\_dfwq\_entry(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fi\_deferred\_work}}*\ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}},}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::string\ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{entry\_name}})}
+\DoxyCodeLine{00034\ \{}
+\DoxyCodeLine{00035\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}-\/-\/-\/\ Start:"{}},\ \mbox{\hyperlink{classThreadQueue}{entry\_name}});}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Threshold:"{}},\ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>threshold);}
+\DoxyCodeLine{00038\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Local\ IOVEC:"{}},\ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>op.rma-\/>msg.msg\_iov-\/>iov\_base,}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>op.rma-\/>msg.msg\_iov-\/>iov\_len);}
+\DoxyCodeLine{00040\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Remote\ IOVEC:"{}},\ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>op.rma-\/>msg.rma\_iov-\/>addr,}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>op.rma-\/>msg.rma\_iov-\/>len,}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{dfwq\_entry}}-\/>op.rma-\/>msg.rma\_iov-\/>key);}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}-\/-\/-\/\ End"{}},\ \mbox{\hyperlink{classThreadQueue}{entry\_name}},\ \textcolor{stringliteral}{"{}-\/-\/-\/"{}});}
+\DoxyCodeLine{00045\ \}}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classBuffer}{Buffer}}}
+\DoxyCodeLine{00048\ \{}
+\DoxyCodeLine{00049\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{classBuffer_a3dee0b350cf7ba8a366e5c06bde993a7}{Buffer}}(\textcolor{keywordtype}{void}*\ \mbox{\hyperlink{classThreadQueue}{\_address}},\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{\_len}},\ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{\_mr\_key}},\ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{\_offset}})}
+\DoxyCodeLine{00051\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classBuffer_a4ab53195db3d9ae1342300af59d65875}{address}}(\mbox{\hyperlink{classThreadQueue}{\_address}}),\ \mbox{\hyperlink{classBuffer_a0e37d565528193b47c466eb248f5a714}{len}}(\mbox{\hyperlink{classThreadQueue}{\_len}}),\ \mbox{\hyperlink{classBuffer_a79cbecd7ebf3b8c0fe51926758c768a4}{mr\_key}}(\mbox{\hyperlink{classThreadQueue}{\_mr\_key}}),\ \mbox{\hyperlink{classBuffer_a4d95de843c830b378172e533587d0592}{offset}}(\mbox{\hyperlink{classThreadQueue}{\_offset}})}
+\DoxyCodeLine{00052\ \ \ \ \ \{}
+\DoxyCodeLine{00053\ \ \ \ \ \}}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ \textcolor{keyword}{operator}\ \mbox{\hyperlink{classThreadQueue}{fi\_rma\_iov}}()\textcolor{keyword}{\ const}}
+\DoxyCodeLine{00056\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00057\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\mbox{\hyperlink{classBuffer_a4d95de843c830b378172e533587d0592}{offset}},\ \mbox{\hyperlink{classBuffer_a0e37d565528193b47c466eb248f5a714}{len}},\ \mbox{\hyperlink{classBuffer_a79cbecd7ebf3b8c0fe51926758c768a4}{mr\_key}}\};}
+\DoxyCodeLine{00058\ \ \ \ \ \}}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classBuffer_aa0bcd6b73d10297d1a1505e76c31afe9}{print}}()}
+\DoxyCodeLine{00061\ \ \ \ \ \{}
+\DoxyCodeLine{00062\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Buffer:"{}},\ \mbox{\hyperlink{classBuffer_a4ab53195db3d9ae1342300af59d65875}{address}},\ \mbox{\hyperlink{classBuffer_a0e37d565528193b47c466eb248f5a714}{len}},\ \mbox{\hyperlink{classBuffer_a79cbecd7ebf3b8c0fe51926758c768a4}{mr\_key}},\ \mbox{\hyperlink{classBuffer_a4d95de843c830b378172e533587d0592}{offset}});}
+\DoxyCodeLine{00063\ \ \ \ \ \}}
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{keywordtype}{void}*\ \ \ \ \mbox{\hyperlink{classBuffer_a4ab53195db3d9ae1342300af59d65875}{address}};}
+\DoxyCodeLine{00066\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \ \ \mbox{\hyperlink{classBuffer_a0e37d565528193b47c466eb248f5a714}{len}};}
+\DoxyCodeLine{00067\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classBuffer_a79cbecd7ebf3b8c0fe51926758c768a4}{mr\_key}};}
+\DoxyCodeLine{00068\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classBuffer_a4d95de843c830b378172e533587d0592}{offset}};}
+\DoxyCodeLine{00069\ \};}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00071\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classThreshold}{Threshold}}}
+\DoxyCodeLine{00072\ \{}
+\DoxyCodeLine{00073\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00074\ \ \ \ \ \mbox{\hyperlink{classThreshold_a0d93fca2833487c8978c3bd1fdfbb3cd}{Threshold}}()\ :\ \_value(0),\ \_counter\_value(0)\ \{\}}
+\DoxyCodeLine{00075\ }
+\DoxyCodeLine{00076\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classThreshold_a61b76dc3eea14083deb09f97e1cfe77c}{increment\_threshold}}()}
+\DoxyCodeLine{00077\ \ \ \ \ \{}
+\DoxyCodeLine{00078\ \ \ \ \ \ \ \ \ \_value++;}
+\DoxyCodeLine{00079\ \ \ \ \ \}}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00081\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreshold_a4511fbadf4c43742026c8ca819651916}{equalize\_counter}}()}
+\DoxyCodeLine{00082\ \ \ \ \ \{}
+\DoxyCodeLine{00083\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{diff}}\ \ \ \ =\ \_value\ -\/\ \_counter\_value;}
+\DoxyCodeLine{00084\ \ \ \ \ \ \ \ \ \_counter\_value\ =\ \_value;}
+\DoxyCodeLine{00085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{diff}};}
+\DoxyCodeLine{00086\ \ \ \ \ \}}
+\DoxyCodeLine{00087\ }
+\DoxyCodeLine{00088\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreshold_aba7d4cf3b98d55d4da06818afe0ed85b}{value}}()}
+\DoxyCodeLine{00089\ \ \ \ \ \{}
+\DoxyCodeLine{00090\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_value;}
+\DoxyCodeLine{00091\ \ \ \ \ \}}
+\DoxyCodeLine{00092\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreshold_aab1d26bd87ea22908a4558d757096f7a}{counter\_value}}()}
+\DoxyCodeLine{00093\ \ \ \ \ \{}
+\DoxyCodeLine{00094\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \_counter\_value;}
+\DoxyCodeLine{00095\ \ \ \ \ \}}
+\DoxyCodeLine{00096\ }
+\DoxyCodeLine{00097\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00098\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \_value\ \ \ \ \ \ \ \ \ =\ 0;}
+\DoxyCodeLine{00099\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \_counter\_value\ =\ 0;}
+\DoxyCodeLine{00100\ \};}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}}
+\DoxyCodeLine{00103\ \{}
+\DoxyCodeLine{00104\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00105\ \ \ \ \ \mbox{\hyperlink{classDeferredWorkQueue_a8dcc853b35212052c7c7d248edc94392}{DeferredWorkQueue}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00107\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_a6e2c8698078ad8bacd26f829485be9f7}{register\_progress\_counter}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{p\_cntr}})}
+\DoxyCodeLine{00108\ \ \ \ \ \{}
+\DoxyCodeLine{00109\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Currently\ in\ use:"{}},\ space\_used);}
+\DoxyCodeLine{00110\ \ \ \ \ \ \ \ \ progress\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{p\_cntr}};}
+\DoxyCodeLine{00111\ \ \ \ \ \}}
+\DoxyCodeLine{00112\ }
+\DoxyCodeLine{00113\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_a04178ca6a45ef125b2d0e6f85a9f5a21}{register\_completion\_counter}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{c\_cntr}})}
+\DoxyCodeLine{00114\ \ \ \ \ \{}
+\DoxyCodeLine{00115\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (!known\_completion\_map.contains(\mbox{\hyperlink{classThreadQueue}{c\_cntr}}))}
+\DoxyCodeLine{00116\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00117\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Adding\ completion\ counter:"{}},\ \mbox{\hyperlink{classThreadQueue}{c\_cntr}});}
+\DoxyCodeLine{00118\ \ \ \ \ \ \ \ \ \ \ \ \ known\_completion\_map.insert(\{\mbox{\hyperlink{classThreadQueue}{c\_cntr}},\ 0\});}
+\DoxyCodeLine{00119\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00120\ \ \ \ \ \}}
+\DoxyCodeLine{00121\ }
+\DoxyCodeLine{00122\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_aad893c27a4f762e898d6b6364e4aa0ed}{consume}}()}
+\DoxyCodeLine{00123\ \ \ \ \ \{}
+\DoxyCodeLine{00124\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}***\ Consumed"{}});}
+\DoxyCodeLine{00125\ \ \ \ \ \ \ \ \ space\_used++;}
+\DoxyCodeLine{00126\ \ \ \ \ \}}
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00128\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_a78236e8c072c50724c96f682bc7f7747}{clear\_completion\_counter}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{completion\_cntr}},}
+\DoxyCodeLine{00129\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{max\_threshold}})}
+\DoxyCodeLine{00130\ \ \ \ \ \{}
+\DoxyCodeLine{00131\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Clearing\ counter\ to:"{}},\ \mbox{\hyperlink{classThreadQueue}{max\_threshold}});}
+\DoxyCodeLine{00132\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{last\_value}}\ =\ known\_completion\_map.at(\mbox{\hyperlink{classThreadQueue}{completion\_cntr}});}
+\DoxyCodeLine{00133\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}[Counter,\ space]\ used\ before\ clearing:"{}},\ \mbox{\hyperlink{classThreadQueue}{last\_value}},\ space\_used);}
+\DoxyCodeLine{00134\ }
+\DoxyCodeLine{00135\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{new\_value}}\ =\ \mbox{\hyperlink{classThreadQueue}{fi\_cntr\_read}}(\mbox{\hyperlink{classThreadQueue}{completion\_cntr}});}
+\DoxyCodeLine{00136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ (\mbox{\hyperlink{classThreadQueue}{new\_value}}\ !=\ \mbox{\hyperlink{classThreadQueue}{max\_threshold}})}
+\DoxyCodeLine{00137\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00138\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classDeferredWorkQueue_aa86a6eb53103e3a766a98bc9d40d30be}{progress}}();}
+\DoxyCodeLine{00139\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{new\_value}}\ =\ \mbox{\hyperlink{classThreadQueue}{fi\_cntr\_read}}(\mbox{\hyperlink{classThreadQueue}{completion\_cntr}});}
+\DoxyCodeLine{00140\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00141\ }
+\DoxyCodeLine{00142\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Cleanup}}
+\DoxyCodeLine{00143\ \ \ \ \ \ \ \ \ space\_used\ -\/=\ (\mbox{\hyperlink{classThreadQueue}{new\_value}}\ -\/\ \mbox{\hyperlink{classThreadQueue}{last\_value}});}
+\DoxyCodeLine{00144\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}[Counter,\ space]\ used\ after\ clearing:"{}},\ \mbox{\hyperlink{classThreadQueue}{new\_value}},\ space\_used);}
+\DoxyCodeLine{00145\ \ \ \ \ \ \ \ \ known\_completion\_map.erase(\mbox{\hyperlink{classThreadQueue}{completion\_cntr}});}
+\DoxyCodeLine{00146\ \ \ \ \ \}}
+\DoxyCodeLine{00147\ }
+\DoxyCodeLine{00148\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_a9e1dbe0d493f99efa2c2bf2853549041}{make\_space}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{completion\_cntr}})}
+\DoxyCodeLine{00149\ \ \ \ \ \{}
+\DoxyCodeLine{00150\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}***\ Asked\ to\ make\ space\ at"{}},\ space\_used);}
+\DoxyCodeLine{00151\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ ((space\_used\ +\ 1)\ >=\ total\_space)}
+\DoxyCodeLine{00152\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00153\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ ((space\_used\ +\ 1)\ >=\ total\_space)}
+\DoxyCodeLine{00154\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00155\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classDeferredWorkQueue_aa86a6eb53103e3a766a98bc9d40d30be}{progress}}();}
+\DoxyCodeLine{00156\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ update\_space\_free();}
+\DoxyCodeLine{00157\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00158\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00159\ \ \ \ \ \}}
+\DoxyCodeLine{00160\ }
+\DoxyCodeLine{00161\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classDeferredWorkQueue_aa86a6eb53103e3a766a98bc9d40d30be}{progress}}()}
+\DoxyCodeLine{00162\ \ \ \ \ \{}
+\DoxyCodeLine{00163\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{fi\_cntr\_read}}(progress\_cntr);}
+\DoxyCodeLine{00164\ \ \ \ \ \}}
+\DoxyCodeLine{00165\ }
+\DoxyCodeLine{00166\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classDeferredWorkQueue_ac655138df32e9b3a200904fd148f97cb}{print\_status}}()}
+\DoxyCodeLine{00167\ \ \ \ \ \{}
+\DoxyCodeLine{00168\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_ad927523feefea11a32ee5ada6dc85cb1}{Print::always}}(\textcolor{stringliteral}{"{}Space\ in\ use:"{}},\ space\_used);}
+\DoxyCodeLine{00169\ \ \ \ \ \}}
+\DoxyCodeLine{00170\ }
+\DoxyCodeLine{00171\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00172\ \ \ \ \ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ update\_space\_free()}
+\DoxyCodeLine{00173\ \ \ \ \ \{}
+\DoxyCodeLine{00174\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keyword}{auto}\&\ [counter,\ value]\ :\ known\_completion\_map)}
+\DoxyCodeLine{00175\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00176\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{last\_value}}\ =\ value;}
+\DoxyCodeLine{00177\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{curr\_value}}\ =\ \mbox{\hyperlink{classThreadQueue}{fi\_cntr\_read}}(counter);}
+\DoxyCodeLine{00178\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classThreadQueue}{curr\_value}}\ !=\ \mbox{\hyperlink{classThreadQueue}{last\_value}})}
+\DoxyCodeLine{00179\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00180\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}***\ Counter"{}},\ counter,\ \textcolor{stringliteral}{"{}was\ updated\ from"{}},\ \mbox{\hyperlink{classThreadQueue}{last\_value}},\ \textcolor{stringliteral}{"{}to"{}},}
+\DoxyCodeLine{00181\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{curr\_value}});}
+\DoxyCodeLine{00182\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ space\_used\ -\/=\ (\mbox{\hyperlink{classThreadQueue}{curr\_value}}\ -\/\ \mbox{\hyperlink{classThreadQueue}{last\_value}});}
+\DoxyCodeLine{00183\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}***\ Space\ in\ use:"{}},\ space\_used);}
+\DoxyCodeLine{00184\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ value\ =\ \mbox{\hyperlink{classThreadQueue}{curr\_value}};}
+\DoxyCodeLine{00185\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00186\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00187\ \ \ \ \ \}}
+\DoxyCodeLine{00188\ }
+\DoxyCodeLine{00189\ \ \ \ \ \textcolor{comment}{//\ Control\ of\ DFWQ\ Space}}
+\DoxyCodeLine{00190\ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ total\_space\ =\ 84;}
+\DoxyCodeLine{00191\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \ \ \ \ \ \ space\_used\ \ =\ 0;}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00193\ \ \ \ \ \textcolor{comment}{//\ Progress\ counter}}
+\DoxyCodeLine{00194\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ progress\_cntr;}
+\DoxyCodeLine{00195\ }
+\DoxyCodeLine{00196\ \ \ \ \ \textcolor{comment}{//\ Last\ known\ completions}}
+\DoxyCodeLine{00197\ \ \ \ \ std::map<struct\ fid\_cntr*,\ uint64\_t>\ known\_completion\_map;}
+\DoxyCodeLine{00198\ \};}
+\DoxyCodeLine{00199\ }
+\DoxyCodeLine{00200\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXICounter}{CXICounter}}}
+\DoxyCodeLine{00201\ \{}
+\DoxyCodeLine{00202\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00203\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classCXICounter_a0ed90de17a8ad751f6d03a23131dc48b}{alloc\_counter}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain)}
+\DoxyCodeLine{00204\ \ \ \ \ \{}
+\DoxyCodeLine{00205\ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ \ \ \mbox{\hyperlink{classThreadQueue}{new\_ctr}};}
+\DoxyCodeLine{00206\ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_cntr\_attr}}\ \mbox{\hyperlink{classThreadQueue}{cntr\_attr}}\ =\ \{}
+\DoxyCodeLine{00207\ \ \ \ \ \ \ \ \ \ \ \ \ .events\ \ \ =\ \mbox{\hyperlink{classThreadQueue}{FI\_CNTR\_EVENTS\_COMP}},}
+\DoxyCodeLine{00208\ \ \ \ \ \ \ \ \ \ \ \ \ .wait\_obj\ =\ \mbox{\hyperlink{classThreadQueue}{FI\_WAIT\_UNSPEC}},}
+\DoxyCodeLine{00209\ \ \ \ \ \ \ \ \ \};}
+\DoxyCodeLine{00210\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_cntr\_open}}(domain,\ \&\mbox{\hyperlink{classThreadQueue}{cntr\_attr}},\ \&\mbox{\hyperlink{classThreadQueue}{new\_ctr}},\ \mbox{\hyperlink{classThreadQueue}{NULL}}));}
+\DoxyCodeLine{00211\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{new\_ctr}};}
+\DoxyCodeLine{00212\ \ \ \ \ \}}
+\DoxyCodeLine{00213\ }
+\DoxyCodeLine{00214\ \ \ \ \ \mbox{\hyperlink{classCXICounter_a5de256f4a9c3485fc0e9ca326f3f8780}{CXICounter}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain)\ :\ \mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}}(\mbox{\hyperlink{classCXICounter_a0ed90de17a8ad751f6d03a23131dc48b}{alloc\_counter}}(domain))}
+\DoxyCodeLine{00215\ \ \ \ \ \{}
+\DoxyCodeLine{00216\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Open\ (create)\ CXI\ Extension\ object}}
+\DoxyCodeLine{00217\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_open\_ops}}(\&(\mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}}-\/>fid),\ \mbox{\hyperlink{classThreadQueue}{FI\_CXI\_COUNTER\_OPS}},\ 0,}
+\DoxyCodeLine{00218\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (\textcolor{keywordtype}{void}**)\&\mbox{\hyperlink{classCXICounter_a95a1d87efc940b694d33c3d631f72540}{counter\_ops}},\ \mbox{\hyperlink{classThreadQueue}{NULL}}));}
+\DoxyCodeLine{00219\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Get\ the\ MMIO\ Address\ of\ the\ counter}}
+\DoxyCodeLine{00220\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\_libfabric}}(}
+\DoxyCodeLine{00221\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter_a95a1d87efc940b694d33c3d631f72540}{counter\_ops}}-\/>get\_mmio\_addr(\&\mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}}-\/>fid,\ \&\mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\_addr}},\ \&\mbox{\hyperlink{classCXICounter_a38c5d78155819039b87235f6be3c76d2}{mmio\_addr\_len}}));}
+\DoxyCodeLine{00222\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Register\ MMIO\ Address\ w/\ HIP}}
+\DoxyCodeLine{00223\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostRegister}}(\mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\_addr}},\ \mbox{\hyperlink{classCXICounter_a38c5d78155819039b87235f6be3c76d2}{mmio\_addr\_len}},\ \mbox{\hyperlink{classThreadQueue}{hipHostRegisterDefault}}));}
+\DoxyCodeLine{00224\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Get\ GPU\ version\ of\ MMIO\ address}}
+\DoxyCodeLine{00225\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostGetDevicePointer}}(\&\mbox{\hyperlink{classCXICounter_a55196c496536eab6753c570c68d1a7e3}{gpu\_mmio\_addr}},\ \mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\_addr}},\ 0));}
+\DoxyCodeLine{00226\ \ \ \ \ \}}
+\DoxyCodeLine{00227\ }
+\DoxyCodeLine{00228\ \ \ \ \ \mbox{\hyperlink{classCXICounter_a79b2f6d3e1707835f575187d4b824097}{\string~CXICounter}}()}
+\DoxyCodeLine{00229\ \ \ \ \ \{}
+\DoxyCodeLine{00230\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Free\ counter}}
+\DoxyCodeLine{00231\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&\mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}}-\/>fid));}
+\DoxyCodeLine{00232\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostUnregister}}(\mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\_addr}}));}
+\DoxyCodeLine{00233\ \ \ \ \ \}}
+\DoxyCodeLine{00234\ }
+\DoxyCodeLine{00235\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXICounter_a79715e08bd4410a5e27f5c18d712c157}{print}}()}
+\DoxyCodeLine{00236\ \ \ \ \ \{}
+\DoxyCodeLine{00237\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ value\ =\ \mbox{\hyperlink{classThreadQueue}{fi\_cntr\_read}}(\mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}});}
+\DoxyCodeLine{00238\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Value:\ "{}},\ value);}
+\DoxyCodeLine{00239\ \ \ \ \ \}}
+\DoxyCodeLine{00240\ }
+\DoxyCodeLine{00241\ \ \ \ \ \textcolor{comment}{//\ Libfabric\ Structs}}
+\DoxyCodeLine{00242\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter_a2789c2d2dd8f9471ac786ce96e157d4a}{counter}};}
+\DoxyCodeLine{00243\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_cxi\_cntr\_ops}}*\ \mbox{\hyperlink{classCXICounter_a95a1d87efc940b694d33c3d631f72540}{counter\_ops}};}
+\DoxyCodeLine{00244\ \ \ \ \ \textcolor{comment}{//\ MMIO\ Pointers}}
+\DoxyCodeLine{00245\ \ \ \ \ \textcolor{keywordtype}{void}*\ \ \mbox{\hyperlink{classCXICounter_a80c2c7a5e9730bf2e41dd94dadfc3810}{mmio\_addr}};}
+\DoxyCodeLine{00246\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classCXICounter_a38c5d78155819039b87235f6be3c76d2}{mmio\_addr\_len}};}
+\DoxyCodeLine{00247\ \ \ \ \ \textcolor{keywordtype}{void}*\ \ \mbox{\hyperlink{classCXICounter_a55196c496536eab6753c570c68d1a7e3}{gpu\_mmio\_addr}};}
+\DoxyCodeLine{00248\ \};}
+\DoxyCodeLine{00249\ }
+\DoxyCodeLine{00250\ \textcolor{comment}{//\ MR\ Management}}
+\DoxyCodeLine{00251\ \textcolor{keyword}{static}\ \textcolor{keywordtype}{size\_t}\ getMRID()}
+\DoxyCodeLine{00252\ \{}
+\DoxyCodeLine{00253\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{ID}}\ =\ 1;}
+\DoxyCodeLine{00254\ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classThreadQueue}{ID}}++;}
+\DoxyCodeLine{00255\ \}}
+\DoxyCodeLine{00256\ }
+\DoxyCodeLine{00257\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}}
+\DoxyCodeLine{00258\ \{}
+\DoxyCodeLine{00259\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00260\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_a0c14c66bfcdb8a68d3cdfac3b66b5f5d}{CompletionBuffer}}()\ :\ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}(\mbox{\hyperlink{classThreadQueue}{nullptr}})}
+\DoxyCodeLine{00261\ \ \ \ \ \{}
+\DoxyCodeLine{00262\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostMalloc}}(\&\mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}},\ \mbox{\hyperlink{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}{DEFAULT\_SIZE}},\ \mbox{\hyperlink{classThreadQueue}{hipHostMallocDefault}}));}
+\DoxyCodeLine{00263\ \ \ \ \ \}}
+\DoxyCodeLine{00264\ }
+\DoxyCodeLine{00265\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_a6d7029d6cb4ba5faadb7fb0cc1feacba}{\string~CompletionBuffer}}()}
+\DoxyCodeLine{00266\ \ \ \ \ \{}
+\DoxyCodeLine{00267\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}})}
+\DoxyCodeLine{00268\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00269\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&(\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}})-\/>\mbox{\hyperlink{classThreadQueue}{fid}}));}
+\DoxyCodeLine{00270\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00271\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a917eb546e24360532af32dd6daa8be02}{check\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostFree}}(\mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}}));}
+\DoxyCodeLine{00272\ \ \ \ \ \}}
+\DoxyCodeLine{00273\ }
+\DoxyCodeLine{00274\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_a96d0ae1ed91275abd3047e48289b863b}{CompletionBuffer}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\ \mbox{\hyperlink{classThreadQueue}{other}})\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00275\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_a48b7555feaed6efc0f5386e90848a6c9}{CompletionBuffer}}(\mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\&\ \mbox{\hyperlink{classThreadQueue}{other}})}
+\DoxyCodeLine{00276\ \ \ \ \ \{}
+\DoxyCodeLine{00277\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}}\ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{other}}.buffer;}
+\DoxyCodeLine{00278\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}\ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{other}}.my\_mr;}
+\DoxyCodeLine{00279\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.buffer\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00280\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.my\_mr\ \ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00281\ \ \ \ \ \}}
+\DoxyCodeLine{00282\ }
+\DoxyCodeLine{00283\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\ \mbox{\hyperlink{classCompletionBuffer_ae310283a0fcb6f9c8c477b0d2eb3bafd}{operator=}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\ \mbox{\hyperlink{classThreadQueue}{rhs}})\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00284\ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\ \mbox{\hyperlink{classCompletionBuffer_a9ab85e2830a11c7caa530f9b469fe8a6}{operator=}}(\mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\&\&\ \mbox{\hyperlink{classThreadQueue}{other}})}
+\DoxyCodeLine{00285\ \ \ \ \ \{}
+\DoxyCodeLine{00286\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}}\ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{other}}.buffer;}
+\DoxyCodeLine{00287\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}\ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{other}}.my\_mr;}
+\DoxyCodeLine{00288\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.buffer\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00289\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{other}}.my\_mr\ \ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00290\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00291\ \ \ \ \ \}}
+\DoxyCodeLine{00292\ }
+\DoxyCodeLine{00293\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCompletionBuffer_a1e1f460362972664d12bc7c1100eb2aa}{register\_mr}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain,\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_ep}}*\ \mbox{\hyperlink{classThreadQueue}{main\_ep}})}
+\DoxyCodeLine{00294\ \ \ \ \ \{}
+\DoxyCodeLine{00295\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_reg}}(domain,\ \mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}},\ \mbox{\hyperlink{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}{DEFAULT\_SIZE}},}
+\DoxyCodeLine{00296\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{FI\_REMOTE\_WRITE}}\ |\ \mbox{\hyperlink{classThreadQueue}{FI\_WRITE}},\ 0,\ getMRID(),}
+\DoxyCodeLine{00297\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{FI\_MR\_ALLOCATED}},\ \&\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}},\ \mbox{\hyperlink{classThreadQueue}{NULL}}));}
+\DoxyCodeLine{00298\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_bind}}(\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}},\ \&(\mbox{\hyperlink{classThreadQueue}{main\_ep}})-\/>\mbox{\hyperlink{classThreadQueue}{fid}},\ 0));}
+\DoxyCodeLine{00299\ }
+\DoxyCodeLine{00300\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Enable\ MR}}
+\DoxyCodeLine{00301\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_enable}}(\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}));}
+\DoxyCodeLine{00302\ \ \ \ \ \}}
+\DoxyCodeLine{00303\ }
+\DoxyCodeLine{00304\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCompletionBuffer_ac1acad569b405a5ff086f6cdd0484038}{free\_mr}}()}
+\DoxyCodeLine{00305\ \ \ \ \ \{}
+\DoxyCodeLine{00306\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&(\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}})-\/>\mbox{\hyperlink{classThreadQueue}{fid}}));}
+\DoxyCodeLine{00307\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00308\ \ \ \ \ \}}
+\DoxyCodeLine{00309\ }
+\DoxyCodeLine{00310\ \ \ \ \ \mbox{\hyperlink{classBuffer}{Buffer}}\ \mbox{\hyperlink{classCompletionBuffer_aafc1375b17a595a9a67bc657701463c9}{alloc\_buffer}}()}
+\DoxyCodeLine{00311\ \ \ \ \ \{}
+\DoxyCodeLine{00312\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\_index}}\ >=\ \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\_ITEMS}})}
+\DoxyCodeLine{00313\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\textcolor{stringliteral}{"{}Out\ of\ space\ for\ completion\ buffer"{}});}
+\DoxyCodeLine{00314\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\textcolor{keyword}{nullptr}\ ==\ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}})}
+\DoxyCodeLine{00315\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ std::runtime\_error(\textcolor{stringliteral}{"{}Buffer\ is\ not\ registered\ with\ libfabric"{}});}
+\DoxyCodeLine{00316\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{void}*\ \ \ \ \mbox{\hyperlink{classThreadQueue}{x}}\ \ \ \ \ \ \ \ \ \ \ \ =\ ((\textcolor{keywordtype}{char}*)\mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}})\ +\ (\textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{size\_t}})\ *\ \mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\_index}});}
+\DoxyCodeLine{00317\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{offset\_value}}\ =\ \mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\_index}}\ *\ \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\_ITEM\_SIZE}};}
+\DoxyCodeLine{00318\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\_index}}++;}
+\DoxyCodeLine{00319\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classBuffer}{Buffer}}(\mbox{\hyperlink{classThreadQueue}{x}},\ \mbox{\hyperlink{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}{DEFAULT\_SIZE}},\ \mbox{\hyperlink{classThreadQueue}{fi\_mr\_key}}(\mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}}),\ \mbox{\hyperlink{classThreadQueue}{offset\_value}});}
+\DoxyCodeLine{00320\ \ \ \ \ \}}
+\DoxyCodeLine{00321\ }
+\DoxyCodeLine{00322\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_mr}}*\ \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\_mr}};}
+\DoxyCodeLine{00323\ \ \ \ \ \textcolor{keywordtype}{void}*\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}};}
+\DoxyCodeLine{00324\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\_index}};}
+\DoxyCodeLine{00325\ }
+\DoxyCodeLine{00326\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\_ITEMS}}\ \ \ \ \ =\ 1000;}
+\DoxyCodeLine{00327\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\_ITEM\_SIZE}}\ =\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{size\_t}});}
+\DoxyCodeLine{00328\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}{DEFAULT\_SIZE}}\ \ \ \ \ \ =\ \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\_ITEMS}}\ *\ \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\_ITEM\_SIZE}};}
+\DoxyCodeLine{00329\ \};}
+\DoxyCodeLine{00330\ }
+\DoxyCodeLine{00331\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\DoxyCodeLine{00332\ \{}
+\DoxyCodeLine{00333\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00334\ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a8f47b80d3bfff9e4066110c006a94821}{CXIRequest}}(\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemoryType}}\ \mbox{\hyperlink{classThreadQueue}{\_memory\_type}},\ \mbox{\hyperlink{classBuffer}{Buffer}}\ \mbox{\hyperlink{classThreadQueue}{local\_completion\_buffer}})}
+\DoxyCodeLine{00335\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classCXIRequest_ad1b328ddf58e30223c26343ce3624dfb}{memory\_type}}(\mbox{\hyperlink{classThreadQueue}{\_memory\_type}}),}
+\DoxyCodeLine{00336\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\_buffer}}(\mbox{\hyperlink{classThreadQueue}{local\_completion\_buffer}}),}
+\DoxyCodeLine{00337\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\_times\_started}}(0)}
+\DoxyCodeLine{00338\ \ \ \ \ \{}
+\DoxyCodeLine{00339\ \ \ \ \ \}}
+\DoxyCodeLine{00340\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{classCXIRequest_a490d981ad25eb8ab9c926fcc548b8263}{\string~CXIRequest}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00341\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRequest_ae8e8a05bb0f12dfa939b577d92be0234}{start}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00342\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})}
+\DoxyCodeLine{00343\ \ \ \ \ \{}
+\DoxyCodeLine{00344\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\_times\_started}}++;}
+\DoxyCodeLine{00345\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a5c621d8ade8b8f552978804f9be32cd4}{start\_host}}(the\_stream,\ threshold,\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}});}
+\DoxyCodeLine{00346\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a476524c9a3a91324c7aaa8d5e518113f}{start\_gpu}}(the\_stream,\ threshold,\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}});}
+\DoxyCodeLine{00347\ \ \ \ \ \}}
+\DoxyCodeLine{00348\ }
+\DoxyCodeLine{00349\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRequest_ac6087de56e99af108e1afe0740541536}{wait\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream)\ =\ 0;}
+\DoxyCodeLine{00350\ }
+\DoxyCodeLine{00351\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemoryType}}\ \mbox{\hyperlink{classCXIRequest_ad7f69a647d255ba3f2c6f56495a5f706}{get\_gpu\_memory\_type}}()}
+\DoxyCodeLine{00352\ \ \ \ \ \{}
+\DoxyCodeLine{00353\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classCXIRequest_ad1b328ddf58e30223c26343ce3624dfb}{memory\_type}};}
+\DoxyCodeLine{00354\ \ \ \ \ \}}
+\DoxyCodeLine{00355\ }
+\DoxyCodeLine{00356\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00357\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRequest_a5c621d8ade8b8f552978804f9be32cd4}{start\_host}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00358\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\ =\ 0;}
+\DoxyCodeLine{00359\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRequest_a476524c9a3a91324c7aaa8d5e518113f}{start\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00360\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\ \ =\ 0;}
+\DoxyCodeLine{00361\ }
+\DoxyCodeLine{00362\ \ \ \ \ \mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemoryType}}\ \mbox{\hyperlink{classCXIRequest_ad1b328ddf58e30223c26343ce3624dfb}{memory\_type}};}
+\DoxyCodeLine{00363\ \ \ \ \ \mbox{\hyperlink{classBuffer}{Buffer}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\_buffer}};}
+\DoxyCodeLine{00364\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\_times\_started}};}
+\DoxyCodeLine{00365\ \};}
+\DoxyCodeLine{00366\ }
+\DoxyCodeLine{00367\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classFakeBarrier}{FakeBarrier}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\DoxyCodeLine{00368\ \{}
+\DoxyCodeLine{00369\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00370\ \ \ \ \ \textcolor{comment}{//\ Uses\ "{}GPUMemoryType::FINE"{}\ because\ this\ doesn't\ need\ a\ flush}}
+\DoxyCodeLine{00371\ \ \ \ \ \mbox{\hyperlink{classFakeBarrier_ade639dfebf535326d0373b55cbc16de4}{FakeBarrier}}(\mbox{\hyperlink{classBuffer}{Buffer}}\ buffer,\ \mbox{\hyperlink{classThreadQueue}{MPI\_Comm}}\ comm,\ \mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}\&\ \mbox{\hyperlink{classThreadQueue}{dwq}})}
+\DoxyCodeLine{00372\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classCXIRequest}{CXIRequest}}(\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0}{GPUMemoryType}}::\mbox{\hyperlink{namespaceCommunication_a1899d3afd963389bd3735fa9773319b0ae290afb6eb0d81a62f79dd3eec3e9cda}{FINE}},\ buffer),}
+\DoxyCodeLine{00373\ \ \ \ \ \ \ \ \ \ \ comm\_to\_use(comm),}
+\DoxyCodeLine{00374\ \ \ \ \ \ \ \ \ \ \ finished(\mbox{\hyperlink{classThreadQueue}{true}}),}
+\DoxyCodeLine{00375\ \ \ \ \ \ \ \ \ \ \ progress\_engine(\mbox{\hyperlink{classThreadQueue}{dwq}})}
+\DoxyCodeLine{00376\ \ \ \ \ \{}
+\DoxyCodeLine{00377\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Setup\ GPU\ memory\ locations}}
+\DoxyCodeLine{00378\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostMalloc}}((\textcolor{keywordtype}{void}**)\&host\_start\_location,\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{int64\_t}}),}
+\DoxyCodeLine{00379\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipHostMallocDefault}}));}
+\DoxyCodeLine{00380\ \ \ \ \ \ \ \ \ *host\_start\_location\ =\ 0;}
+\DoxyCodeLine{00381\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostGetDevicePointer}}(\&gpu\_start\_location,\ host\_start\_location,\ 0));}
+\DoxyCodeLine{00382\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostMalloc}}((\textcolor{keywordtype}{void}**)\&host\_wait\_location,\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{int64\_t}}),}
+\DoxyCodeLine{00383\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipHostMallocDefault}}));}
+\DoxyCodeLine{00384\ \ \ \ \ \ \ \ \ *host\_wait\_location\ =\ 0;}
+\DoxyCodeLine{00385\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostGetDevicePointer}}(\&gpu\_wait\_location,\ host\_wait\_location,\ 0));}
+\DoxyCodeLine{00386\ \ \ \ \ \}}
+\DoxyCodeLine{00387\ }
+\DoxyCodeLine{00388\ \ \ \ \ \mbox{\hyperlink{classFakeBarrier_acde8de97c9ac2a0c347c1194c3b502d1}{\string~FakeBarrier}}()}
+\DoxyCodeLine{00389\ \ \ \ \ \{}
+\DoxyCodeLine{00390\ \ \ \ \ \ \ \ \ thr.join();}
+\DoxyCodeLine{00391\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a917eb546e24360532af32dd6daa8be02}{check\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostFree}}(host\_start\_location));}
+\DoxyCodeLine{00392\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a917eb546e24360532af32dd6daa8be02}{check\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipHostFree}}(host\_wait\_location));}
+\DoxyCodeLine{00393\ \ \ \ \ \}}
+\DoxyCodeLine{00394\ }
+\DoxyCodeLine{00395\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classFakeBarrier_a891ce9e69b9f5add325d7791069d9394}{wait\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream)\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00396\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00397\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(}
+\DoxyCodeLine{00398\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipStreamWaitValue64}}(*the\_stream,\ gpu\_wait\_location,\ \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\_times\_started}},\ 0));}
+\DoxyCodeLine{00399\ \ \ \ \ \}}
+\DoxyCodeLine{00400\ }
+\DoxyCodeLine{00401\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00402\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classFakeBarrier_ac1c996155a8927cf7f642209b6440d71}{start\_host}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00403\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00404\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00405\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ If\ previously\ launched,\ make\ do\ progress\ in\ case\ it's\ stuck\ */}}
+\DoxyCodeLine{00406\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ (!finished)}
+\DoxyCodeLine{00407\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00408\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Do\ progress\ (fi\_cntr\_read)\ */}}
+\DoxyCodeLine{00409\ \ \ \ \ \ \ \ \ \ \ \ \ progress\_engine.\mbox{\hyperlink{classDeferredWorkQueue_aa86a6eb53103e3a766a98bc9d40d30be}{progress}}();}
+\DoxyCodeLine{00410\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00411\ }
+\DoxyCodeLine{00412\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ And\ normal\ thread\ joining\ check\ */}}
+\DoxyCodeLine{00413\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (thr.joinable())}
+\DoxyCodeLine{00414\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00415\ \ \ \ \ \ \ \ \ \ \ \ \ thr.join();}
+\DoxyCodeLine{00416\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00417\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Launch\ thread\ */}}
+\DoxyCodeLine{00418\ \ \ \ \ \ \ \ \ finished\ =\ \textcolor{keyword}{false};}
+\DoxyCodeLine{00419\ \ \ \ \ \ \ \ \ thr\ \ \ \ \ \ =\ std::thread(\&FakeBarrier::thread\_function,\ \textcolor{keyword}{this},\ threshold.\mbox{\hyperlink{classThreshold_aba7d4cf3b98d55d4da06818afe0ed85b}{value}}());}
+\DoxyCodeLine{00420\ \ \ \ \ \}}
+\DoxyCodeLine{00421\ }
+\DoxyCodeLine{00422\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classFakeBarrier_a004ccfd39f6e44fe3cea3db28b5d7d35}{start\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00423\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00424\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00425\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(}
+\DoxyCodeLine{00426\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipStreamWriteValue64}}(*the\_stream,\ gpu\_start\_location,\ threshold.\mbox{\hyperlink{classThreshold_aba7d4cf3b98d55d4da06818afe0ed85b}{value}}(),\ 0));}
+\DoxyCodeLine{00427\ \ \ \ \ \}}
+\DoxyCodeLine{00428\ }
+\DoxyCodeLine{00429\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00430\ \ \ \ \ \textcolor{keywordtype}{void}\ thread\_function(\textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{classThreadQueue}{thread\_threshold}})}
+\DoxyCodeLine{00431\ \ \ \ \ \{}
+\DoxyCodeLine{00432\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Wait\ for\ signal\ from\ GPU\ */}}
+\DoxyCodeLine{00433\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{while}\ (\mbox{\hyperlink{classThreadQueue}{\_\_atomic\_load\_n}}(host\_start\_location,\ \mbox{\hyperlink{classThreadQueue}{\_\_ATOMIC\_ACQUIRE}})\ <\ \mbox{\hyperlink{classThreadQueue}{thread\_threshold}})}
+\DoxyCodeLine{00434\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00435\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Do\ nothing}}
+\DoxyCodeLine{00436\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00437\ }
+\DoxyCodeLine{00438\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Execute\ MPI\ Call\ */}}
+\DoxyCodeLine{00439\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Barrier}}(comm\_to\_use);}
+\DoxyCodeLine{00440\ }
+\DoxyCodeLine{00441\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Mark\ completion\ location\ */}}
+\DoxyCodeLine{00442\ \ \ \ \ \ \ \ \ (*host\_wait\_location)\ =\ \mbox{\hyperlink{classCXIRequest_a7b0a44f6e692c8e07c1ef3c2420b0783}{num\_times\_started}};}
+\DoxyCodeLine{00443\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ End\ thread\ */}}
+\DoxyCodeLine{00444\ \ \ \ \ \ \ \ \ finished\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00445\ \ \ \ \ \}}
+\DoxyCodeLine{00446\ }
+\DoxyCodeLine{00447\ \ \ \ \ \textcolor{comment}{//\ Memory\ locations}}
+\DoxyCodeLine{00448\ \ \ \ \ \textcolor{keywordtype}{size\_t}*\ host\_start\_location;}
+\DoxyCodeLine{00449\ \ \ \ \ \textcolor{keywordtype}{size\_t}*\ host\_wait\_location;}
+\DoxyCodeLine{00450\ }
+\DoxyCodeLine{00451\ \ \ \ \ \textcolor{keywordtype}{void}*\ gpu\_start\_location;}
+\DoxyCodeLine{00452\ \ \ \ \ \textcolor{keywordtype}{void}*\ gpu\_wait\_location;}
+\DoxyCodeLine{00453\ \ \ \ \ \textcolor{comment}{//\ MPI\ Variables}}
+\DoxyCodeLine{00454\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Comm}}\ comm\_to\_use;}
+\DoxyCodeLine{00455\ \ \ \ \ \textcolor{comment}{//\ Thread}}
+\DoxyCodeLine{00456\ \ \ \ \ std::thread\ thr;}
+\DoxyCodeLine{00457\ \ \ \ \ \textcolor{keywordtype}{bool}\ \ \ \ \ \ \ \ finished\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00458\ \ \ \ \ \textcolor{comment}{//\ Progress}}
+\DoxyCodeLine{00459\ \ \ \ \ \mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}\&\ progress\_engine;}
+\DoxyCodeLine{00460\ \};}
+\DoxyCodeLine{00461\ }
+\DoxyCodeLine{00462\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXIWait}{CXIWait}}\ :\ \textcolor{keyword}{virtual}\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classCXIRequest}{CXIRequest}}}
+\DoxyCodeLine{00463\ \{}
+\DoxyCodeLine{00464\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00465\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIWait_a526bc0891af5cafbef335f8b60d3d068}{wait\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream)\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00466\ \};}
+\DoxyCodeLine{00467\ }
+\DoxyCodeLine{00468\ \textcolor{keyword}{template}\ <\textcolor{keywordtype}{bool}\ FENCE\ =\ false>}
+\DoxyCodeLine{00469\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classChainedRMA}{ChainedRMA}}}
+\DoxyCodeLine{00470\ \{}
+\DoxyCodeLine{00471\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00472\ \ \ \ \ \mbox{\hyperlink{classChainedRMA_afe13b977d768b68e37af259d9d2581d4}{ChainedRMA}}(\mbox{\hyperlink{classBuffer}{Buffer}}\ \mbox{\hyperlink{classThreadQueue}{local\_completion}},\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_ep}}*\ ep,\ \mbox{\hyperlink{classThreadQueue}{fi\_addr\_t}}\ \mbox{\hyperlink{classThreadQueue}{partner}},}
+\DoxyCodeLine{00473\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{fi\_addr\_t}}\ \mbox{\hyperlink{classThreadQueue}{self}},\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{trigger}},\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{remote\_cntr}},}
+\DoxyCodeLine{00474\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \mbox{\hyperlink{classThreadQueue}{local\_cntr}},\ \textcolor{keywordtype}{void}**\ \mbox{\hyperlink{classThreadQueue}{comp\_desc}}\ =\ \textcolor{keyword}{nullptr})}
+\DoxyCodeLine{00475\ \ \ \ \ \ \ \ \ :\ completion\_addrs(MAX\_COMP\_VALUES)}
+\DoxyCodeLine{00476\ \ \ \ \ \{}
+\DoxyCodeLine{00477\ \ \ \ \ \ \ \ \ std::iota(completion\_addrs.begin(),\ completion\_addrs.end(),\ 1);}
+\DoxyCodeLine{00478\ \ \ \ \ \ \ \ \ chain\_work\_remote.threshold\ \ \ \ \ \ \ =\ 0;}
+\DoxyCodeLine{00479\ \ \ \ \ \ \ \ \ chain\_work\_remote.triggering\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{trigger}};}
+\DoxyCodeLine{00480\ \ \ \ \ \ \ \ \ chain\_work\_remote.completion\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{remote\_cntr}};}
+\DoxyCodeLine{00481\ \ \ \ \ \ \ \ \ chain\_work\_remote.op\_type\ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{FI\_OP\_WRITE}};}
+\DoxyCodeLine{00482\ }
+\DoxyCodeLine{00483\ \ \ \ \ \ \ \ \ chain\_work\_local.threshold\ \ \ \ \ \ \ =\ 0;}
+\DoxyCodeLine{00484\ \ \ \ \ \ \ \ \ chain\_work\_local.triggering\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{remote\_cntr}};}
+\DoxyCodeLine{00485\ \ \ \ \ \ \ \ \ chain\_work\_local.completion\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{local\_cntr}};}
+\DoxyCodeLine{00486\ \ \ \ \ \ \ \ \ chain\_work\_local.op\_type\ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{FI\_OP\_WRITE}};}
+\DoxyCodeLine{00487\ }
+\DoxyCodeLine{00488\ \ \ \ \ \ \ \ \ chain\_iovec\ =\ \{\};}
+\DoxyCodeLine{00489\ }
+\DoxyCodeLine{00490\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ RMA\ Send\ using\ offsets\ in\ remote\ buffer\ (not\ virtual\ addresses)}}
+\DoxyCodeLine{00491\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Filled\ in\ by\ the\ type\ cast\ of\ Buffer\ class\ */}}
+\DoxyCodeLine{00492\ \ \ \ \ \ \ \ \ local\_rma\_iov\ =\ \mbox{\hyperlink{classThreadQueue}{local\_completion}};}
+\DoxyCodeLine{00493\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ The\ first\ and\ last\ values\ should\ be\ filled\ in\ by\ the\ match!\ */}}
+\DoxyCodeLine{00494\ \ \ \ \ \ \ \ \ remote\_rma\_iov\ =\ \{0,\ \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{CompletionBuffer::DEFAULT\_ITEM\_SIZE}},\ 0\};}
+\DoxyCodeLine{00495\ }
+\DoxyCodeLine{00496\ \ \ \ \ \ \ \ \ local\_base\_rma.ep\ \ =\ ep;}
+\DoxyCodeLine{00497\ \ \ \ \ \ \ \ \ local\_base\_rma.msg\ =\ \{}
+\DoxyCodeLine{00498\ \ \ \ \ \ \ \ \ \ \ \ \ .msg\_iov\ \ \ \ \ \ \ =\ \&chain\_iovec,}
+\DoxyCodeLine{00499\ \ \ \ \ \ \ \ \ \ \ \ \ .desc\ \ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{comp\_desc}},}
+\DoxyCodeLine{00500\ \ \ \ \ \ \ \ \ \ \ \ \ .iov\_count\ \ \ \ \ =\ 1,}
+\DoxyCodeLine{00501\ \ \ \ \ \ \ \ \ \ \ \ \ .addr\ \ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{self}},}
+\DoxyCodeLine{00502\ \ \ \ \ \ \ \ \ \ \ \ \ .rma\_iov\ \ \ \ \ \ \ =\ \&local\_rma\_iov,}
+\DoxyCodeLine{00503\ \ \ \ \ \ \ \ \ \ \ \ \ .rma\_iov\_count\ =\ 1,}
+\DoxyCodeLine{00504\ \ \ \ \ \ \ \ \ \ \ \ \ .context\ \ \ \ \ \ \ =\ \textcolor{keyword}{nullptr},}
+\DoxyCodeLine{00505\ \ \ \ \ \ \ \ \ \ \ \ \ .data\ \ \ \ \ \ \ \ \ \ =\ 0,}
+\DoxyCodeLine{00506\ \ \ \ \ \ \ \ \ \};}
+\DoxyCodeLine{00507\ }
+\DoxyCodeLine{00508\ \ \ \ \ \ \ \ \ remote\_base\_rma.ep\ \ =\ ep;}
+\DoxyCodeLine{00509\ \ \ \ \ \ \ \ \ remote\_base\_rma.msg\ =\ \{}
+\DoxyCodeLine{00510\ \ \ \ \ \ \ \ \ \ \ \ \ .msg\_iov\ \ \ \ \ \ \ =\ \&chain\_iovec,}
+\DoxyCodeLine{00511\ \ \ \ \ \ \ \ \ \ \ \ \ .desc\ \ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{comp\_desc}},}
+\DoxyCodeLine{00512\ \ \ \ \ \ \ \ \ \ \ \ \ .iov\_count\ \ \ \ \ =\ 1,}
+\DoxyCodeLine{00513\ \ \ \ \ \ \ \ \ \ \ \ \ .addr\ \ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{partner}},}
+\DoxyCodeLine{00514\ \ \ \ \ \ \ \ \ \ \ \ \ .rma\_iov\ \ \ \ \ \ \ =\ \&remote\_rma\_iov,}
+\DoxyCodeLine{00515\ \ \ \ \ \ \ \ \ \ \ \ \ .rma\_iov\_count\ =\ 1,}
+\DoxyCodeLine{00516\ \ \ \ \ \ \ \ \ \ \ \ \ .context\ \ \ \ \ \ \ =\ \textcolor{keyword}{nullptr},}
+\DoxyCodeLine{00517\ \ \ \ \ \ \ \ \ \ \ \ \ .data\ \ \ \ \ \ \ \ \ \ =\ 0,}
+\DoxyCodeLine{00518\ \ \ \ \ \ \ \ \ \};}
+\DoxyCodeLine{00519\ }
+\DoxyCodeLine{00520\ \ \ \ \ \ \ \ \ local\_base\_rma.flags\ =}
+\DoxyCodeLine{00521\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{FI\_DELIVERY\_COMPLETE}}\ |\ ((\mbox{\hyperlink{classThreadQueue}{FENCE}})\ ?\ \mbox{\hyperlink{classThreadQueue}{FI\_FENCE}}\ :\ \mbox{\hyperlink{classThreadQueue}{FI\_CXI\_WEAK\_FENCE}});}
+\DoxyCodeLine{00522\ \ \ \ \ \ \ \ \ remote\_base\_rma.flags\ =}
+\DoxyCodeLine{00523\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{FI\_DELIVERY\_COMPLETE}}\ |\ ((\mbox{\hyperlink{classThreadQueue}{FENCE}})\ ?\ \mbox{\hyperlink{classThreadQueue}{FI\_FENCE}}\ :\ \mbox{\hyperlink{classThreadQueue}{FI\_CXI\_WEAK\_FENCE}});}
+\DoxyCodeLine{00524\ \ \ \ \ \ \ \ \ chain\_work\_local.op.rma\ \ =\ \&local\_base\_rma;}
+\DoxyCodeLine{00525\ \ \ \ \ \ \ \ \ chain\_work\_remote.op.rma\ =\ \&remote\_base\_rma;}
+\DoxyCodeLine{00526\ \ \ \ \ \}}
+\DoxyCodeLine{00527\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classChainedRMA_a3387053c3ed2315b6ebdbc340927fe42}{queue\_work}}(\textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain)}
+\DoxyCodeLine{00528\ \ \ \ \ \{}
+\DoxyCodeLine{00529\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Increase\ thresholds\ before\ starting!\ */}}
+\DoxyCodeLine{00530\ \ \ \ \ \ \ \ \ chain\_work\_remote.threshold++;}
+\DoxyCodeLine{00531\ \ \ \ \ \ \ \ \ chain\_work\_local.threshold++;}
+\DoxyCodeLine{00532\ \ \ \ \ \ \ \ \ chain\_iovec\ =\ \{\&completion\_addrs.at(index++),\ \textcolor{keyword}{sizeof}(\mbox{\hyperlink{classThreadQueue}{int}})\};}
+\DoxyCodeLine{00533\ }
+\DoxyCodeLine{00534\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ print\_dfwq\_entry(\&chain\_work\_remote,\ "{}Chain\ work\ remote\ completion"{});}}
+\DoxyCodeLine{00535\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_control}}(\&domain-\/>fid,\ \mbox{\hyperlink{classThreadQueue}{FI\_QUEUE\_WORK}},\ \&chain\_work\_remote));}
+\DoxyCodeLine{00536\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ print\_dfwq\_entry(\&chain\_work\_local,\ "{}Chain\ work\ local\ completion"{});}}
+\DoxyCodeLine{00537\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_ae3aeb5e663d9e8e8d621a923d3191153}{check\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_control}}(\&domain-\/>fid,\ \mbox{\hyperlink{classThreadQueue}{FI\_QUEUE\_WORK}},\ \&chain\_work\_local));}
+\DoxyCodeLine{00538\ \ \ \ \ \}}
+\DoxyCodeLine{00539\ }
+\DoxyCodeLine{00540\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}*\ \mbox{\hyperlink{classChainedRMA_a6d11cb0840affeea195398363580c7e6}{get\_rma\_iov\_addr\_addr}}()}
+\DoxyCodeLine{00541\ \ \ \ \ \{}
+\DoxyCodeLine{00542\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \&(remote\_rma\_iov.addr);}
+\DoxyCodeLine{00543\ \ \ \ \ \}}
+\DoxyCodeLine{00544\ }
+\DoxyCodeLine{00545\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}*\ \mbox{\hyperlink{classChainedRMA_ae8abe239d1e1b0165767b4a59b127ae3}{get\_rma\_iov\_key\_addr}}()}
+\DoxyCodeLine{00546\ \ \ \ \ \{}
+\DoxyCodeLine{00547\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \&(remote\_rma\_iov.key);}
+\DoxyCodeLine{00548\ \ \ \ \ \}}
+\DoxyCodeLine{00549\ }
+\DoxyCodeLine{00550\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classChainedRMA_ac61ddc76d2a685cc44902b6548d43b94}{get\_threshold}}()}
+\DoxyCodeLine{00551\ \ \ \ \ \{}
+\DoxyCodeLine{00552\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ chain\_work\_remote.threshold;}
+\DoxyCodeLine{00553\ \ \ \ \ \}}
+\DoxyCodeLine{00554\ }
+\DoxyCodeLine{00555\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00556\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_deferred\_work}}\ chain\_work\_local;}
+\DoxyCodeLine{00557\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_op\_rma}}\ \ \ \ \ \ \ \ local\_base\_rma;}
+\DoxyCodeLine{00558\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_rma\_iov}}\ \ \ \ \ \ \ local\_rma\_iov;}
+\DoxyCodeLine{00559\ }
+\DoxyCodeLine{00560\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_deferred\_work}}\ chain\_work\_remote;}
+\DoxyCodeLine{00561\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_op\_rma}}\ \ \ \ \ \ \ \ remote\_base\_rma;}
+\DoxyCodeLine{00562\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_rma\_iov}}\ \ \ \ \ \ \ remote\_rma\_iov;}
+\DoxyCodeLine{00563\ }
+\DoxyCodeLine{00564\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{iovec}}\ chain\_iovec;}
+\DoxyCodeLine{00565\ }
+\DoxyCodeLine{00566\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{int}\ MAX\_COMP\_VALUES\ =\ 100000;}
+\DoxyCodeLine{00567\ \ \ \ \ \textcolor{keywordtype}{int}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ index\ \ \ \ \ \ \ \ \ \ \ =\ 0;}
+\DoxyCodeLine{00568\ \ \ \ \ std::vector<int>\ \ \ \ \ completion\_addrs;}
+\DoxyCodeLine{00569\ \};}
+\DoxyCodeLine{00570\ }
+\DoxyCodeLine{00571\ \textcolor{keyword}{enum}\ \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5}{CommunicationType}}}
+\DoxyCodeLine{00572\ \{}
+\DoxyCodeLine{00573\ \ \ \ \ \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3}{ONE\_SIDED}}\ =\ 1,}
+\DoxyCodeLine{00574\ \ \ \ \ \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a5538fe03981f9b01bbd94749a0df900b}{TWO\_SIDED}}\ =\ 2,}
+\DoxyCodeLine{00575\ \};}
+\DoxyCodeLine{00576\ }
+\DoxyCodeLine{00577\ \textcolor{keyword}{template}\ <CommunicationType\ MODE>}
+\DoxyCodeLine{00578\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXISend}{CXISend}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classCXIWait}{CXIWait}}}
+\DoxyCodeLine{00579\ \{}
+\DoxyCodeLine{00580\ \ \ \ \ \textcolor{keyword}{using\ }FI\_DFWQ\_TYPE\ =\ std::conditional\_t<\mbox{\hyperlink{classThreadQueue}{MODE}}\ ==\ \mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3}{CommunicationType::ONE\_SIDED}},}
+\DoxyCodeLine{00581\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_op\_rma}},\ \mbox{\hyperlink{classThreadQueue}{struct}}\ \mbox{\hyperlink{classThreadQueue}{fi\_op\_msg}}>;}
+\DoxyCodeLine{00582\ }
+\DoxyCodeLine{00583\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00584\ \ \ \ \ \mbox{\hyperlink{classCXISend_a7023bc32dcac8f0b3508a897f27bc06a}{CXISend}}(\mbox{\hyperlink{classBuffer}{Buffer}}\ \mbox{\hyperlink{classThreadQueue}{local\_completion}},\ \mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{user\_request}},\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain,}
+\DoxyCodeLine{00585\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_ep}}*\ \mbox{\hyperlink{classThreadQueue}{main\_ep}},\ \mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}\&\ \mbox{\hyperlink{classThreadQueue}{dwq}},\ \mbox{\hyperlink{classThreadQueue}{fi\_addr\_t}}\ \mbox{\hyperlink{classThreadQueue}{partner}},}
+\DoxyCodeLine{00586\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{fi\_addr\_t}}\ \mbox{\hyperlink{classThreadQueue}{self}})}
+\DoxyCodeLine{00587\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classCXIRequest}{CXIRequest}}(\mbox{\hyperlink{classThreadQueue}{user\_request}}.get\_memory\_type(),\ \mbox{\hyperlink{classThreadQueue}{local\_completion}}),}
+\DoxyCodeLine{00588\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIWait}{CXIWait}}(),}
+\DoxyCodeLine{00589\ \ \ \ \ \ \ \ \ \ \ domain\_ptr(domain),}
+\DoxyCodeLine{00590\ \ \ \ \ \ \ \ \ \ \ my\_queue(\mbox{\hyperlink{classThreadQueue}{dwq}}),}
+\DoxyCodeLine{00591\ \ \ \ \ \ \ \ \ \ \ completion\_a(\mbox{\hyperlink{classCXICounter}{CXICounter}}::alloc\_counter(domain)),}
+\DoxyCodeLine{00592\ \ \ \ \ \ \ \ \ \ \ completion\_b(\mbox{\hyperlink{classCXICounter}{CXICounter}}::alloc\_counter(domain)),}
+\DoxyCodeLine{00593\ \ \ \ \ \ \ \ \ \ \ completion\_c(\mbox{\hyperlink{classCXICounter}{CXICounter}}::alloc\_counter(domain)),}
+\DoxyCodeLine{00594\ \ \ \ \ \ \ \ \ \ \ my\_chained\_completions(\mbox{\hyperlink{classThreadQueue}{local\_completion}},\ \mbox{\hyperlink{classThreadQueue}{main\_ep}},\ \mbox{\hyperlink{classThreadQueue}{partner}},\ \mbox{\hyperlink{classThreadQueue}{self}},\ completion\_a,}
+\DoxyCodeLine{00595\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ completion\_b,\ completion\_c)}
+\DoxyCodeLine{00596\ \ \ \ \ \{}
+\DoxyCodeLine{00597\ \ \ \ \ \ \ \ \ my\_queue.\mbox{\hyperlink{classDeferredWorkQueue_a04178ca6a45ef125b2d0e6f85a9f5a21}{register\_completion\_counter}}(completion\_c);}
+\DoxyCodeLine{00598\ \ \ \ \ \ \ \ \ work\_entry\ \ \ \ \ \ \ \ \ \ =\ \{\};}
+\DoxyCodeLine{00599\ \ \ \ \ \ \ \ \ message\_description\ =\ \{\};}
+\DoxyCodeLine{00600\ \ \ \ \ \ \ \ \ msg\_iov\ \ \ \ \ \ \ \ \ \ \ \ \ =\ \{\};}
+\DoxyCodeLine{00601\ \ \ \ \ \ \ \ \ msg\_rma\_iov\ \ \ \ \ \ \ \ \ =\ \{\};}
+\DoxyCodeLine{00602\ }
+\DoxyCodeLine{00603\ \ \ \ \ \ \ \ \ work\_entry.threshold\ =\ 0;}
+\DoxyCodeLine{00604\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Wait\ to\ set\ "{}work\_entry.triggering\_cntr"{}\ when\ request\ is\ enqueued.\ */}}
+\DoxyCodeLine{00605\ }
+\DoxyCodeLine{00606\ \ \ \ \ \ \ \ \ work\_entry.completion\_cntr\ =\ completion\_a;}
+\DoxyCodeLine{00607\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}\ (\mbox{\hyperlink{CXIQueue_8hpp_ab1531d86d4d624318ad3659d0a968ec5a1613952e0bab70cfb4bf7a2e271c6cc3}{CommunicationType::ONE\_SIDED}}\ ==\ \mbox{\hyperlink{classThreadQueue}{MODE}})}
+\DoxyCodeLine{00608\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00609\ \ \ \ \ \ \ \ \ \ \ \ \ work\_entry.op\_type\ =\ \mbox{\hyperlink{classThreadQueue}{FI\_OP\_WRITE}};}
+\DoxyCodeLine{00610\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00611\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{00612\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00613\ \ \ \ \ \ \ \ \ \ \ \ \ work\_entry.op\_type\ =\ \mbox{\hyperlink{classThreadQueue}{FI\_OP\_SEND}};}
+\DoxyCodeLine{00614\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ TODO}}
+\DoxyCodeLine{00615\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{static\_assert}(\textcolor{keyword}{false},\ \textcolor{stringliteral}{"{}TWO\ SIDED\ not\ implemented\ yet"{}});}
+\DoxyCodeLine{00616\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00617\ \ \ \ \ \ \ \ \ work\_entry.op.rma\ =\ \&message\_description;}
+\DoxyCodeLine{00618\ }
+\DoxyCodeLine{00619\ \ \ \ \ \ \ \ \ \textcolor{keyword}{auto}\ \mbox{\hyperlink{classThreadQueue}{data\_len}}\ =\ \textcolor{keyword}{static\_cast<}\textcolor{keywordtype}{size\_t}\textcolor{keyword}{>}(get\_size\_of\_buffer(\mbox{\hyperlink{classThreadQueue}{user\_request}}));}
+\DoxyCodeLine{00620\ \ \ \ \ \ \ \ \ msg\_iov\ \ \ \ \ \ \ =\ \{\mbox{\hyperlink{classThreadQueue}{user\_request}}.buffer,\ \mbox{\hyperlink{classThreadQueue}{data\_len}}\};}
+\DoxyCodeLine{00621\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Last\ field\ will\ be\ filled\ in\ by\ the\ match!\ */}}
+\DoxyCodeLine{00622\ \ \ \ \ \ \ \ \ msg\_rma\_iov\ =\ \{0,\ \mbox{\hyperlink{classThreadQueue}{data\_len}},\ 0\};}
+\DoxyCodeLine{00623\ }
+\DoxyCodeLine{00624\ \ \ \ \ \ \ \ \ message\_description.ep\ \ \ \ \ \ \ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{main\_ep}};}
+\DoxyCodeLine{00625\ \ \ \ \ \ \ \ \ message\_description.msg.msg\_iov\ \ \ =\ \&msg\_iov;}
+\DoxyCodeLine{00626\ \ \ \ \ \ \ \ \ message\_description.msg.iov\_count\ =\ 1;}
+\DoxyCodeLine{00627\ \ \ \ \ \ \ \ \ message\_description.msg.addr\ \ \ \ \ \ =\ \mbox{\hyperlink{classThreadQueue}{partner}};}
+\DoxyCodeLine{00628\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ No\ harm\ in\ doing\ this\ if\ mode\ is\ not\ one\_sided}}
+\DoxyCodeLine{00629\ \ \ \ \ \ \ \ \ message\_description.msg.rma\_iov\ \ \ \ \ \ \ =\ \&msg\_rma\_iov;}
+\DoxyCodeLine{00630\ \ \ \ \ \ \ \ \ message\_description.msg.rma\_iov\_count\ =\ 1;}
+\DoxyCodeLine{00631\ }
+\DoxyCodeLine{00632\ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Start\ requests\ to\ get\ data\ from\ peer\ */}}
+\DoxyCodeLine{00633\ \ \ \ \ \ \ \ \ std::vector<uint64\_t*>\ \mbox{\hyperlink{classThreadQueue}{matching\_data}}(3);}
+\DoxyCodeLine{00634\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(0)\ =\ \&msg\_rma\_iov.key;}
+\DoxyCodeLine{00635\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(1)\ =\ my\_chained\_completions.\mbox{\hyperlink{classChainedRMA_ae8abe239d1e1b0165767b4a59b127ae3}{get\_rma\_iov\_key\_addr}}();}
+\DoxyCodeLine{00636\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(2)\ =\ my\_chained\_completions.\mbox{\hyperlink{classChainedRMA_a6d11cb0840affeea195398363580c7e6}{get\_rma\_iov\_addr\_addr}}();}
+\DoxyCodeLine{00637\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCommunication_1_1OneSideMatch_afa6b4288ace1bd9629f84d116f302e4f}{Communication::OneSideMatch::take}}(\mbox{\hyperlink{classThreadQueue}{matching\_data}},\ \mbox{\hyperlink{classThreadQueue}{user\_request}});}
+\DoxyCodeLine{00638\ \ \ \ \ \}}
+\DoxyCodeLine{00639\ }
+\DoxyCodeLine{00640\ \ \ \ \ \mbox{\hyperlink{classCXISend_abdec50e0946a205509b25738fb81df7e}{\string~CXISend}}()}
+\DoxyCodeLine{00641\ \ \ \ \ \{}
+\DoxyCodeLine{00642\ \ \ \ \ \ \ \ \ my\_queue.\mbox{\hyperlink{classDeferredWorkQueue_a78236e8c072c50724c96f682bc7f7747}{clear\_completion\_counter}}(completion\_c,}
+\DoxyCodeLine{00643\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ my\_chained\_completions.\mbox{\hyperlink{classChainedRMA_ac61ddc76d2a685cc44902b6548d43b94}{get\_threshold}}());}
+\DoxyCodeLine{00644\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Free\ counter}}
+\DoxyCodeLine{00645\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&completion\_a-\/>fid));}
+\DoxyCodeLine{00646\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&completion\_b-\/>fid));}
+\DoxyCodeLine{00647\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&completion\_c-\/>fid));}
+\DoxyCodeLine{00648\ \ \ \ \ \}}
+\DoxyCodeLine{00649\ }
+\DoxyCodeLine{00650\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXISend_a84d90daffba05717b27739bc36fbb4bc}{start\_host}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00651\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00652\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00653\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Update\ threshold\ of\ chained\ things}}
+\DoxyCodeLine{00654\ \ \ \ \ \ \ \ \ work\_entry.threshold\ =\ threshold.\mbox{\hyperlink{classThreshold_aba7d4cf3b98d55d4da06818afe0ed85b}{value}}();}
+\DoxyCodeLine{00655\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Adjust\ the\ triggering\ counter\ to\ use}}
+\DoxyCodeLine{00656\ \ \ \ \ \ \ \ \ work\_entry.triggering\_cntr\ =\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}}.counter;}
+\DoxyCodeLine{00657\ }
+\DoxyCodeLine{00658\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Make\ sure\ we\ can\ add\ at\ 1\ iteration\ (3\ DFWQ\ entries\ technically)}}
+\DoxyCodeLine{00659\ \ \ \ \ \ \ \ \ my\_queue.\mbox{\hyperlink{classDeferredWorkQueue_a9e1dbe0d493f99efa2c2bf2853549041}{make\_space}}(completion\_c);}
+\DoxyCodeLine{00660\ }
+\DoxyCodeLine{00661\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ print\_dfwq\_entry(\&work\_entry,\ "{}Send"{});}}
+\DoxyCodeLine{00662\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{try}}
+\DoxyCodeLine{00663\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00664\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Queue\ up\ send\ of\ data}}
+\DoxyCodeLine{00665\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_control}}(\&domain\_ptr-\/>fid,\ \mbox{\hyperlink{classThreadQueue}{FI\_QUEUE\_WORK}},\ \&work\_entry));}
+\DoxyCodeLine{00666\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00667\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{catch}\ (std::exception\&\ \mbox{\hyperlink{classThreadQueue}{e}})}
+\DoxyCodeLine{00668\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00669\ \ \ \ \ \ \ \ \ \ \ \ \ my\_queue.\mbox{\hyperlink{classDeferredWorkQueue_ac655138df32e9b3a200904fd148f97cb}{print\_status}}();}
+\DoxyCodeLine{00670\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{throw}\ \mbox{\hyperlink{classThreadQueue}{e}};}
+\DoxyCodeLine{00671\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00672\ }
+\DoxyCodeLine{00673\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Queue\ up\ chained\ actions}}
+\DoxyCodeLine{00674\ \ \ \ \ \ \ \ \ my\_chained\_completions.\mbox{\hyperlink{classChainedRMA_a3387053c3ed2315b6ebdbc340927fe42}{queue\_work}}(domain\_ptr);}
+\DoxyCodeLine{00675\ \ \ \ \ \ \ \ \ my\_queue.\mbox{\hyperlink{classDeferredWorkQueue_aad893c27a4f762e898d6b6364e4aa0ed}{consume}}();}
+\DoxyCodeLine{00676\ \ \ \ \ \}}
+\DoxyCodeLine{00677\ }
+\DoxyCodeLine{00678\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXISend_ac0d0e2b071ec0358f08fa84193a9814a}{start\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00679\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00680\ }
+\DoxyCodeLine{00681\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00682\ \ \ \ \ \textcolor{comment}{//\ Structs\ for\ the\ DFWQ\ Entry:}}
+\DoxyCodeLine{00683\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_deferred\_work}}\ work\_entry;}
+\DoxyCodeLine{00684\ \ \ \ \ FI\_DFWQ\_TYPE\ \ \ \ \ \ \ \ \ \ \ \ message\_description;}
+\DoxyCodeLine{00685\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{iovec}}\ \ \ \ \ \ \ \ \ \ \ \ msg\_iov;}
+\DoxyCodeLine{00686\ \ \ \ \ \textcolor{comment}{//\ Always\ here,\ if\ if\ not\ always\ used.}}
+\DoxyCodeLine{00687\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_rma\_iov}}\ msg\_rma\_iov;}
+\DoxyCodeLine{00688\ \ \ \ \ \textcolor{comment}{//\ Keep\ the\ domain\ pointer\ for\ later\ use}}
+\DoxyCodeLine{00689\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain\_ptr;}
+\DoxyCodeLine{00690\ }
+\DoxyCodeLine{00691\ \ \ \ \ \mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}\&\ my\_queue;}
+\DoxyCodeLine{00692\ }
+\DoxyCodeLine{00693\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ completion\_a;}
+\DoxyCodeLine{00694\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ completion\_b;}
+\DoxyCodeLine{00695\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ completion\_c;}
+\DoxyCodeLine{00696\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{ChainedRMA<false>}}\ my\_chained\_completions;}
+\DoxyCodeLine{00697\ \};}
+\DoxyCodeLine{00698\ }
+\DoxyCodeLine{00699\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXIRecvOneSided}{CXIRecvOneSided}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classCXIWait}{CXIWait}}}
+\DoxyCodeLine{00700\ \{}
+\DoxyCodeLine{00701\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00702\ \ \ \ \ \mbox{\hyperlink{classCXIRecvOneSided_afc805d1ebf71734e6e01e4c48b38f382}{CXIRecvOneSided}}(\mbox{\hyperlink{classBuffer}{Buffer}}\&\ \mbox{\hyperlink{classThreadQueue}{comp\_buffer}},\ \mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{user\_request}},\ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain,}
+\DoxyCodeLine{00703\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{struct}\ \mbox{\hyperlink{classThreadQueue}{fid\_ep}}*\ \mbox{\hyperlink{classThreadQueue}{main\_ep}})}
+\DoxyCodeLine{00704\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classCXIRequest}{CXIRequest}}(\mbox{\hyperlink{classThreadQueue}{user\_request}}.get\_memory\_type(),\ \mbox{\hyperlink{classThreadQueue}{comp\_buffer}})}
+\DoxyCodeLine{00705\ \ \ \ \ \{}
+\DoxyCodeLine{00706\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \mbox{\hyperlink{classThreadQueue}{recv\_key\_requested}}\ =\ getMRID();}
+\DoxyCodeLine{00707\ }
+\DoxyCodeLine{00708\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_reg}}(domain,\ \mbox{\hyperlink{classThreadQueue}{user\_request}}.buffer,}
+\DoxyCodeLine{00709\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ get\_size\_of\_buffer(\mbox{\hyperlink{classThreadQueue}{user\_request}}),\ \mbox{\hyperlink{classThreadQueue}{FI\_REMOTE\_WRITE}},\ 0,}
+\DoxyCodeLine{00710\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{recv\_key\_requested}},\ \mbox{\hyperlink{classThreadQueue}{FI\_MR\_ALLOCATED}},\ \&my\_mr,\ \mbox{\hyperlink{classThreadQueue}{NULL}}));}
+\DoxyCodeLine{00711\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_bind}}(my\_mr,\ \&(\mbox{\hyperlink{classThreadQueue}{main\_ep}})-\/>\mbox{\hyperlink{classThreadQueue}{fid}},\ 0));}
+\DoxyCodeLine{00712\ }
+\DoxyCodeLine{00713\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Enable\ MR}}
+\DoxyCodeLine{00714\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_mr\_enable}}(my\_mr));}
+\DoxyCodeLine{00715\ \ \ \ \ \ \ \ \ mr\_key\_storage\ =\ \mbox{\hyperlink{classThreadQueue}{fi\_mr\_key}}(my\_mr);}
+\DoxyCodeLine{00716\ }
+\DoxyCodeLine{00717\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Start\ match\ process}}
+\DoxyCodeLine{00718\ \ \ \ \ \ \ \ \ std::vector<uint64\_t*>\ \mbox{\hyperlink{classThreadQueue}{matching\_data}}(3);}
+\DoxyCodeLine{00719\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(0)\ =\ \&mr\_key\_storage;}
+\DoxyCodeLine{00720\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(1)\ =\ \&\mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\_buffer}}.\mbox{\hyperlink{classBuffer_a79cbecd7ebf3b8c0fe51926758c768a4}{mr\_key}};}
+\DoxyCodeLine{00721\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{matching\_data}}.at(2)\ =\ \&\mbox{\hyperlink{classCXIRequest_a59b569ded7f95f490453fc09f9a6dd77}{completion\_buffer}}.\mbox{\hyperlink{classBuffer_a4d95de843c830b378172e533587d0592}{offset}};}
+\DoxyCodeLine{00722\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCommunication_1_1OneSideMatch_aca3c0db883654476671ece5bf14a34d5}{Communication::OneSideMatch::give}}(\mbox{\hyperlink{classThreadQueue}{matching\_data}},\ \mbox{\hyperlink{classThreadQueue}{user\_request}});}
+\DoxyCodeLine{00723\ \ \ \ \ \}}
+\DoxyCodeLine{00724\ }
+\DoxyCodeLine{00725\ \ \ \ \ \mbox{\hyperlink{classCXIRecvOneSided_abd5a051cdb374c2d6816a7af6fb28e75}{\string~CXIRecvOneSided}}()}
+\DoxyCodeLine{00726\ \ \ \ \ \{}
+\DoxyCodeLine{00727\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Free\ MR}}
+\DoxyCodeLine{00728\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{libfabric_8hpp_aed9cfbaa3e78ee284c2f2e38d6a4ae20}{force\_libfabric}}(\mbox{\hyperlink{classThreadQueue}{fi\_close}}(\&(my\_mr)-\/>\mbox{\hyperlink{classThreadQueue}{fid}}));}
+\DoxyCodeLine{00729\ \ \ \ \ \}}
+\DoxyCodeLine{00730\ }
+\DoxyCodeLine{00731\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRecvOneSided_ade9dcb657935e68cfedc0a94be58bc38}{start\_host}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00732\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00733\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00734\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Do\ nothing}}
+\DoxyCodeLine{00735\ \ \ \ \ \}}
+\DoxyCodeLine{00736\ }
+\DoxyCodeLine{00737\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIRecvOneSided_afc9c179279c65f6fcd8f3fba90e11427}{start\_gpu}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream,\ \mbox{\hyperlink{classThreshold}{Threshold}}\&\ threshold,}
+\DoxyCodeLine{00738\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXICounter}{CXICounter}}\&\ \mbox{\hyperlink{classThreadQueue}{trigger\_cntr}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00739\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00740\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Do\ nothing}}
+\DoxyCodeLine{00741\ \ \ \ \ \}}
+\DoxyCodeLine{00742\ }
+\DoxyCodeLine{00743\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00744\ \ \ \ \ \textcolor{comment}{//\ Allocated\ Libfabric\ Objects}}
+\DoxyCodeLine{00745\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_mr}}*\ my\_mr;}
+\DoxyCodeLine{00746\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{uint64\_t}}\ \ \ \ \ \ \ mr\_key\_storage;}
+\DoxyCodeLine{00747\ \};}
+\DoxyCodeLine{00748\ }
+\DoxyCodeLine{00749\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classCXIQueue}{CXIQueue}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classQueue}{Queue}}}
+\DoxyCodeLine{00750\ \{}
+\DoxyCodeLine{00751\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00752\ \ \ \ \ \textcolor{keyword}{using\ }\mbox{\hyperlink{classCXIQueue_a68f987cc8e6182d240c9e23c1ceccb13}{CXIObjects}}\ =\ std::unique\_ptr<CXIRequest>;}
+\DoxyCodeLine{00753\ }
+\DoxyCodeLine{00754\ \ \ \ \ \mbox{\hyperlink{classCXIQueue_a7a2c102c6bcbbec9dd711ad1f1ee60ad}{CXIQueue}}(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ \mbox{\hyperlink{classThreadQueue}{stream\_addr}})}
+\DoxyCodeLine{00755\ \ \ \ \ \ \ \ \ :\ comm\_base(\mbox{\hyperlink{classThreadQueue}{MPI\_COMM\_WORLD}}),\ the\_stream(\mbox{\hyperlink{classThreadQueue}{stream\_addr}})}
+\DoxyCodeLine{00756\ \ \ \ \ \{}
+\DoxyCodeLine{00757\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}CXI\ Queue\ init-\/ed"{}});}
+\DoxyCodeLine{00758\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{size}};}
+\DoxyCodeLine{00759\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_a12a06072344228a3fdd6d3ab2f1c4e48}{force\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Comm\_size}}(comm\_base,\ \&\mbox{\hyperlink{classThreadQueue}{size}}));}
+\DoxyCodeLine{00760\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{mpi_8hpp_a12a06072344228a3fdd6d3ab2f1c4e48}{force\_mpi}}(\mbox{\hyperlink{classThreadQueue}{MPI\_Comm\_rank}}(comm\_base,\ \&my\_rank));}
+\DoxyCodeLine{00761\ \ \ \ \ \ \ \ \ peers.resize(\mbox{\hyperlink{classThreadQueue}{size}},\ 0);}
+\DoxyCodeLine{00762\ \ \ \ \ \ \ \ \ libfabric\_setup(\mbox{\hyperlink{classThreadQueue}{size}});}
+\DoxyCodeLine{00763\ \ \ \ \ \ \ \ \ peer\_setup(\mbox{\hyperlink{classThreadQueue}{size}});}
+\DoxyCodeLine{00764\ \ \ \ \ \ \ \ \ the\_gpu\_counter\ =\ std::make\_unique<CXICounter>(domain);}
+\DoxyCodeLine{00765\ \ \ \ \ \}}
+\DoxyCodeLine{00766\ }
+\DoxyCodeLine{00767\ \ \ \ \ \mbox{\hyperlink{classCXIQueue_a22ab1e5c3f930673ff2b270fd88a57ad}{\string~CXIQueue}}()}
+\DoxyCodeLine{00768\ \ \ \ \ \{}
+\DoxyCodeLine{00769\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Barrier}}(comm\_base);}
+\DoxyCodeLine{00770\ \ \ \ \ \ \ \ \ libfabric\_teardown();}
+\DoxyCodeLine{00771\ \ \ \ \ \}}
+\DoxyCodeLine{00772\ }
+\DoxyCodeLine{00773\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIQueue_a16264cf0e6e8564bcc26fc1b65ac56f7}{enqueue\_operation}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{qe}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00774\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00775\ \ \ \ \ \ \ \ \ queue\_thresholds.\mbox{\hyperlink{classThreshold_a61b76dc3eea14083deb09f97e1cfe77c}{increment\_threshold}}();}
+\DoxyCodeLine{00776\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (GPUMemoryType::COARSE\ ==\ \mbox{\hyperlink{classThreadQueue}{qe}}-\/>get\_memory\_type())}
+\DoxyCodeLine{00777\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00778\ \ \ \ \ \ \ \ \ \ \ \ \ flush\_memory(the\_stream);}
+\DoxyCodeLine{00779\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00780\ \ \ \ \ \ \ \ \ enqueue\_request(*\mbox{\hyperlink{classThreadQueue}{qe}});}
+\DoxyCodeLine{00781\ \ \ \ \ \}}
+\DoxyCodeLine{00782\ }
+\DoxyCodeLine{00783\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIQueue_a56e828aeecdfa835b428f07257e6db66}{enqueue\_startall}}(std::vector<std::shared\_ptr<Request>>\ \mbox{\hyperlink{classThreadQueue}{requests}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00784\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00785\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classThreadQueue}{shouldFlush}}\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00786\ \ \ \ \ \ \ \ \ queue\_thresholds.\mbox{\hyperlink{classThreshold_a61b76dc3eea14083deb09f97e1cfe77c}{increment\_threshold}}();}
+\DoxyCodeLine{00787\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keyword}{auto}\&\ \mbox{\hyperlink{classThreadQueue}{req}}\ :\ \mbox{\hyperlink{classThreadQueue}{requests}})}
+\DoxyCodeLine{00788\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00789\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{classThreadQueue}{shouldFlush}}\ \&\&\ GPUMemoryType::COARSE\ ==\ \mbox{\hyperlink{classThreadQueue}{req}}-\/>get\_memory\_type())}
+\DoxyCodeLine{00790\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00791\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ flush\_memory(the\_stream);}
+\DoxyCodeLine{00792\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{shouldFlush}}\ =\ \textcolor{keyword}{false};}
+\DoxyCodeLine{00793\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00794\ \ \ \ \ \ \ \ \ \ \ \ \ enqueue\_request(*\mbox{\hyperlink{classThreadQueue}{req}});}
+\DoxyCodeLine{00795\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00796\ \ \ \ \ \}}
+\DoxyCodeLine{00797\ }
+\DoxyCodeLine{00798\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIQueue_a840da917f3b5cbfdba0a50bce97d7945}{enqueue\_waitall}}()\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00799\ }
+\DoxyCodeLine{00800\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIQueue_ab55d779129a88f0e931175dc590c727f}{host\_wait}}()\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00801\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00802\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Waiting\ on\ device!"{}});}
+\DoxyCodeLine{00803\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{hip_8hpp_a16b302d6e25f38e76d33849b533cfb08}{force\_hip}}(\mbox{\hyperlink{classThreadQueue}{hipStreamSynchronize}}(*the\_stream));}
+\DoxyCodeLine{00804\ \ \ \ \ \}}
+\DoxyCodeLine{00805\ }
+\DoxyCodeLine{00806\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classCXIQueue_a8413f22099c327eadc7dd2cdb4cb85ca}{match}}(std::shared\_ptr<Request>\ \mbox{\hyperlink{classThreadQueue}{qe}})\textcolor{keyword}{\ override}}
+\DoxyCodeLine{00807\ \textcolor{keyword}{\ \ \ \ }\{}
+\DoxyCodeLine{00808\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (\mbox{\hyperlink{namespaceCommunication_aab88a880cff454aa6315495785620452a8ef4e13659ec19643310483f030d9a5e}{Communication::Operation::BARRIER}}\ ==\ \mbox{\hyperlink{classThreadQueue}{qe}}-\/>operation)}
+\DoxyCodeLine{00809\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00810\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Not\ really\ a\ true\ buffer!\ */}}
+\DoxyCodeLine{00811\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classBuffer}{Buffer}}\ \mbox{\hyperlink{classThreadQueue}{blank}}(\mbox{\hyperlink{classThreadQueue}{qe}}-\/>buffer,\ 0,\ 0,\ 0);}
+\DoxyCodeLine{00812\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{/*\ Add\ request\ to\ map\ */}}
+\DoxyCodeLine{00813\ \ \ \ \ \ \ \ \ \ \ \ \ request\_map.insert(std::make\_pair(}
+\DoxyCodeLine{00814\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{qe}}-\/>getID(),\ std::make\_unique<FakeBarrier>(\mbox{\hyperlink{classThreadQueue}{blank}},\ \mbox{\hyperlink{classThreadQueue}{qe}}-\/>comm,\ my\_queue)));}
+\DoxyCodeLine{00815\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00816\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{00817\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00818\ \ \ \ \ \ \ \ \ \ \ \ \ prepare\_cxi\_mr\_key(*\mbox{\hyperlink{classThreadQueue}{qe}});}
+\DoxyCodeLine{00819\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00820\ \ \ \ \ \}}
+\DoxyCodeLine{00821\ }
+\DoxyCodeLine{00822\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00823\ \ \ \ \ \textcolor{keywordtype}{void}\ libfabric\_setup(\textcolor{keywordtype}{int}\ \mbox{\hyperlink{classThreadQueue}{size}});}
+\DoxyCodeLine{00824\ \ \ \ \ \textcolor{keywordtype}{void}\ peer\_setup(\textcolor{keywordtype}{int}\ rank);}
+\DoxyCodeLine{00825\ \ \ \ \ \textcolor{keywordtype}{void}\ prepare\_cxi\_mr\_key(\mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&);}
+\DoxyCodeLine{00826\ \ \ \ \ \textcolor{keywordtype}{void}\ libfabric\_teardown();}
+\DoxyCodeLine{00827\ \ \ \ \ \textcolor{keywordtype}{void}\ flush\_memory(\mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*);}
+\DoxyCodeLine{00828\ }
+\DoxyCodeLine{00829\ \ \ \ \ \textcolor{keywordtype}{void}\ \textcolor{keyword}{inline}\ enqueue\_request(\mbox{\hyperlink{classCommunication_1_1Request}{Request}}\&\ \mbox{\hyperlink{classThreadQueue}{req}})}
+\DoxyCodeLine{00830\ \ \ \ \ \{}
+\DoxyCodeLine{00831\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}Staring\ request:"{}},\ \mbox{\hyperlink{classThreadQueue}{req}}.getID());}
+\DoxyCodeLine{00832\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classCXIQueue_a68f987cc8e6182d240c9e23c1ceccb13}{CXIObjects}}\&\ \mbox{\hyperlink{classThreadQueue}{cxi\_stuff}}\ =\ request\_map.at(\mbox{\hyperlink{classThreadQueue}{req}}.getID());}
+\DoxyCodeLine{00833\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{cxi\_stuff}}-\/>start(the\_stream,\ queue\_thresholds,\ *the\_gpu\_counter);}
+\DoxyCodeLine{00834\ }
+\DoxyCodeLine{00835\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ Keep\ track\ of\ active\ requests}}
+\DoxyCodeLine{00836\ \ \ \ \ \ \ \ \ active\_requests.push\_back(\mbox{\hyperlink{classThreadQueue}{req}}.getID());}
+\DoxyCodeLine{00837\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{namespacePrint_af1ff8d85f2ff4ac7381b18677d35694a}{Print::out}}(\textcolor{stringliteral}{"{}...\ done"{}});}
+\DoxyCodeLine{00838\ \ \ \ \ \}}
+\DoxyCodeLine{00839\ }
+\DoxyCodeLine{00840\ \ \ \ \ \textcolor{comment}{//\ Persistent\ Libfabric\ objects}}
+\DoxyCodeLine{00841\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fi\_info}}*\ \ \ \ fi;\ \ \ \ \ \ \ }
+\DoxyCodeLine{00842\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_fabric}}*\ fabric;\ \ \ }
+\DoxyCodeLine{00843\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_domain}}*\ domain;\ \ \ }
+\DoxyCodeLine{00844\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_av}}*\ \ \ \ \ av;\ \ \ \ \ \ \ }
+\DoxyCodeLine{00845\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_ep}}*\ \ \ \ \ ep;\ \ \ \ \ \ \ }
+\DoxyCodeLine{00846\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cq}}*\ \ \ \ \ txcq;\ \ \ \ \ }
+\DoxyCodeLine{00847\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cq}}*\ \ \ \ \ rxcq;\ \ \ \ \ }
+\DoxyCodeLine{00848\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{classThreadQueue}{fid\_cntr}}*\ \ \ recv\_ctr;\ }
+\DoxyCodeLine{00850\ \ \ \ \ \textcolor{comment}{//\ Peer\ information}}
+\DoxyCodeLine{00851\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{MPI\_Comm}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ comm\_base;}
+\DoxyCodeLine{00852\ \ \ \ \ \textcolor{keywordtype}{int}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ my\_rank;}
+\DoxyCodeLine{00853\ \ \ \ \ std::vector<fi\_addr\_t>\ peers;}
+\DoxyCodeLine{00854\ }
+\DoxyCodeLine{00855\ \ \ \ \ \textcolor{comment}{//\ Map\ of\ Request\ ID\ to\ CXIObject\ (counters,\ mr)}}
+\DoxyCodeLine{00856\ \ \ \ \ std::map<size\_t,\ CXIObjects>\ request\_map;}
+\DoxyCodeLine{00857\ \ \ \ \ std::vector<size\_t>\ \ \ \ \ \ \ \ \ \ active\_requests;}
+\DoxyCodeLine{00858\ }
+\DoxyCodeLine{00859\ \ \ \ \ \textcolor{comment}{//\ Completion\ buffers}}
+\DoxyCodeLine{00860\ \ \ \ \ \textcolor{keyword}{static}\ \mbox{\hyperlink{classCompletionBuffer}{CompletionBuffer}}\ my\_buffer;}
+\DoxyCodeLine{00861\ }
+\DoxyCodeLine{00862\ \ \ \ \ \textcolor{comment}{//\ Deferred\ Work\ Queue\ Management}}
+\DoxyCodeLine{00863\ \ \ \ \ \textcolor{keyword}{static}\ \mbox{\hyperlink{classDeferredWorkQueue}{DeferredWorkQueue}}\ my\_queue;}
+\DoxyCodeLine{00864\ }
+\DoxyCodeLine{00865\ \ \ \ \ \textcolor{comment}{//\ Hip\ Stream}}
+\DoxyCodeLine{00866\ \ \ \ \ \mbox{\hyperlink{classThreadQueue}{hipStream\_t}}*\ the\_stream;}
+\DoxyCodeLine{00867\ \ \ \ \ \textcolor{comment}{//\ GPU\ Triggerable\ Counter}}
+\DoxyCodeLine{00868\ \ \ \ \ std::unique\_ptr<CXICounter>\ the\_gpu\_counter;}
+\DoxyCodeLine{00869\ \ \ \ \ \mbox{\hyperlink{classThreshold}{Threshold}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ queue\_thresholds;}
+\DoxyCodeLine{00870\ \};}
+\DoxyCodeLine{00871\ }
+\DoxyCodeLine{00872\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

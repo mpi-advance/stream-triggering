@@ -1,0 +1,149 @@
+\doxysection{Completion\+Buffer Class Reference}
+\hypertarget{classCompletionBuffer}{}\label{classCompletionBuffer}\index{CompletionBuffer@{CompletionBuffer}}
+
+
+{\ttfamily \#include $<$CXIQueue.\+hpp$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classCompletionBuffer_a0c14c66bfcdb8a68d3cdfac3b66b5f5d}{Completion\+Buffer}} ()
+\item 
+\mbox{\hyperlink{classCompletionBuffer_a6d7029d6cb4ba5faadb7fb0cc1feacba}{\texorpdfstring{$\sim$}{\string~}\+Completion\+Buffer}} ()
+\item 
+\mbox{\hyperlink{classCompletionBuffer_a96d0ae1ed91275abd3047e48289b863b}{Completion\+Buffer}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\mbox{\hyperlink{classThreadQueue}{other}})=\mbox{\hyperlink{classThreadQueue}{delete}}
+\item 
+\mbox{\hyperlink{classCompletionBuffer_a48b7555feaed6efc0f5386e90848a6c9}{Completion\+Buffer}} (\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\&\mbox{\hyperlink{classThreadQueue}{other}})
+\item 
+\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \& \mbox{\hyperlink{classCompletionBuffer_ae310283a0fcb6f9c8c477b0d2eb3bafd}{operator=}} (\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\mbox{\hyperlink{classThreadQueue}{rhs}})=\mbox{\hyperlink{classThreadQueue}{delete}}
+\item 
+\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \& \mbox{\hyperlink{classCompletionBuffer_a9ab85e2830a11c7caa530f9b469fe8a6}{operator=}} (\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\&\mbox{\hyperlink{classThreadQueue}{other}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCompletionBuffer_a1e1f460362972664d12bc7c1100eb2aa}{register\+\_\+mr}} (\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}domain, \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+ep}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{classThreadQueue}{main\+\_\+ep}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \mbox{\hyperlink{classCompletionBuffer_ac1acad569b405a5ff086f6cdd0484038}{free\+\_\+mr}} ()
+\item 
+\mbox{\hyperlink{classBuffer}{Buffer}} \mbox{\hyperlink{classCompletionBuffer_aafc1375b17a595a9a67bc657701463c9}{alloc\+\_\+buffer}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+mr}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}{my\+\_\+mr}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{void}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}{buffer}}
+\item 
+\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}{current\+\_\+index}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classThreadQueue}{static}} \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\+\_\+\+ITEMS}} = 1000
+\item 
+\mbox{\hyperlink{classThreadQueue}{static}} \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\+\_\+\+ITEM\+\_\+\+SIZE}} = \mbox{\hyperlink{classThreadQueue}{sizeof}}(\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}})
+\item 
+\mbox{\hyperlink{classThreadQueue}{static}} \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} \mbox{\hyperlink{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}{DEFAULT\+\_\+\+SIZE}} = \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\+\_\+\+ITEMS}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\+\_\+\+ITEM\+\_\+\+SIZE}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classCompletionBuffer_a0c14c66bfcdb8a68d3cdfac3b66b5f5d}\label{classCompletionBuffer_a0c14c66bfcdb8a68d3cdfac3b66b5f5d} 
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{CompletionBuffer()}{CompletionBuffer()}\hspace{0.1cm}{\footnotesize\ttfamily [1/3]}}
+{\footnotesize\ttfamily Completion\+Buffer\+::\+Completion\+Buffer (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCompletionBuffer_a6d7029d6cb4ba5faadb7fb0cc1feacba}\label{classCompletionBuffer_a6d7029d6cb4ba5faadb7fb0cc1feacba} 
+\index{CompletionBuffer@{CompletionBuffer}!````~CompletionBuffer@{\texorpdfstring{$\sim$}{\string~}CompletionBuffer}}
+\index{````~CompletionBuffer@{\texorpdfstring{$\sim$}{\string~}CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}CompletionBuffer()}{\string~CompletionBuffer()}}
+{\footnotesize\ttfamily Completion\+Buffer\+::\texorpdfstring{$\sim$}{\string~}\+Completion\+Buffer (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCompletionBuffer_a96d0ae1ed91275abd3047e48289b863b}\label{classCompletionBuffer_a96d0ae1ed91275abd3047e48289b863b} 
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{CompletionBuffer()}{CompletionBuffer()}\hspace{0.1cm}{\footnotesize\ttfamily [2/3]}}
+{\footnotesize\ttfamily Completion\+Buffer\+::\+Completion\+Buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [delete]}}
+
+\Hypertarget{classCompletionBuffer_a48b7555feaed6efc0f5386e90848a6c9}\label{classCompletionBuffer_a48b7555feaed6efc0f5386e90848a6c9} 
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\index{CompletionBuffer@{CompletionBuffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{CompletionBuffer()}{CompletionBuffer()}\hspace{0.1cm}{\footnotesize\ttfamily [3/3]}}
+{\footnotesize\ttfamily Completion\+Buffer\+::\+Completion\+Buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classCompletionBuffer_aafc1375b17a595a9a67bc657701463c9}\label{classCompletionBuffer_aafc1375b17a595a9a67bc657701463c9} 
+\index{CompletionBuffer@{CompletionBuffer}!alloc\_buffer@{alloc\_buffer}}
+\index{alloc\_buffer@{alloc\_buffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{alloc\_buffer()}{alloc\_buffer()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classBuffer}{Buffer}} Completion\+Buffer\+::alloc\+\_\+buffer (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCompletionBuffer_ac1acad569b405a5ff086f6cdd0484038}\label{classCompletionBuffer_ac1acad569b405a5ff086f6cdd0484038} 
+\index{CompletionBuffer@{CompletionBuffer}!free\_mr@{free\_mr}}
+\index{free\_mr@{free\_mr}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{free\_mr()}{free\_mr()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} Completion\+Buffer\+::free\+\_\+mr (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCompletionBuffer_a9ab85e2830a11c7caa530f9b469fe8a6}\label{classCompletionBuffer_a9ab85e2830a11c7caa530f9b469fe8a6} 
+\index{CompletionBuffer@{CompletionBuffer}!operator=@{operator=}}
+\index{operator=@{operator=}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{operator=()}{operator=()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \& Completion\+Buffer\+::operator= (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+\Hypertarget{classCompletionBuffer_ae310283a0fcb6f9c8c477b0d2eb3bafd}\label{classCompletionBuffer_ae310283a0fcb6f9c8c477b0d2eb3bafd} 
+\index{CompletionBuffer@{CompletionBuffer}!operator=@{operator=}}
+\index{operator=@{operator=}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{operator=()}{operator=()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \& Completion\+Buffer\+::operator= (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{const}} \mbox{\hyperlink{classCompletionBuffer}{Completion\+Buffer}} \&}]{rhs }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [delete]}}
+
+\Hypertarget{classCompletionBuffer_a1e1f460362972664d12bc7c1100eb2aa}\label{classCompletionBuffer_a1e1f460362972664d12bc7c1100eb2aa} 
+\index{CompletionBuffer@{CompletionBuffer}!register\_mr@{register\_mr}}
+\index{register\_mr@{register\_mr}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{register\_mr()}{register\_mr()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}} Completion\+Buffer\+::register\+\_\+mr (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+domain}} \texorpdfstring{$\ast$}{*}}]{domain,  }\item[{\mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+ep}} \texorpdfstring{$\ast$}{*}}]{main\+\_\+ep }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d}\label{classCompletionBuffer_af9f618280d67e72f37e3787eb222f13d} 
+\index{CompletionBuffer@{CompletionBuffer}!buffer@{buffer}}
+\index{buffer@{buffer}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{buffer}{buffer}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{void}}\texorpdfstring{$\ast$}{*} Completion\+Buffer\+::buffer}
+
+\Hypertarget{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec}\label{classCompletionBuffer_ae8e6e421e3d105eb15c138080d2f45ec} 
+\index{CompletionBuffer@{CompletionBuffer}!current\_index@{current\_index}}
+\index{current\_index@{current\_index}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{current\_index}{current\_index}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} Completion\+Buffer\+::current\+\_\+index}
+
+\Hypertarget{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}\label{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b} 
+\index{CompletionBuffer@{CompletionBuffer}!DEFAULT\_ITEM\_SIZE@{DEFAULT\_ITEM\_SIZE}}
+\index{DEFAULT\_ITEM\_SIZE@{DEFAULT\_ITEM\_SIZE}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_ITEM\_SIZE}{DEFAULT\_ITEM\_SIZE}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} Completion\+Buffer\+::\+DEFAULT\+\_\+\+ITEM\+\_\+\+SIZE = \mbox{\hyperlink{classThreadQueue}{sizeof}}(\mbox{\hyperlink{classThreadQueue}{size\+\_\+t}})\hspace{0.3cm}{\ttfamily [static]}, {\ttfamily [constexpr]}}
+
+\Hypertarget{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}\label{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd} 
+\index{CompletionBuffer@{CompletionBuffer}!DEFAULT\_ITEMS@{DEFAULT\_ITEMS}}
+\index{DEFAULT\_ITEMS@{DEFAULT\_ITEMS}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_ITEMS}{DEFAULT\_ITEMS}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} Completion\+Buffer\+::\+DEFAULT\+\_\+\+ITEMS = 1000\hspace{0.3cm}{\ttfamily [static]}, {\ttfamily [constexpr]}}
+
+\Hypertarget{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86}\label{classCompletionBuffer_a8b48f2c9ef2958b682bd448f3110fe86} 
+\index{CompletionBuffer@{CompletionBuffer}!DEFAULT\_SIZE@{DEFAULT\_SIZE}}
+\index{DEFAULT\_SIZE@{DEFAULT\_SIZE}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_SIZE}{DEFAULT\_SIZE}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{constexpr}} \mbox{\hyperlink{classThreadQueue}{size\+\_\+t}} Completion\+Buffer\+::\+DEFAULT\+\_\+\+SIZE = \mbox{\hyperlink{classCompletionBuffer_a58653c4b7c7ce6ee48cb92f54b4d04fd}{DEFAULT\+\_\+\+ITEMS}} \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{classCompletionBuffer_a43357d8076e397dc84dfd17b48be2d3b}{DEFAULT\+\_\+\+ITEM\+\_\+\+SIZE}}\hspace{0.3cm}{\ttfamily [static]}, {\ttfamily [constexpr]}}
+
+\Hypertarget{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397}\label{classCompletionBuffer_affa8b7539db0bd0ff17d0ed2b0664397} 
+\index{CompletionBuffer@{CompletionBuffer}!my\_mr@{my\_mr}}
+\index{my\_mr@{my\_mr}!CompletionBuffer@{CompletionBuffer}}
+\doxysubsubsection{\texorpdfstring{my\_mr}{my\_mr}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classThreadQueue}{struct}} \mbox{\hyperlink{classThreadQueue}{fid\+\_\+mr}}\texorpdfstring{$\ast$}{*} Completion\+Buffer\+::my\+\_\+mr}
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+source/core/include/queues/\mbox{\hyperlink{CXIQueue_8hpp}{CXIQueue.\+hpp}}\end{DoxyCompactItemize}

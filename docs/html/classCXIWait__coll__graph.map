@@ -1,0 +1,7 @@
+<map id="CXIWait" name="CXIWait">
+<area shape="rect" id="Node000001" title=" " alt="" coords="17,168,91,193"/>
+<area shape="rect" id="Node000002" href="$classCXIRequest.html" title=" " alt="" coords="5,93,103,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="57,133,57,168,51,168,51,133"/>
+<area shape="rect" id="Node000003" href="$classBuffer.html" title=" " alt="" coords="23,5,85,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="57,45,57,93,51,93,51,45"/>
+</map>

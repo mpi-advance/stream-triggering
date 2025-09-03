@@ -1,0 +1,83 @@
+\doxysection{stream-\/triggering.h}
+\hypertarget{stream-triggering_8h_source}{}\label{stream-triggering_8h_source}\index{include/stream-\/triggering.h@{include/stream-\/triggering.h}}
+\mbox{\hyperlink{stream-triggering_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#ifndef\ MPI\_ADVANCE\_STREAM\_TRIGGERING\_H}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#define\ MPI\_ADVANCE\_STREAM\_TRIGGERING\_H}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <stdint.h>}}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#include\ "{}mpi.h"{}}}
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00013\ \textcolor{keyword}{extern}\ \textcolor{stringliteral}{"{}C"{}}\ \{}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \textcolor{keyword}{typedef}\ uintptr\_t\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}};\ }
+\DoxyCodeLine{00018\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request\_struct}}*\ \mbox{\hyperlink{stream-triggering_8h_a0412ebff4cf40d59d6cb7f03c2346f6b}{MPIS\_Request}};\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{group__errors_ga184feb134e5b0065c9cea0285f6ef57b}{MPIS\_SUCCESS}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ =\ 0;\ \ }
+\DoxyCodeLine{00025\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{group__errors_gaf6ded6b157eb33d3d3e69b96c8d40e4c}{MPIS\_NOT\_READY}}\ \ \ \ \ \ \ \ \ \ \ \ \ =\ -\/1;\ }
+\DoxyCodeLine{00026\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{group__errors_ga3bf260df710654b5f508289eacfd0df4}{MPIS\_INVALID\_REQUEST\_STATE}}\ =\ -\/2;\ }
+\DoxyCodeLine{00027\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{group__errors_gae949ce4e44b38a5cbf51ed85182c6599}{MPIS\_UNSUPPORTED\_BEHAVIOR}}\ \ =\ -\/3;\ }
+\DoxyCodeLine{00028\ \textcolor{keyword}{const}\ uintptr\_t\ \ \ \ \mbox{\hyperlink{group__errors_ga38105f453dc6cd396a1c21889faa0ab6}{MPIS\_QUEUE\_NULL}}\ \ \ =\ 0;\ \ }
+\DoxyCodeLine{00029\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}\ \mbox{\hyperlink{group__errors_gab84cba21ad31f2f2c64351405467cc49}{MPIS\_REQUEST\_NULL}}\ =\ 0;\ \ }
+\DoxyCodeLine{00035\ \textcolor{keyword}{enum}\ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8}{MPIS\_Queue\_type}}}
+\DoxyCodeLine{00036\ \{}
+\DoxyCodeLine{00037\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8ac732af2f7deeb5d301d63cdf02b1aed6}{THREAD}}\ \ \ \ \ \ \ \ \ \ \ \ =\ 0,\ }
+\DoxyCodeLine{00038\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8a3b331d16e204b19acb2d5573006b3e24}{THREAD\_SERIALIZED}}\ =\ 1,\ }
+\DoxyCodeLine{00039\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8a07c12b8aa281b9f0f0e6661c0183fb4a}{GPU\_MEM\_OPS}}\ \ \ \ \ \ \ =\ 3,\ }
+\DoxyCodeLine{00040\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8a08c0a1666eaa531c2f52c84e67700b11}{HPE}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ =\ 4,\ }
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8a32afac316d97e48888f43eb69435eff7}{MPICH\_IMPL}}\ \ \ \ \ \ \ \ =\ 5,\ }
+\DoxyCodeLine{00042\ \ \ \ \ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8a1838ce34eb0e4ce5a691ea525b8db763}{CXI}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ =\ 6\ \ }
+\DoxyCodeLine{00043\ \};}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00048\ \textcolor{keyword}{extern}\ \mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}}\ \mbox{\hyperlink{stream-triggering_8h_ad20a57ad02015e853ecc0f495ec9927a}{ACTIVE\_QUEUE}};}
+\DoxyCodeLine{00049\ }
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00051\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{stream-triggering_8h_a0a2e866bdf0662ecb63c33932337c97f}{MPIS\_Hello\_world}}();}
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \textcolor{comment}{//\ APIs\ from\ 7/25/24}}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \textcolor{comment}{/*\ Queue\ Management\ */}}
+\DoxyCodeLine{00056\ \textcolor{comment}{//\ int\ MPIS\_Queue\_fence();}}
+\DoxyCodeLine{00062\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a54ccc0b2530fbdf1ef4d012e7699733b}{MPIS\_Queue\_free}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}}*);\ }
+\DoxyCodeLine{00071\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ace78de73f3b11313dcc7b3378f7632fd}{MPIS\_Queue\_init}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}}*,\ \mbox{\hyperlink{stream-triggering_8h_a5bfef27fce66b330d75964ae0f95cbe8}{MPIS\_Queue\_type}},\ \textcolor{keywordtype}{void}*);}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00078\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ad0e7e02b428d3af90c4da96261a550b5}{MPIS\_Queue\_wait}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}});}
+\DoxyCodeLine{00079\ }
+\DoxyCodeLine{00080\ \textcolor{comment}{/*\ Push\ stuff\ to\ Queue\ */}}
+\DoxyCodeLine{00081\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a0114f4cd928641121f28256118f4d664}{MPIS\_Enqueue\_startall}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}},\ \textcolor{keywordtype}{int},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}[]);}
+\DoxyCodeLine{00082\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a714d824d3adc59087d21a5aaf416433c}{MPIS\_Enqueue\_start}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00083\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ae42b0114182f6028a0c639af0b46cafa}{MPIS\_Enqueue\_waitall}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}});}
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00085\ \textcolor{comment}{/*\ New\ Matching\ Functions\ */}}
+\DoxyCodeLine{00086\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a457b0442dac131e873c8242744dca9ec}{MPIS\_Match}}(\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*,\ MPI\_Status*);}
+\DoxyCodeLine{00087\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a4010ceb4cd24a2295eb410a320b4cd6f}{MPIS\_Matchall}}(\textcolor{keywordtype}{int},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}[],\ MPI\_Status[]);}
+\DoxyCodeLine{00088\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a258a6c69316ea2adc090a4695e05a5a6}{MPIS\_Imatch}}(\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*,\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00089\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a7ff9094f332f7dd94deaba50fb8e435c}{MPIS\_Is\_matched}}(\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*,\ \textcolor{keywordtype}{int}*);}
+\DoxyCodeLine{00090\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a2f9776d0535ae22bc8314a9a7350b614}{MPIS\_Queue\_match}}(\mbox{\hyperlink{stream-triggering_8h_a65b7b573d26c5101388b9a4213303378}{MPIS\_Queue}},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*,\ MPI\_Status*);}
+\DoxyCodeLine{00091\ }
+\DoxyCodeLine{00092\ \textcolor{comment}{/*\ \ \ \ \ \ \ \ Custom\ MPIS\ Override\ Functions\ \ \ \ \ \ \ \ \ */}}
+\DoxyCodeLine{00093\ \textcolor{comment}{/*\ These\ have\ minimal,\ if\ any,\ new\ functionality\ */}}
+\DoxyCodeLine{00094\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ae23e494995ebf14ba4bae0cfe4093d97}{MPIS\_Request\_free}}(\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00095\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ad6936610c511deeaa667af3fd5b1d311}{MPIS\_Request\_freeall}}(\textcolor{keywordtype}{int},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}[]);}
+\DoxyCodeLine{00096\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a07526d32413dc833f55de5e9f123fcbe}{MPIS\_Wait}}(\mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*,\ MPI\_Status*);}
+\DoxyCodeLine{00097\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a69c38530b0ab42d74a04c5c759ac4839}{MPIS\_Waitall}}(\textcolor{keywordtype}{int},\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}[],\ MPI\_Status[]);}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00099\ \textcolor{comment}{/*\ Overrided\ Communication\ Functions\ */}}
+\DoxyCodeLine{00100\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_a9d678ff31b319144b5d9593fbdfa4901}{MPIS\_Barrier\_init}}(MPI\_Comm,\ MPI\_Info,\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00101\ \textcolor{comment}{//\ int\ MPIS\_Bcast\_init();}}
+\DoxyCodeLine{00102\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ae7bd203c8584c46f50bcca2d6270ef80}{MPIS\_Recv\_init}}(\textcolor{keywordtype}{void}*,\ MPI\_Count,\ MPI\_Datatype,\ \textcolor{keywordtype}{int},\ \textcolor{keywordtype}{int},\ MPI\_Comm,\ MPI\_Info,}
+\DoxyCodeLine{00103\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00104\ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{stream-triggering_8h_ad93117f6f9d394c7afb4a0fbe7218646}{MPIS\_Send\_init}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{void}*,\ MPI\_Count,\ MPI\_Datatype,\ \textcolor{keywordtype}{int},\ \textcolor{keywordtype}{int},\ MPI\_Comm,}
+\DoxyCodeLine{00105\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ MPI\_Info,\ \mbox{\hyperlink{structMPIS__Request__struct}{MPIS\_Request}}*);}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00107\ \textcolor{comment}{//\ End\ APIs\ from\ 7/25/24}}
+\DoxyCodeLine{00108\ }
+\DoxyCodeLine{00109\ \textcolor{preprocessor}{\#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00110\ \}}
+\DoxyCodeLine{00111\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00112\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}
