@@ -50,6 +50,11 @@ static inline void init_device()
 {
 #ifdef USE_GFX90A
     force_hip(hipInit(0));
+    int device = -1;
+    int count = -1;
+    force_hip(hipGetDevice(&device));
+    force_hip(hipGetDeviceCount(&count));
+    std::cout << "info: " << device << " " << count << std::endl;
     force_hip(hipSetDevice(6));
     Print::out("Initialized Device to 6");
 #endif
