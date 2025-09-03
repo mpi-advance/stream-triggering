@@ -1,9 +1,0 @@
-<map id="MPIS_Enqueue_start" name="MPIS_Enqueue_start">
-<area shape="rect" id="Node000001" title=" " alt="" coords="240,55,395,80"/>
-<area shape="rect" id="Node000002" href="$cxi__barrier_8cpp.html#ae66f6b31b5ad750f1fe042a706a4e3d4" title=" " alt="" coords="71,5,126,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="247,54,125,27,127,21,248,49"/>
-<area shape="rect" id="Node000003" href="$iraw__pingpong_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97" title=" " alt="" coords="71,55,126,80"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="226,70,126,70,126,65,226,65"/>
-<area shape="rect" id="Node000004" href="$classHPEQueueEntryP2P.html#a275c2dd9d1cab3f7e5d9268965dbd888" title=" " alt="" coords="5,104,192,129"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="248,86,156,107,155,101,247,80"/>
-</map>

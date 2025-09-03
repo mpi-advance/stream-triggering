@@ -1,7 +1,0 @@
-<map id="Communication::Bundle::add_to_bundle" name="Communication::Bundle::add_to_bundle">
-<area shape="rect" id="Node000001" title=" " alt="" coords="448,5,627,45"/>
-<area shape="rect" id="Node000002" href="$classThreadQueue.html#aa89e066075b0e33f401b0327791aa3ef" title=" " alt="" coords="227,5,400,45"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="435,28,400,28,400,23,435,23"/>
-<area shape="rect" id="Node000003" href="$classThreadQueue.html#afd908300e0bea7f9f8e74e4c2f2297aa" title=" " alt="" coords="5,5,179,45"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="213,28,179,28,179,23,213,23"/>
-</map>

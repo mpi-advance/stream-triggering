@@ -1,7 +1,0 @@
-<map id="MPIS_Imatch" name="MPIS_Imatch">
-<area shape="rect" id="Node000001" title=" " alt="" coords="5,13,112,38"/>
-<area shape="rect" id="Node000002" href="$classQueue.html#a39457bdf82e57ef7ae71a8f60d300641" title=" " alt="" coords="160,13,273,38"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="112,23,147,23,147,28,112,28"/>
-<area shape="rect" id="Node000003" href="$classCommunication_1_1BlankMatch.html#ae0d2e8daed19a2173d2831b0282f95b2" title=" " alt="" coords="321,5,532,45"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="274,23,308,23,308,28,274,28"/>
-</map>

@@ -1,7 +1,0 @@
-<map id="MPIS_Queue_free" name="MPIS_Queue_free">
-<area shape="rect" id="Node000001" title="This function deletes the supplied queue. Sets supplied pointer and ACTIVE_QUEUE to MPIS_QUEUE_NULL." alt="" coords="108,31,244,56"/>
-<area shape="rect" id="Node000002" href="$cxi__barrier_8cpp.html#ae66f6b31b5ad750f1fe042a706a4e3d4" title=" " alt="" coords="5,5,60,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="94,31,60,25,61,20,95,26"/>
-<area shape="rect" id="Node000003" href="$iraw__pingpong_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97" title=" " alt="" coords="5,55,60,80"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="95,60,61,65,60,60,94,54"/>
-</map>
