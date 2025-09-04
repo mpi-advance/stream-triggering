@@ -13,6 +13,9 @@ public:
     // No fancy constructor
     Bundle() {};
 
+	/**
+	 * add queue_entry to TO DO vector
+	 */
     void add_to_bundle(QueueEntry& request)
     {
         items.push_back(request);

@@ -55,7 +55,8 @@ public:
         other.mpi_request = MPI_REQUEST_NULL;
         other.original_request.reset();
     }
-    QueueEntry& operator=(QueueEntry&& other) noexcept
+    
+	QueueEntry& operator=(QueueEntry&& other) noexcept
     {
         if (this != &other)
         {
@@ -80,6 +81,11 @@ public:
         }
     }
 
+	/**
+	 * Completely virtual function
+	 * Used when requests are off-loaded to external device
+	 * starts the stream on the external device
+	 */
     virtual void start_gpu(void* stream)
     {
         // Does nothing in base class.
@@ -92,6 +98,11 @@ public:
         start_gpu(stream);
     }
 
+	/**
+	 * Completely virtual function
+	 * Used when requests are off-loaded to external device
+	 * waits for the stream to complete 
+	 */
     virtual void wait_gpu(void* stream)
     {
         // Does nothing in base class.
@@ -107,8 +118,8 @@ public:
 protected:
     int64_t threshold = 0;
 
-    MPI_Request              mpi_request      = MPI_REQUEST_NULL;
-    std::shared_ptr<Request> original_request = nullptr;
+    MPI_Request              mpi_request      = MPI_REQUEST_NULL; //< internal MPI_Request
+    std::shared_ptr<Request> original_request = nullptr;          //< shared pointer to internal MPI_Request
 };
 
 #endif
