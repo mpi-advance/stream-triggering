@@ -10,6 +10,10 @@
 namespace Communication
 {
 
+/**
+	@class This class contains a static function to synchronize requests between a process and its peer.
+    Sends empty message between the processes. 	
+*/
 class BlankMatch
 {
 public:
@@ -21,6 +25,9 @@ public:
     }
 };
 
+/** constant expression to confirm the MPI_TYPE based on size of the type.  
+ * throws error if type/size mismatch
+ */
 template <typename T>
 constexpr MPI_Datatype type_to_use()
 {
@@ -42,6 +49,11 @@ constexpr MPI_Datatype type_to_use()
     }
 }
 
+/**
+ * class containing static functions for synchronizing using one-way communication. 
+ * Sending side uses Issend to confirm receipt before the operation completes
+ * 
+ */
 class OneSideMatch
 {
 public:

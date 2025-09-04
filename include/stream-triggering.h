@@ -34,8 +34,8 @@ const MPIS_Request MPIS_REQUEST_NULL = 0;  /**<Check to see if request exists*/
 */
 enum MPIS_Queue_type
 {
-    THREAD            = 0, ///<Basic Thread
-    THREAD_SERIALIZED = 1, ///<Function has completed successfully
+    THREAD            = 0, ///<Basic Threaded queue
+    THREAD_SERIALIZED = 1, ///< 
     GPU_MEM_OPS       = 3, ///<Support for GPU memory
     HPE               = 4, ///<Support for HPE
     MPICH_IMPL        = 5, ///<MPICH optimized queue

@@ -13,6 +13,11 @@
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 
+/**
+ * @class 
+ * This class 
+ * 
+*/
 template <bool isSerialized>
 class ThreadQueue : public Queue
 {
@@ -70,16 +75,16 @@ public:
 
 protected:
     // Thread control variables
-    std::atomic<int> busy;
-    std::thread      thr;
-    bool             shutdown = false;
-    std::mutex       queue_guard;
+    std::atomic<int> busy; //< flag to signal when thread has work to do
+    std::thread      thr;  //< thread handle
+    bool             shutdown = false; //< boolean to signal thread to finish
+    std::mutex       queue_guard;      //< mutex to control thread access
 
     // Bundle variables
-    using BundleIterator = std::vector<Bundle>::iterator;
-    Bundle                            entries;
-    std::queue<Bundle>                pending;
-    std::map<size_t, InternalRequest> request_cache;
+    using BundleIterator = std::vector<Bundle>::iterator; //<
+    Bundle                            entries;            //< 
+    std::queue<Bundle>                pending;            //< 
+    std::map<size_t, InternalRequest> request_cache;      //< List of requests 
 
     void progress()
     {
