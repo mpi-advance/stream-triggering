@@ -56,7 +56,7 @@ void MPIS_Hello_world();
 // int MPIS_Queue_fence();
 /**
  * @brief This function deletes the supplied queue. Sets supplied pointer and ACTIVE_QUEUE to MPIS_QUEUE_NULL
- * @param [in] queue MPIS_Queue to be deleted
+ * @param [in, out] queue MPIS_Queue to be emptied and deleted
  * @return MPIS_Success upon completion
  */
 int MPIS_Queue_free(MPIS_Queue*); 
@@ -69,7 +69,6 @@ int MPIS_Queue_free(MPIS_Queue*);
  * /ref Queue, /ref MPIS_Queue_type
  */
 int MPIS_Queue_init(MPIS_Queue*, MPIS_Queue_type, void*);
-
 /**
  * @brief This function is a wrapper around the queue's host_wait function. 
  * @param [in] queue queue to wait on. 
@@ -79,38 +78,134 @@ int MPIS_Queue_wait(MPIS_Queue);
 
 /* Push stuff to Queue */
 /**
- * @brief This function is a wrapper around the queues host_wait function. 
+ * @brief This function enqueues the request onto the streaming device 
  * @param [in] queue queue to start
- * @param [in] length the number of requests inside array of requests queue to wait on. 
- * @param [in] array_of_requests list of requests to. 
+ * @param [in] length the number of requests inside array of requests. 
+ * @param [in] array_of_requests list of requests to enqueue. 
  * @return MPIS_Success upon completion
  */
-\
 int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
+/**
+ * @brief This function enqueues the request onto the streaming device 
+ * @param [in] queue queue to start
+ * @param [in] request Request to be enqueued
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Enqueue_start(MPIS_Queue, MPIS_Request*);
+/**
+ * @brief This function waits for the queue to finish all enqueue tasks
+ * @param [in] queue queue to wait for completion
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Enqueue_waitall(MPIS_Queue);
 
 /* New Matching Functions */
+/**
+ * @brief This function attempts to match 
+ * @param [in] request request to match 
+ * @param [in] status status object for the request.
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Match(MPIS_Request*, MPI_Status*);
+
+/**
+ * @brief This function synchronizes all the requests in the supplied list. 
+ * @param [in] length number of requests in the supplied arrays. 
+ * @param [in] requests array of requests to match
+ * @param [in] status array of status objects for each of the requests. 
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Matchall(int, MPIS_Request[], MPI_Status[]);
+
+/**
+ * @brief This function synchronizes the supplied requests using one-sided communication 
+ * @param [in] request 
+ * @param [in] request 
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Imatch(MPIS_Request*, MPIS_Request*);
+
+/**
+ * @brief This function 
+ * @param [in] request to the check status of
+ * @param [out] result is set to 1 if true or 0 if false. 
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Is_matched(MPIS_Request*, int*);
+
+/**
+ * @brief This function matches the supplied request while it is in the queue???
+ * @param [in] queue queue containing the request
+ * @param [in, out] request Request to be matched 
+ * @param [out] status the status object associated with the request
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Queue_match(MPIS_Queue, MPIS_Request*, MPI_Status*);
 
 /*        Custom MPIS Override Functions         */
 /* These have minimal, if any, new functionality */
+
+/**
+ * @brief This function deletes the supplied request
+ * @param [out] request request to be freed and deleted. 
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Request_free(MPIS_Request*);
+
+/**
+ * @brief This function deletes each request in the supplied array
+ * @param [in] length length of the supplied array
+ * @param [int, out] requests array of request to be freed and deleted. 
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Request_freeall(int, MPIS_Request[]);
+
+/**
+ * @brief This function blocks until the supplied request completes
+ * @param [in, out] request request to wait on 
+ * @param [out] status the status of the supplied request
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Wait(MPIS_Request*, MPI_Status*);
+
+/**
+ * @brief This function blocks until the supplied requests complete
+ * @param [in, out] requests array of request to wait on 
+ * @param [out] status the status array of the supplied request
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Waitall(int, MPIS_Request[], MPI_Status[]);
 
 /* Override Communication Functions */
 int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
 // int MPIS_Bcast_init();
 
-
+/**
+ * @brief This function blocks until the supplied request completes
+ * @param [in] buf buffer containing the message
+ * @param [in] count number of elements in buf
+ * @param [in] datatype the MPI_Datatype of the elements in buf 
+ * @param [in] src the process rank sending the message
+ * @param [in] tag tag to be used when matching messages
+ * @param [in] comm MPI_Communicator to be used
+ * @param [in] info MPI_info object to control behavior
+ * @param [out] request request object generated for the request
+ * @return MPIS_Success upon completion
+ */
 int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
-                   MPIS_Request*);
+       
+/**
+ * @brief This function blocks until the supplied request completes
+ * @param [in] buf buffer containing the message
+ * @param [in] count number of elements in buf
+ * @param [in] datatype the MPI_Datatype of the elements in buf 
+ * @param [in] dest the process to send the message
+ * @param [in] tag tag to be used when matching messages
+ * @param [in] comm MPI_Communicator to be used
+ * @param [in] info MPI_info object to control behavior
+ * @param [out] request request object generated for the request
+ * @return MPIS_Success upon completion
+ */	   MPIS_Request*);
 int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
                    MPI_Info, MPIS_Request*);
 

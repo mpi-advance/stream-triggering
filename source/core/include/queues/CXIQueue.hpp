@@ -29,7 +29,7 @@ static inline MPI_Count get_size_of_buffer(Request& req)
     return size * req.count;
 }
 
-static inline void print_dfwq_entry(struct fi_deferred_work* dfwq_entry,
+static inline void print_entry(struct fi_deferred_work* dfwq_entry,
                                     std::string              entry_name)
 {
     Print::out("--- Start:", entry_name);
