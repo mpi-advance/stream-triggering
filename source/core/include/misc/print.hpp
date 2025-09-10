@@ -5,13 +5,24 @@
 
 namespace Print
 {
+/** @brief set rank to normally impossible value */
 inline int rank = -10;
 
+/** @brief set rank to new_rank
+ *  @param [in] new_rank rank to set. 
+ */
 inline void initialize_rank(int new_rank)
 {
     Print::rank = new_rank;
 }
 
+/** @brief set rank to new_rank
+ *  @details 
+ *	Recursively prints the items supplied in args. 
+ * 
+ *  @param [in] Args
+ *  @param [in] args lists of arguments to print 
+ */
 template <typename T, typename... Args>
 void print_out_r(const T& arg, Args&&... args)
 {

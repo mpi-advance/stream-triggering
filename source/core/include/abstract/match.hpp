@@ -10,13 +10,27 @@
 namespace Communication
 {
 
-/**
-	@class This class contains a static function to synchronize requests between a process and its peer.
-    Sends empty message between the processes. 	
+/** @brief contains functions to match two requests between host and gpu
+ * @details]
+ *  Synchronizes requests by using non-blocking send and a blocking send on each side.
+ *  The message size is 0, thus preventing the need to allocate buffers for data. 
+ *  
+ * \todo Why is this an object rather than a static function?
 */
 class BlankMatch
 {
 public:
+
+	/** @brief contains functions to match two requests between host and gpu
+	 * @details
+	 *  Synchronizes requests by using non-blocking send and a blocking send on each side.
+	 *  The message size is 0, thus preventing the need to allocate buffers for data. 
+	 *  
+	 * @param peer_rank rank of the other process to synchronize. 
+	 * @param tag integer tag to match against. 
+	 * @param request local request to match 
+	 * @param comm MPI Communicator to use for context, default is MPI_COMM_WORLD. 
+	 */
     static void match(int peer_rank, int tag, MPI_Request* request,
                       MPI_Comm comm = MPI_COMM_WORLD)
     {
@@ -25,8 +39,9 @@ public:
     }
 };
 
-/** constant expression to confirm the MPI_TYPE based on size of the type.  
- * throws error if type/size mismatch
+/** @brief constant expression to confirm the MPI_TYPE based on size of the type.  
+ * @details \todo Is used by the one-sided functions below, why is this check necessary?
+ * 
  */
 template <typename T>
 constexpr MPI_Datatype type_to_use()
@@ -49,14 +64,28 @@ constexpr MPI_Datatype type_to_use()
     }
 }
 
-/**
- * class containing static functions for synchronizing using one-way communication. 
- * Sending side uses Issend to confirm receipt before the operation completes
+/** @brief Contains static functions for synchronizing requests using one-way communication. 
+ * @details 
+ * Sending side calls give and uses Issend to confirm receipt before the request completes.
+ * Receiving side calls take, posts receives and returns.
  * 
+ *
+ * \todo why part of a class rather than static functions?
+ * \todo what goes into data_to_exchange?
  */
 class OneSideMatch
 {
 public:
+	
+	/** @brief Contains static functions for sending messages to synchronize requests. 
+	 * @details 
+	 * Uses 2 non-blocking sends to transfer data_to_excahnge to its peer. 
+	 * The third send only completes when the recieving peer posts that it has recieved the buffer. 
+	 * Since MPI messages are not overtaking this should ensure that the previous requests
+	 * have been received as well. 
+	 * @param [in] data_to_exchange ??? \todo how is this used?
+	 * @param [in, out] req Request object to be synchronized. 
+	 */
     template <typename T>
     static void give(std::vector<T*>& data_to_exchange, Request& req)
     {
@@ -73,6 +102,13 @@ public:
                              &mpi_requests[2]));
     }
 
+	/** @brief Contains static functions for sending messages to synchronize requests. 
+	 * @details 
+	 * Uses 3 non-blocking recvs to catch the three messages from the give function. 
+	 *
+	 * @param [out] data_to_exchange ??? \todo how is this used?
+	 * @param [in, out] req Request object to be synchronized. 
+	 */
     template <typename T>
     static void take(std::vector<T*>& data_to_exchange, Request& req)
     {

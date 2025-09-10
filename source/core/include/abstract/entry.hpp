@@ -8,9 +8,30 @@
 using namespace Communication;
 
 // Common class for MPI-based backends (Thread, HIP, CUDA)
+
+/** @brief Wrapper class around MPI_request for execution by Queue
+ * @details 
+ *	 Base MPI_request is protected in mpi_request. 
+ *	 A std::shared_ptr to the request is used to allow access to the request. 
+ * 	 Virtual Functions can be overwrote by code for specific Queue_types being used. \n
+ *	 Functions in the class control the creation, and movement of the object 
+ *   Only one copy of each instance of this object should exist at a time. 
+ *
+*/
 class QueueEntry
 {
 public:
+
+	/** @brief Constructor for QueueEntry calls MPI function based on operation in req. 
+	 * @details 
+	 *	 Selects and executes a MPI Function call based on the requested operation.
+	 *   If the MPI Function outputs a mpi_request object, that object is stored as the 
+	 *   the internal mpi_request for the QueueEntry object. 
+	 *   If barrier operation no request is generated. 
+     *
+	 * @param [in] req Request to interpret core operation from 
+	 * \todo why explicit?
+	*/
     explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req), threshold(0)
     {
         switch (req->operation)
@@ -33,6 +54,12 @@ public:
         }
     }
 
+	/** @brief Virtual Deconstructor for the object. 
+	 *  @details 
+	 *  Should be overridden by the active Queue type.
+     *  Checks if mpi_request exists before attempting to free it. 
+	 * 
+	 */
     virtual ~QueueEntry()
     {
         if (MPI_REQUEST_NULL != mpi_request && original_request &&
@@ -42,11 +69,18 @@ public:
         }
     }
 
-    // No copying
+    /** @brief disable the default copy constructor **/
     QueueEntry(const QueueEntry& other)            = delete;
+	/** @brief disables the assignment operator **/
     QueueEntry& operator=(const QueueEntry& other) = delete;
 
-    // Only Moving
+    /** @brief move constructor 
+	 *  @details 
+	 *  	Sets pointers and objects in current object. 
+ 	 *      Deletes pointer and reference in old object. 
+	 *
+	 * @param [in, out] other the other QueueEntry to read and reset. 
+	 */
     QueueEntry(QueueEntry&& other) noexcept
         : mpi_request(other.mpi_request),
           original_request(other.original_request)
@@ -56,6 +90,13 @@ public:
         other.original_request.reset();
     }
     
+	 /** @brief assignment move operator 
+	 *  @details 
+	 *  	Sets pointers and objects in current object. 
+ 	 *      Deletes pointer and reference in old object. 
+	 *
+	 * @param [in, out] other the other QueueEntry to read and reset. 
+	 */
 	QueueEntry& operator=(QueueEntry&& other) noexcept
     {
         if (this != &other)
@@ -69,6 +110,12 @@ public:
         return *this;
     }
 
+	/** @brief call to start the operation operation on the host. 
+	 * @details 
+	 *	Should be overridden by active Queue type to match host device
+	 *  If not overridden calls MPI_Ibarrier if the queued operation is a barrier
+	 *  or MPI_Start on the internal request. 
+	*/
     virtual void start_host()
     {
         if (original_request->operation == Communication::Operation::BARRIER)
@@ -81,16 +128,26 @@ public:
         }
     }
 
-	/**
-	 * Completely virtual function
-	 * Used when requests are off-loaded to external device
-	 * starts the stream on the external device
+	/** @brief Virtual function to start gpu
+	 *  @details
+	 *  Should be overloaded if stream is going to be run on GPU
+	 *  Function when overridden should start supplied stream. 
+     *  If not overridden (or gpu is not used) does nothing. 
+	 *  @param [in, out] stream stream to be started on the gpu
 	 */
     virtual void start_gpu(void* stream)
     {
         // Does nothing in base class.
     }
 
+	/** @brief Virtual function to start stream
+	 *  @details
+	 *  Should be overloaded if stream is going to be run on GPU
+	 *  Function when overridden should start supplied stream. 
+     *  If not overridden, increments threshold flag, and starts host and starts_gpu.
+     *  The called functions should be overridden to match the structure of the host. 	 
+	 *  @param [in, out] stream stream to be started. 
+	 */
     virtual void start(void* stream)
     {
         threshold++;
@@ -98,16 +155,21 @@ public:
         start_gpu(stream);
     }
 
-	/**
-	 * Completely virtual function
-	 * Used when requests are off-loaded to external device
-	 * waits for the stream to complete 
+	/** @brief Virtual function to wait on completion of a stream 
+	 *  @details
+	 *  Should be overloaded if stream is going to be run on GPU
+	 *  Function when overridden should start supplied stream. 
+     *  If not overridden (e.g no host) does nothing. 
+	 *  @param [in, out] stream stream to wait on. 
 	 */
     virtual void wait_gpu(void* stream)
     {
         // Does nothing in base class.
     }
 
+	/** @brief Wrapper around MPI_Test to see if internal request is complete. 
+	*   @returns 1 if complete, 0 otherwise. 
+	*/
     virtual bool done()
     {
         int value = 0;
@@ -116,10 +178,14 @@ public:
     }
 
 protected:
+    /** @brief variable to act as signal flag between host device and GPU. */
     int64_t threshold = 0;
 
-    MPI_Request              mpi_request      = MPI_REQUEST_NULL; //< internal MPI_Request
-    std::shared_ptr<Request> original_request = nullptr;          //< shared pointer to internal MPI_Request
+	/** @brief internal MPI_Request to be used to monitor operation status */
+    MPI_Request              mpi_request      = MPI_REQUEST_NULL; 
+    
+	/** @brief shared pointer to internal MPI_Request */
+	std::shared_ptr<Request> original_request = nullptr;          
 };
 
 #endif

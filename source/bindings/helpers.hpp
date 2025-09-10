@@ -11,28 +11,30 @@
 #ifdef USE_CXI
 #include "safety/hip.hpp"
 #endif
+
+/** \todo should we have an include in the bindings folder, just so we are consistent with header placement */
 /**
- * Valid operational states for a MPIS_Request
+ * @brief Valid operational states for a MPIS_Request
 */
 enum RequestState
 {
-    ONGOING   = -1, ///<request is still being processed. 
-    UNMATCHED = 0, ///<request is waiting for match in queue
-    MATCHED   = 1, ///<request has been matched and completed
+    ONGOING   = -1, //!<request is still being processed. 
+    UNMATCHED = 0,  //!<request is waiting for match in queue
+    MATCHED   = 1,  //!<request has been matched and completed
 };
 
 /**
- * wrapper for internal request with control state
+ * @brief wrapper for internal request with control state
 */
 struct MPIS_Request_struct
 {
-    RequestState state; ///<Current state of the Request
-    uintptr_t    internal_request; ///< pointer to internal request, 
-	                               ///< will be cast as necessary. 
+    RequestState state; //!<Current state of the Request
+    uintptr_t    internal_request; //!< pointer to internal request, 
+	                                
 };
 
 /**
- * Error structure, to capture if a MPIS_Request is in an invalid state. 
+ * @brief Error structure to capture if a MPIS_Request is in an invalid state. 
 */
 struct MPISException : public std::runtime_error
 {
@@ -43,6 +45,7 @@ struct MPISException : public std::runtime_error
 
     int code;
 };
+
 
 
 static inline void print_device_info()
@@ -80,18 +83,24 @@ static inline void init_debugs()
     #endif
 
 }
-/**
-  * \defgroup extractor Request Extractors
-  * Functions for extracting C++ request from C type (if it's correct request type)
-  * @{
-*/
 
 /**
+  * \defgroup extractor Request Extractors
+  * @brief Functions for extracting a pointer to the internal request from a MPIS_Request
+  * @details
+  *
+  *
+*/
+
+/** 
+ * @brief returns a shared pointer to the internal mpi_request, and checks its status
+ * @details 
  * This function checks the state of the request before attempting 
  * to extract a pointer to the internal request.
- * @param request The MPIS_Request to be unwrapped
- * @param state The value to check the state of the request against. 
- * @return a shared Communication::Request pointer to the internal request of the MPIS_Request
+ * @ingroup extractor
+ * @param [in] request The MPIS_Request to be unwrapped
+ * @param [in] state The value to check the state of the request against. 
+ * @return a shared Communication::Request pointer to the internal request
 */
 static inline std::shared_ptr<Communication::Request>* convert_request(
     MPIS_Request request, RequestState state)
@@ -105,12 +114,14 @@ static inline std::shared_ptr<Communication::Request>* convert_request(
 }
 
 /**
+ * @brief returns a shared pointer the internal mpi_request and checks its status
+ * @details 
  * This function checks the state of the request before attempting 
  * to extract a pointer to the internal request.
- * @param request The MPIS_Request to be unwrapped
- * @param state The value to check the state of the request against. 
- * @return a shared Communication::Request pointer to a pointer to the 
- *         internal request of the MPIS_Request
+ * @ingroup extractor
+ * @param [in] request pointer to the MPIS_Request to unwrap
+ * @param [in] state The value to check the state of the request against. 
+ * @return a shared Communication::Request pointer to the internal request
 */
 static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
     MPIS_Request* request, RequestState state)
@@ -124,10 +135,14 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
 }
 
 /**
- * This function extracts a pointer to the internal request of the supplied MPIS_Request
- * @param request The MPIS_Request to be unwrapped
- * @return a shared Communication::Request pointer to the 
- *         internal request of the MPIS_Request
+/** 
+ * @brief returns a shared pointer to the internal mpi_request
+ * @details 
+ * This function checks the state of the request before attempting 
+ * to extract a pointer to the internal request.
+ * @ingroup extractor
+ * @param [in] request The MPIS_Request to be unwrapped
+ * @return a shared Communication::Request pointer to the internal request
 */
 static inline std::shared_ptr<Communication::Request>* convert_request(
     MPIS_Request request)
@@ -137,10 +152,13 @@ static inline std::shared_ptr<Communication::Request>* convert_request(
 }
 
 /**
- * This function extracts a pointer to the internal request of the supplied MPIS_Request
- * @param request The MPIS_Request to be unwrapped
- * @return a shared Communication::Request pointer to a pointer to the 
- *         internal request of the MPIS_Request
+ * @brief returns a shared pointer the internal mpi_request
+ * @details 
+ * This function checks the state of the request before attempting 
+ * to extract a pointer to the internal request.
+ * @ingroup extractor
+ * @param [in] request pointer to the MPIS_Request to unwrap
+ * @return a shared Communication::Request pointer to the internal request
 */
 static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
     MPIS_Request* request)
@@ -149,5 +167,4 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
         ((*request)->internal_request));
 }
 
-  /**@}*/
 #endif
