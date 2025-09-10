@@ -137,12 +137,12 @@ int main()
                        mem_info, &my_reqs[SEND_REQ]);
     }
 
-    MPIS_Match(my_reqs[0]);
-    MPIS_Match(my_reqs[1]);
+    MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
+    MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
 
     if (1 == rank)
     {
-        MPIS_Enqueue_start(my_queue, my_reqs[RECV_REQ]);
+        MPIS_Enqueue_start(my_queue, &my_reqs[RECV_REQ]);
     }
     MPIS_Queue_wait(my_queue);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -174,7 +174,7 @@ int main()
             }
             else
             {
-                MPIS_Enqueue_start(my_queue, my_reqs[SEND_REQ]);
+                MPIS_Enqueue_start(my_queue, &my_reqs[SEND_REQ]);
                 MPIS_Enqueue_waitall(my_queue);
             }
         }
