@@ -14,8 +14,9 @@
 #include "abstract/queue.hpp"
 
 /**
- * @class 
- * This class 
+ * @brief A thread based queue to process requests
+ * @details  
+ *   works with Bundles instead of QueueEntry
  * 
 */
 template <bool isSerialized>
@@ -25,16 +26,21 @@ public:
     using InternalRequest = QueueEntry;
     using UserRequest     = std::shared_ptr<Request>;
 
+	/** \todo why print out here?  */
     ThreadQueue() : thr(&ThreadQueue::progress, this)
     {
         Print::out("Thread Queue init-ed");
     }
+	
+	/** @brief kills thread when object is deleted;''
+	*/
     ~ThreadQueue()
     {
         shutdown = true;
         thr.join();
     }
 
+	/** @brief adds request to bundle */  
     void enqueue_operation(UserRequest request) override
     {
         size_t request_id = request->getID();
@@ -54,6 +60,12 @@ public:
         }
     }
 
+	/** @brief start bundle??
+	 * @details
+	 *  Moves Bundle to work queue
+	 *  Add 1 instance to busy counter. 
+	 * 
+	 */
     void enqueue_waitall() override
     {
         std::scoped_lock<std::mutex> incoming_lock(queue_guard);
@@ -65,6 +77,7 @@ public:
         entries = Bundle();
     }
 
+	/** @brief  does nothing as there is no external device to wait for. */
     void host_wait() override
     {
         while (busy.load())
@@ -75,17 +88,37 @@ public:
 
 protected:
     // Thread control variables
-    std::atomic<int> busy; //< flag to signal when thread has work to do
-    std::thread      thr;  //< thread handle
-    bool             shutdown = false; //< boolean to signal thread to finish
-    std::mutex       queue_guard;      //< mutex to control thread access
+	/** @brief flag, if true thread has/is doing work */
+    std::atomic<int> busy; 
+    
+	/** @brief handle to thread */
+	std::thread      thr;  
+	
+	/** @brief boolean flag to signal when to kill thread */
+    bool             shutdown = false; 
+    
+	/** @brief mutex to lock queue from editing when modifying from the queue*/
+	std::mutex       queue_guard;     
 
     // Bundle variables
     using BundleIterator = std::vector<Bundle>::iterator; //<
+	/**@brief  Bundle of requests to process */
     Bundle                            entries;            //< 
-    std::queue<Bundle>                pending;            //< 
-    std::map<size_t, InternalRequest> request_cache;      //< List of requests 
+    /**@brief bundles that are currently are being processed.  */
+	std::queue<Bundle>                pending;            //< 
+    /**@brief  requests that have been added to queue, keyed by request_id */
+	std::map<size_t, InternalRequest> request_cache;      //< List of requests 
 
+	/** @brief Function to progress requests included in the bundle
+	 *	@details 
+	 *  This function spins until the busy flag is set. Once the busy flag is set
+	 *  One the thread has work, it begins processing the first bundle
+	 *  If serialized, calls progress_serial() \n
+	 *  If not serialized, start all bundles \n
+	 *  Inter loop returns when all active bundles are finished. \n
+	 *  thread ends and rejoins when shutdown flag is tripped. 
+	 *
+	 */ 
     void progress()
     {
         while (!shutdown)

@@ -12,6 +12,12 @@
 #include "abstract/entry.hpp"
 #include "abstract/queue.hpp"
 
+/** @brief Derived class from QueueEntry to work with HIP enabled GPU's
+ * @details
+ *	 includes overrides for the virtual functions in QueueEntry
+ *   as well as flags and pointers for signaling between the cpu and gpu.
+ */
+
 class HIPQueueEntry : public QueueEntry
 {
 public:
@@ -24,13 +30,21 @@ public:
     bool done() override;
 
 protected:
-    int64_t* start_location;
+	/** @brief location to signal when entry has started */ 
+	int64_t* start_location;
+	
+	/** @brief location to signal when entry has finished */ 
     int64_t* wait_location;
 
     void* start_dev;
     void* wait_dev;
 };
 
+/** @brief Derived class from Queue to work with HIP
+ * @details
+ *	 includes overrides for the virtual functions in Queue
+ *   contains pointer to Cudastream and monitoring thread. 
+ */
 class HIPQueue : public Queue
 {
 public:
@@ -43,18 +57,37 @@ public:
     void host_wait() override;
 
 protected:
+	/** @brief pointer to hipStream executing requests */
     hipStream_t* my_stream;
-
+	
+	/** @brief thread on cpu maintaining communication with GPU */  
     std::thread thr;
+	
+	/** @brief boolean switch to kill stream once no longer needed.  */
     bool        shutdown = false;
 
+    /** @brief mutex to lock thread when queue is being updated */
     std::mutex       queue_guard;
+	
+	/** @brief atomic counter for waiting, if >0 requests are still being processed */
     std::atomic<int> wait_cntr;
 
+	/** @brief vector of requests to be processed */
     std::vector<std::reference_wrapper<QueueEntry>> entries;
+    
+	/** @brief vector of requests to start on the stream */
     std::vector<std::reference_wrapper<QueueEntry>> s_ongoing;
-    std::queue<std::reference_wrapper<QueueEntry>>  w_ongoing;
+    
+	/** @brief map of Queue Entries, keyed by request_id*/
+	std::queue<std::reference_wrapper<QueueEntry>>  w_ongoing;
 
+	/** @brief progress through the queue of Requests 
+	 *  @details Goes through s_ongoing and starts each request
+     *	         pushes QueueEnrty to w_ongoing
+	 *           Goes through w_ongoing and checks if complete 
+	 *           if so removes QueueEntry from w_ongoing.
+	 *           Spins until shutdown flag tripped if no requests to process. 
+	 */
     std::map<size_t, HIPQueueEntry> request_cache;
 
     void progress();

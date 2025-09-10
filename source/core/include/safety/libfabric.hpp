@@ -5,20 +5,14 @@
 
 #include <iostream>
 
-/**
- * wrapper around CUDA Functions to note errors, but not stop the 
- * execution so downstream effects can be observed. 
- */
+/** @brief wrapper around libfabric functions to note errors and continue */
 #define check_libfabric(function)             \
     {                                         \
         int err = function;                   \
         check_error(err, __FILE__, __LINE__); \
     }
 
-/**
- * wrapper around libfabric Functions to note errors, and stop the 
- * execution 
- */
+/** @brief wrapper around libfabric functions to catch errors and terminate */
 #define force_libfabric(function)                   \
     {                                               \
         int err = function;                         \

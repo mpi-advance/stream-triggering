@@ -4,19 +4,14 @@
 #include <hip/hip_runtime.h>
 #include <iostream>
 
-/**
- * wrapper around HIP Functions to note errors, but not stop the 
- * execution so downstream effects can be observed. 
- */
+/** @brief wrapper around HIP functions to note errors and continue */
 #define check_hip(function)                                                                        \
 	{                                                                                              \
 		auto err = function;                                                                       \
 		check_hip_error(err, __FILE__, __LINE__);                                                  \
 	}
 
-/**
- * wrapper around HIP Functions to note errors and cleanly stop execution 
- */
+/** @brief wrapper around HIP functions to catch errors and terminate*/
 #define force_hip(function)                                                                        \
 	{                                                                                              \
 		auto err = function;                                                                       \

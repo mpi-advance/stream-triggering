@@ -5,24 +5,18 @@
 
 #include <iostream>
 
-/**
- * wrapper around CUDA Functions to note errors, but not stop the 
- * execution so downstream effects can be observed. 
- */
-#define check_cuda(function)                                                                       \
-	{                                                                                              \
+/** @brief wrapper around Cuda functions to note errors and continue */
+#define check_cuda(function)                                                                        \
+	{                                                                                               \
 		auto err = function;                                                                        \
-		check_cuda_error(err, __FILE__, __LINE__);                                                 \
+		check_cuda_error(err, __FILE__, __LINE__);                                                  \
 	}
 
-/**
- * wrapper around CUDA Functions to note errors, but not stop the 
- * execution so downstream effects can be observed. 
- */
-#define force_cuda(function)                                                                       \
-	{                                                                                              \
+/** @brief wrapper around Cuda functions to note errors and continue */
+#define force_cuda(function)                                                                        \
+	{                                                                                               \
 		auto err = function;                                                                        \
-		check_cuda_error<true>(err, __FILE__, __LINE__);                                           \
+		check_cuda_error<true>(err, __FILE__, __LINE__);                                            \
 	}
 
 /**

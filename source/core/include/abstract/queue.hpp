@@ -20,12 +20,12 @@ class Queue
 public:
     virtual ~Queue() = default;
 	
-	/** @brief function to add requested operations to an internal list 
+	/** @brief Add requested operations to an internal list 
 	 * @param [in, out] req Request object to add to pending operations queue. 
 	 */
     virtual void enqueue_operation(std::shared_ptr<Request> req) = 0;
     
-	/** @brief function to add requested operations to an internal list 
+	/** @brief Add all operations in reqs to an internal list 
 	 * @param [in, out] req Request object to add to pending operations queue. 
 	 */
 	virtual void enqueue_startall(

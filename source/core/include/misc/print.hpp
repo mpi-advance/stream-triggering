@@ -16,9 +16,9 @@ inline void initialize_rank(int new_rank)
     Print::rank = new_rank;
 }
 
-/** @brief set rank to new_rank
+/** @brief Recursively prints the items supplied in args. 
  *  @details 
- *	Recursively prints the items supplied in args. 
+ *	
  * 
  *  @param [in] Args
  *  @param [in] args lists of arguments to print 
@@ -33,6 +33,13 @@ void print_out_r(const T& arg, Args&&... args)
         std::cout << std::endl;
 }
 
+/** @brief Recursively prints the ranks supplied in args. 
+ *  @details 
+ *	
+ * 
+ *  @param [in] Args
+ *  @param [in] args lists of arguments to print 
+ */
 template <bool UseRanks = true, typename... Args>
 void always(Args&&... args)
 {

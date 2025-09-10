@@ -7,6 +7,11 @@
 
 #include <hip/hip_runtime.h>
 
+/** @brief Derived class from QueueEntry to work with HPE systems
+ * @details
+ *	 includes overrides for the virtual functions in QueueEntry
+ *   as well as flags and pointers for signaling between the cpu and gpu.
+ */
 class HPEQueueEntry : public QueueEntry
 {
 public:

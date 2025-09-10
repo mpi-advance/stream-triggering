@@ -5,20 +5,14 @@
 
 #include <iostream>
 
-/**
- * wrapper around MPI Functions to note errors, but not stop the 
- * execution so downstream effects can be observed. 
- */
+/** @brief wrapper around MPI functions to note errors and continue */
 #define check_mpi(function)                                                                        \
 	{                                                                                              \
 		int err = function;                                                                        \
 		check_mpi_error(err, __FILE__, __LINE__);                                                  \
 	}
 
-/**
- * wrapper around MPI Functions to note errors, and terminate execution
- * in a clean method 
- */
+/** @brief wrapper around MPI functions to catch errors and terminate */
 #define force_mpi(function)                                                                        \
 	{                                                                                              \
 		int err = function;                                                                        \
@@ -26,11 +20,10 @@
 	}
 
 
-/**
- * A function to catch and display errors relayed from mpi_functions. 
+/** @brief A function to catch and display errors relayed from mpi_functions. 
  * @param err the error code returned from a wrapped MPI function. 
  * @param filename file containing the error
- * @param line line where the error occured
+ * @param line line where the error occurred
  */
 template<bool shouldThrow = false>
 void check_mpi_error(const int err, const char *filename, const int line)
