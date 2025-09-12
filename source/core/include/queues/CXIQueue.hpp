@@ -22,6 +22,10 @@
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
 
+/** @brief calculate the memory size of the buffer in req
+ * @param [in] req Request with the buffer to size
+ * @return the memory size of the buffer 
+ */
 static inline MPI_Count get_size_of_buffer(Request& req)
 {
     int size = -1;
@@ -29,6 +33,10 @@ static inline MPI_Count get_size_of_buffer(Request& req)
     return size * req.count;
 }
 
+/** @brief Debug function prints out information about supplied deferred work queue entry
+ *  @param [in] dfwq_entry deferred work quque entry
+ *  @param [in] entry_name Name of the entry being printed. 
+ */
 static inline void print_entry(struct fi_deferred_work* dfwq_entry,
                                     std::string              entry_name)
 {
@@ -44,6 +52,7 @@ static inline void print_entry(struct fi_deferred_work* dfwq_entry,
     Print::out("--- End", entry_name, "---");
 }
 
+/** @brief Wrapper class around metadata for a buffer. */
 class Buffer
 {
 public:
@@ -52,32 +61,52 @@ public:
     {
     }
 
+	/** @brief override of Libfabric remote memory access operator
+	 * @return fi_rma_iov struct based on the information in the object. 
+	 */
     operator fi_rma_iov() const
     {
         return {offset, len, mr_key};
     }
 
+	/** @brief print out members of this object*/
     void print()
     {
         Print::out("Buffer:", address, len, mr_key, offset);
     }
 
+	/** @brief local buffer address */
     void*    address;
+	/** @brief size of target buffer */
     size_t   len;
+	/** @brief access key */
     uint64_t mr_key;
+	/** @brief target RMA address */
     uint64_t offset;
 };
 
+/** @brief class to control threshold trigger variable. 
+ *  @details
+ *      \todo what is difference between value and counter_value
+ * 
+ */
 class Threshold
 {
 public:
     Threshold() : _value(0), _counter_value(0) {}
 
+	/** @brief increment threshold counter */
     void increment_threshold()
     {
         _value++;
     }
 
+	/** @brief calculate the difference between value and counter value and reset counter_value. 
+	 *  @details
+	 *			resets value to counter_value
+	 *
+	 *  @return the difference between value and counter value. 
+	 */
     size_t equalize_counter()
     {
         size_t diff    = _value - _counter_value;
@@ -85,31 +114,42 @@ public:
         return diff;
     }
 
+    /** @brief getter for Threshold._value */
     size_t value()
     {
         return _value;
     }
+	
+	 /** @brief getter for Threshold._counter_value */
     size_t counter_value()
     {
         return _counter_value;
     }
 
 private:
+	/** @brief  */ 
     size_t _value         = 0;
+	/** @brief  */
     size_t _counter_value = 0;
 };
 
+/** @brief abstraction on top of CXI libfabric DefferedWorkQueue
+ *  @details
+ *     Manages entries in deferred workqueue
+ * 
+ */
 class DeferredWorkQueue
 {
 public:
     DeferredWorkQueue() = default;
-
+	/** @brief store pointer to progress counter*/
     void register_progress_counter(struct fid_cntr* p_cntr)
     {
         Print::out("Currently in use:", space_used);
         progress_cntr = p_cntr;
     }
 
+	/** @brief add completion counter to list*/
     void register_completion_counter(struct fid_cntr* c_cntr)
     {
         if (!known_completion_map.contains(c_cntr))
@@ -119,12 +159,21 @@ public:
         }
     }
 
+	/** @brief increments space_used when ????*/
     void consume()
     {
         Print::out("*** Consumed");
         space_used++;
     }
 
+	/** @brief Remove a completion counter from tracking
+	 * @details
+	 *  delete completion counter and mark space used as freed. 
+	 *  starts new requests until max_threshold is reached
+	 * 
+	 * @param [in, out] completion_cntr completion counter
+	 * @param [in] max_threshold
+	 */
     void clear_completion_counter(struct fid_cntr* completion_cntr,
                                   uint64_t         max_threshold)
     {
@@ -145,6 +194,13 @@ public:
         known_completion_map.erase(completion_cntr);
     }
 
+
+
+	/** @brief
+	 * @details
+	 *  
+	 * @param [in, out] completion_cntr completion counter
+	 */
     void make_space(struct fid_cntr* completion_cntr)
     {
         Print::out("*** Asked to make space at", space_used);
@@ -157,18 +213,21 @@ public:
             }
         }
     }
-
+	
+	/** @brief check on progress counter*/
     uint64_t progress()
     {
         return fi_cntr_read(progress_cntr);
     }
 
+	/** @brief check on progress counter*/
     void print_status()
     {
         Print::always("Space in use:", space_used);
     }
 
 private:
+    //goes through known counters and updates free space for more operations in dwq. 
     inline void update_space_free()
     {
         for (auto& [counter, value] : known_completion_map)
@@ -187,19 +246,26 @@ private:
     }
 
     // Control of DFWQ Space
-    const uint64_t total_space = 84;
+    const uint64_t total_space = 84; //unit is CXISends which consist of 3 libfabric operations. 
     uint64_t       space_used  = 0;
 
-    // Progress counter
+    /** @brief  Progress counter **/
     struct fid_cntr* progress_cntr;
 
     // Last known completions
+	/** @brief signals to host that request is complete on gpu **/
     std::map<struct fid_cntr*, uint64_t> known_completion_map;
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 class CXICounter
 {
 public:
+	//wrapper for libF counter
     static struct fid_cntr* alloc_counter(struct fid_domain* domain)
     {
         struct fid_cntr*    new_ctr;
@@ -211,6 +277,7 @@ public:
         return new_ctr;
     }
 
+	//wrapper for cxi extension and libf counter 
     CXICounter(struct fid_domain* domain) : counter(alloc_counter(domain))
     {
         // Open (create) CXI Extension object
@@ -232,6 +299,7 @@ public:
         force_hip(hipHostUnregister(mmio_addr));
     }
 
+	//print out counter value
     void print()
     {
         size_t value = fi_cntr_read(counter);
@@ -247,6 +315,7 @@ public:
     void*  gpu_mmio_addr;
 };
 
+/** @brief Get unique key id for memory location to pass between peer processes */
 // MR Management
 static size_t getMRID()
 {
@@ -254,6 +323,11 @@ static size_t getMRID()
     return ID++;
 }
 
+/** @brief abstraction around concept of completion buffer
+ *  @details
+ *    array of memory slots for completions
+ * 
+ */
 class CompletionBuffer
 {
 public:
@@ -290,6 +364,7 @@ public:
         return *this;
     }
 
+	//registers completion buffers inside libFabric space. 
     void register_mr(struct fid_domain* domain, struct fid_ep* main_ep)
     {
         force_libfabric(fi_mr_reg(domain, buffer, DEFAULT_SIZE,
@@ -301,6 +376,7 @@ public:
         force_libfabric(fi_mr_enable(my_mr));
     }
 
+	// necessary for order of operations during cleanup (statics get killed last, needs to cleanup sooner)
     void free_mr()
     {
         check_libfabric(fi_close(&(my_mr)->fid));
@@ -323,11 +399,16 @@ public:
     void*          buffer;
     size_t         current_index;
 
-    static constexpr size_t DEFAULT_ITEMS     = 1000;
-    static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(size_t);
-    static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+    static constexpr size_t DEFAULT_ITEMS     = 1000; //default limit for number of completions
+    static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(size_t); //size of "completion"
+    static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE; //"amount of memory to allocate to hold completions"
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 class CXIRequest
 {
 public:
@@ -338,6 +419,8 @@ public:
     {
     }
     virtual ~CXIRequest() = default;
+	
+	/** @brief */
     virtual void start(hipStream_t* the_stream, Threshold& threshold,
                        CXICounter& trigger_cntr)
     {
@@ -346,8 +429,10 @@ public:
         start_gpu(the_stream, threshold, trigger_cntr);
     }
 
+	/** @brief enqueue kernel to gpu and wait for request completion */
     virtual void wait_gpu(hipStream_t* the_stream) = 0;
 
+	/** @brief getter for GPUMemoryType **/
     virtual GPUMemoryType get_gpu_memory_type()
     {
         return memory_type;
@@ -364,6 +449,11 @@ protected:
     size_t        num_times_started;
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 class FakeBarrier : public CXIRequest
 {
 public:
@@ -459,12 +549,18 @@ private:
     DeferredWorkQueue& progress_engine;
 };
 
+/** @brief wait for the stream to complete**/
 class CXIWait : virtual public CXIRequest
 {
 public:
     void wait_gpu(hipStream_t* the_stream) override;
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 template <bool FENCE = false>
 class ChainedRMA
 {
@@ -568,12 +664,23 @@ private:
     std::vector<int>     completion_addrs;
 };
 
+/** @brief Communication model the request will use. 
+ *  @details 
+ *  While TWO_SIDED is a valid value the functionality is not currently supported by the rest of the
+ *  library. 
+ * 
+ */ 
 enum CommunicationType
 {
-    ONE_SIDED = 1,
-    TWO_SIDED = 2,
+    ONE_SIDED = 1, //!< One-sided communication (WRITE/READ) will used used 
+    TWO_SIDED = 2, //!< Two-sided communication (Send/Recv) not yet implemented
 };
 
+/** @brief 
+ *  @details
+ *    Operations used depend on MODE of communication selected. 
+ * 
+ */
 template <CommunicationType MODE>
 class CXISend : public CXIWait
 {
@@ -581,6 +688,11 @@ class CXISend : public CXIWait
                                             struct fi_op_rma, struct fi_op_msg>;
 
 public:
+	/** @brief 
+	*  @details
+	*     
+	* 
+	*/
     CXISend(Buffer local_completion, Request& user_request, struct fid_domain* domain,
             struct fid_ep* main_ep, DeferredWorkQueue& dwq, fi_addr_t partner,
             fi_addr_t self)
@@ -637,6 +749,12 @@ public:
         Communication::OneSideMatch::take(matching_data, user_request);
     }
 
+
+    /** @brief 
+	*  @details
+	*     
+	* 
+	*/
     ~CXISend()
     {
         my_queue.clear_completion_counter(completion_c,
@@ -647,6 +765,11 @@ public:
         force_libfabric(fi_close(&completion_c->fid));
     }
 
+	/** @brief 
+	*  @details
+	*     
+	* 
+	*/
     void start_host(hipStream_t* the_stream, Threshold& threshold,
                     CXICounter& trigger_cntr) override
     {
@@ -675,6 +798,11 @@ public:
         my_queue.consume();
     }
 
+	/** @brief 
+	*  @details
+	*     
+	* 
+	*/
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override;
 
@@ -696,6 +824,11 @@ private:
     ChainedRMA<false> my_chained_completions;
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 class CXIRecvOneSided : public CXIWait
 {
 public:
@@ -746,6 +879,11 @@ private:
     uint64_t       mr_key_storage;
 };
 
+/** @brief 
+ *  @details
+ *
+ * 
+ */
 class CXIQueue : public Queue
 {
 public:
@@ -797,12 +935,19 @@ public:
 
     void enqueue_waitall() override;
 
+	/** @brief force synchronization with stream*/
     void host_wait() override
     {
         Print::out("Waiting on device!");
         force_hip(hipStreamSynchronize(*the_stream));
     }
 
+	/** @brief match 
+	 * @details
+	 * Override of match function. 
+	 * If Barrier Operation: 
+	 * If not 
+	*/
     void match(std::shared_ptr<Request> qe) override
     {
         if (Communication::Operation::BARRIER == qe->operation)
@@ -820,12 +965,40 @@ public:
     }
 
 private:
-    void libfabric_setup(int size);
-    void peer_setup(int rank);
-    void prepare_cxi_mr_key(Request&);
-    void libfabric_teardown();
-    void flush_memory(hipStream_t*);
 
+    /** @brief 
+	 *  @param [in] size
+	 */
+    void libfabric_setup(int size);
+    
+    /** @brief 
+	 *  @param [in] size
+	 */
+	void peer_setup(int size);
+	
+	 /** @brief allocate local completion buffer
+	 * @details
+	 * Data to be exchanged (receiver sends this, sender receives this)
+     * 1. MR key for receive buffer
+     * 2. Remote completion buffer mr key
+     * 3. Remote completion buffer offset  
+	 * Inserts the used requests into the map. 
+	 * 
+	 *  @param [in] req
+	 */
+    void prepare_cxi_mr_key(Request&);
+	
+    /** @brief cleanup Libfabric framework, delete counters, buffers, and close other fi objects*/
+    void libfabric_teardown();
+    
+	/** @brief load kernel that forces a write back of the L2 cache. 
+	 *  @param [in,out] the_stream hip stream to force write back.  
+	 */
+	void flush_memory(hipStream_t*);
+
+	/** @brief Start processing the stream. 
+	 *  @param [in,out] req 
+	 */
     void inline enqueue_request(Request& req)
     {
         Print::out("Staring request:", req.getID());
@@ -838,34 +1011,49 @@ private:
     }
 
     // Persistent Libfabric objects
-    struct fi_info*    fi;       /*!< Provider's data and features */
-    struct fid_fabric* fabric;   /*!< Represents the network */
-    struct fid_domain* domain;   /*!< A subsection of the network */
-    struct fid_av*     av;       /*!< Address vector for connections */
-    struct fid_ep*     ep;       /*!< An endpoint */
-    struct fid_cq*     txcq;     /*!< The transmit completion queue */
-    struct fid_cq*     rxcq;     /*!< The receive completion queue */
-    struct fid_cntr*   recv_ctr; /*!< The counters for receiving */
+	/** @brief Provider's data and features */
+    struct fi_info*    fi;     
+    /** @brief Represents the network */
+	struct fid_fabric* fabric;   
+    /** @brief A subsection of the network */
+	struct fid_domain* domain;   
+    /** @brief Address vector for connections */
+	struct fid_av*     av;       
+    /** @brief An endpoint */
+	struct fid_ep*     ep;       
+    /** @brief The transmit completion queue */
+	struct fid_cq*     txcq;     
+    /** @brief The receive completion queue */
+	struct fid_cq*     rxcq;     
+    /** @brief The counters for receiving */
+	struct fid_cntr*   recv_ctr; 
 
-    // Peer information
+    /** @brief Communicator for context */
     MPI_Comm               comm_base;
-    int                    my_rank;
+    /** @brief rank of this process in the Communicator */
+	int                    my_rank;
+	/** @brief List of peers to communicate with */
     std::vector<fi_addr_t> peers;
 
-    // Map of Request ID to CXIObject (counters, mr)
+    /** @brief Map of Request ID to CXIObject (counters, mr) */
     std::map<size_t, CXIObjects> request_map;
+	
+	/** @brief list of ids of active requests */
     std::vector<size_t>          active_requests;
 
-    // Completion buffers
+    /** @brief buffer of memory slots to hold completion flags */
     static CompletionBuffer my_buffer;
 
-    // Deferred Work Queue Management
+    /** @brief Deferred Work Queue handle */
     static DeferredWorkQueue my_queue;
 
-    // Hip Stream
+    /** @brief Hip Stream */
     hipStream_t* the_stream;
-    // GPU Triggerable Counter
+	
+    /** @brief GPU Triggerable Counter */
     std::unique_ptr<CXICounter> the_gpu_counter;
+	
+	/** @brief memory locations for signaling between hosts */
     Threshold                   queue_thresholds;
 };
 

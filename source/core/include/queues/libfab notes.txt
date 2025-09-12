@@ -1,0 +1,3 @@
+Libfabric notes:
+
+fi_ctr(fi_queue_work, ...stuff ) <- places something on the deferred work queue. 

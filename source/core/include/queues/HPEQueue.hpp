@@ -11,6 +11,7 @@
  * @details
  *	 includes overrides for the virtual functions in QueueEntry
  *   as well as flags and pointers for signaling between the cpu and gpu.
+ * \todo REMOVE HPEQUEUE
  */
 class HPEQueueEntry : public QueueEntry
 {
@@ -27,6 +28,11 @@ public:
 	virtual void progress() override;
 };
 
+/** @brief Version of HPEQueueEntry to use with point to point communication
+ *  @details
+ *     Direction is true if sending operation.
+ *      
+ */
 template<bool Direction>
 class HPEQueueEntryP2P : public HPEQueueEntry
 {
@@ -44,6 +50,10 @@ public:
 	};
 	~HPEQueueEntryP2P();
 
+    /** @brief
+	 *  @details
+	 * 
+	 */
 	void prepare() override
 	{
 		if constexpr(Direction)
@@ -58,6 +68,10 @@ public:
 		}
 	}
 
+    /** @copydoc HPEQueueEntry
+	 *  @details
+	 * 		starts starts processing queue on stream. 
+	 */
 	void start() override
 	{
 		force_mpi(MPIS_Enqueue_start(*hpe_stream))

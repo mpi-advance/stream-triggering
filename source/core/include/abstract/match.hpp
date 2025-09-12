@@ -1,4 +1,4 @@
-#ifndef ST_ABSTRACT_MATCH
+  #ifndef ST_ABSTRACT_MATCH
 #define ST_ABSTRACT_MATCH
 
 #include <vector>
@@ -14,8 +14,7 @@ namespace Communication
  * @details]
  *  Synchronizes requests by using non-blocking send and a blocking send on each side.
  *  The message size is 0, thus preventing the need to allocate buffers for data. 
- *  
- * \todo Why is this an object rather than a static function?
+ * 
 */
 class BlankMatch
 {
@@ -69,9 +68,6 @@ constexpr MPI_Datatype type_to_use()
  * Sending side calls give and uses Issend to confirm receipt before the request completes.
  * Receiving side calls take, posts receives and returns.
  * 
- *
- * \todo why part of a class rather than static functions?
- * \todo what goes into data_to_exchange?
  */
 class OneSideMatch
 {
@@ -83,7 +79,7 @@ public:
 	 * The third send only completes when the recieving peer posts that it has recieved the buffer. 
 	 * Since MPI messages are not overtaking this should ensure that the previous requests
 	 * have been received as well. 
-	 * @param [in] data_to_exchange ??? \todo how is this used?
+	 * @param [in] data_to_exchange tuple: key to write location, key of completion buffer, offset into completion buffer array 
 	 * @param [in, out] req Request object to be synchronized. 
 	 */
     template <typename T>
@@ -106,7 +102,7 @@ public:
 	 * @details 
 	 * Uses 3 non-blocking recvs to catch the three messages from the give function. 
 	 *
-	 * @param [out] data_to_exchange ??? \todo how is this used?
+	 * @param [out] data_to_exchange tuple: key to write location, key of completion buffer, offset into completion buffer array 
 	 * @param [in, out] req Request object to be synchronized. 
 	 */
     template <typename T>

@@ -13,6 +13,7 @@ void CXIQueue::libfabric_setup(int num_ranks)
     hints = fi_allocinfo();
 
     // set our requirements for the providers
+	//caps -> capabilities required from provider, modes what is required from app. 
     hints->caps = FI_SHARED_AV | FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM |
                   FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
@@ -30,12 +31,14 @@ void CXIQueue::libfabric_setup(int num_ranks)
     force_libfabric(fi_getinfo(FI_VERSION(1, 15), 0, 0, 0, hints, &fi));
 
     /* Code specific to tioga -- ADD REASON */
+	/** \todo ADD REASON for tioga specfic code */
 #ifdef USE_GFX90A
     int device = -1;
     force_hip(hipGetDevice(&device));
     int pci_bus_id = -1;
     force_hip(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, device));
-
+	
+	//fi is list of OFI providers
     while (fi != nullptr)
     {
         Print::out(fi->nic->bus_attr->attr.pci.domain_id,

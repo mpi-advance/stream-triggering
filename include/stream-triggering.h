@@ -13,17 +13,20 @@
 extern "C" {
 #endif
 
-/**
- * @brief wrapper that can point to any of the several derived classes of MPIS_Queue. 
+/** \defgroup user_api User-facing MPIS functions
+ * @brief Functions designed to be called by end users
+ * @details 
+ *  
  */
+
+
+/** @brief wrapper that can point to any of the several derived classes of MPIS_Queue. */
 typedef uintptr_t                   MPIS_Queue; 
 
-/** 
- * @brief pointer to MPIS_Request object or one of its derived classes. 
-*/
+/** @brief pointer to MPIS_Request object or one of its derived classes. */
 typedef struct MPIS_Request_struct* MPIS_Request; 
 
-/** \defgroup errors MPIA_ST Function Return Codes
+/** \defgroup errors MPIS Function Return Codes
  * @brief Enumerated error codes for debugging the library.
  * @details 
  *  
@@ -44,7 +47,7 @@ const MPIS_Request MPIS_REQUEST_NULL = 0;  //!< Check to see if request exists*/
 enum MPIS_Queue_type
 {
     THREAD            = 0, ///<Basic Threaded queue
-    THREAD_SERIALIZED = 1, ///< 
+    THREAD_SERIALIZED = 1, ///< Serialized Thread queue
     GPU_MEM_OPS       = 3, ///<Support for GPU memory
     HPE               = 4, ///<Support for HPE
     MPICH_IMPL        = 5, ///<MPICH optimized queue
@@ -53,6 +56,7 @@ enum MPIS_Queue_type
 
 /** @brief Pointer to currently active queue (ONLY ONE QUEUE MAY BE ACTIVE AT A TIME)
  * @details
+ * 
  * 
  */
 extern MPIS_Queue ACTIVE_QUEUE;
@@ -66,14 +70,19 @@ void MPIS_Hello_world();
 
 /* Queue Management */
 // int MPIS_Queue_fence();
-/** @brief This function deletes the supplied queue.
- * @details  Sets supplied pointer and ACTIVE_QUEUE to MPIS_QUEUE_NULL 
- * @param [in, out] queue MPIS_Queue to be emptied and deleted.
- * @return MPIS_Success upon completion
+/* @brief 
+ * @details  
+ *
+ * @ingroup user_api
+ * @param 
+ * @return 
  */
 int MPIS_Queue_free(MPIS_Queue*); 
 /** @brief This function creates a Queue with the supplied handle. 
- * @details The generated Queue type depends on the MPIS_Queue type supplied to the function.   
+ * @details 
+ * The generated Queue type depends on the MPIS_Queue type supplied to the function.   
+ *
+ * @ingroup user_api
  * @param [out] queue pointer to the generated queue object
  * @param [in] type MPIS_QUEUE_Type to be created. 
  * @param [in] pointer to back-end stream object. 
@@ -83,6 +92,7 @@ int MPIS_Queue_free(MPIS_Queue*);
 int MPIS_Queue_init(MPIS_Queue*, MPIS_Queue_type, void*);
 /**
  * @brief This function is a wrapper around the queue's host_wait function. 
+ * @ingroup user_api
  * @param [in] queue queue to wait on. 
  * @return MPIS_Success upon completion
  */
@@ -93,6 +103,7 @@ int MPIS_Queue_wait(MPIS_Queue);
  * @brief This function enqueues the request onto the streaming device 
  * @details
  * 
+ * @ingroup user_api
  * @param [in] queue queue to start
  * @param [in] length the number of requests inside array of requests. 
  * @param [in] array_of_requests list of requests to enqueue. 
@@ -103,6 +114,7 @@ int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
  * @brief This function enqueues the request onto the streaming device 
  * @details
  *
+ * @ingroup user_api
  * @param [in] queue queue to start
  * @param [in] request Request to be enqueued
  * @return MPIS_Success upon completion
@@ -112,6 +124,7 @@ int MPIS_Enqueue_start(MPIS_Queue, MPIS_Request*);
  * @brief This function waits for the queue to finish all enqueue tasks
  * @details
  *
+ * @ingroup user_api
  * @param [in] queue queue to wait for completion
  * @return MPIS_Success upon completion
  */
@@ -119,9 +132,11 @@ int MPIS_Enqueue_waitall(MPIS_Queue);
 
 /* New Matching Functions */
 /**
- * @brief This function attempts to match 
+ * @brief 
  * @details
- *
+ *	Wrapper around queue->match function. @ref Queue::match 
+ * 
+ * @ingroup user_api
  * @param [in] request request to match 
  * @param [in] status status object for the request.
  * @return MPIS_Success upon completion
@@ -132,6 +147,7 @@ int MPIS_Match(MPIS_Request*, MPI_Status*);
  * @brief This function synchronizes all the requests in the supplied list. 
  * @details
  *
+ * @ingroup user_api
  * @param [in] length number of requests in the supplied arrays. 
  * @param [in] requests array of requests to match
  * @param [in] status array of status objects for each of the requests. 
@@ -194,6 +210,7 @@ int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
  * @brief This function blocks until the supplied request completes
  * @details
  *
+ * * @ingroup user_api
  * @param [in] buf buffer containing the message
  * @param [in] count number of elements in buf
  * @param [in] datatype the MPI_Datatype of the elements in buf 
@@ -215,9 +232,11 @@ int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
  * @brief This function blocks until the supplied request completes
  * @details
  *
+ * @ingroup user_api
  * @param [in] buf buffer containing the message
  * @param [in] count number of elements in buf
  * @param [in] datatype the MPI_Datatype of the elements in buf 
+ * @param [in] dest the process to send the message
  * @param [in] dest the process to send the message
  * @param [in] tag tag to be used when matching messages
  * @param [in] comm MPI_Communicator to be used
