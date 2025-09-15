@@ -629,8 +629,10 @@ public:
     void wait_gpu(hipStream_t* the_stream) override;
 };
 
-/** @brief 
+/** @brief Class to monitor internal completion events. 
  *  @details
+ *		Records completion of the chain of events necessary to setup the communication rather than 
+ *      the total completion of the request
  *
  *   \todo Ask Derek about function
  */
@@ -765,7 +767,7 @@ enum CommunicationType
     TWO_SIDED = 2, //!< Two-sided communication (Send/Recv) not yet implemented
 };
 
-/** @brief Sends message to remote process
+/** @brief Templated class for sending and monitoring a message to a remote process. 
  *  @details
  *    Operations used depend on MODE of communication selected. 
  *    Only one-sided communication is currently supported. 
