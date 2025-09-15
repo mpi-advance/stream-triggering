@@ -1,6 +1,15 @@
 #include "common.hpp"
 #include "timers.hpp"
 
+void allocate_gpu_memory(void** location, size_t size)
+{
+#ifndef FINE_GRAINED_TEST
+    force_gpu(hipMalloc(location, size));
+#else
+    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
+#endif
+}
+
 int main(int argc, char* argv[])
 {
     int mode;

@@ -9,13 +9,21 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // I want "two params"
-    check_param_size(&argc, 2,
-                     "<program> <number of iterations> <buffer size>");
+    check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
 
     // Input parameters
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
     read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+
+    // Info hint for buffer
+    MPI_Info mem_info;
+    MPI_Info_create(&mem_info);
+#ifndef FINE_GRAINED_TEST
+    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
+#else
+    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
+#endif
 
     // Make Buffers
     int BLOCK_SIZE = 128;
@@ -23,8 +31,8 @@ int main(int argc, char* argv[])
 
     void* send_buf = nullptr;
     void* recv_buf = nullptr;
-    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE * 2);
-    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE * 2);
+    MPIS_GPU_mem_alloc(sizeof(int) * BUFFER_SIZE * 2, mem_info, &send_buf);
+    MPIS_GPU_mem_alloc(sizeof(int) * BUFFER_SIZE * 2, mem_info, &recv_buf);
 
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE * 2);
@@ -50,15 +58,6 @@ int main(int argc, char* argv[])
     MPIS_Queue_init(&my_queue, THREAD, &my_stream);
 #endif
 
-    // Info hint
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
-#else
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
-#endif
-
 #define SEND_REQ (rank ^ 1)
 #define RECV_REQ (rank & 1)
 
@@ -66,13 +65,13 @@ int main(int argc, char* argv[])
     MPIS_Request my_reqs[2];
     MPIS_Request my_other_reqs[2];
     MPIS_Request match_reqs[2];
-    int offset = sizeof(int) * BUFFER_SIZE;
+    int          offset = sizeof(int) * BUFFER_SIZE;
     if (0 == rank % 2)
     {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[SEND_REQ]);
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[RECV_REQ]);
         MPIS_Send_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
                        MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
         MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
@@ -80,10 +79,10 @@ int main(int argc, char* argv[])
     }
     else
     {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       mem_info, &my_reqs[SEND_REQ]);
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[RECV_REQ]);
+        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+                       &my_reqs[SEND_REQ]);
         MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
                        MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
         MPIS_Send_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
@@ -120,8 +119,8 @@ int main(int argc, char* argv[])
 #endif
             MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
             MPIS_Enqueue_waitall(my_queue);
-            //print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //    (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
         }
         else
         {
@@ -130,8 +129,8 @@ int main(int argc, char* argv[])
 #ifdef THREAD_BACKEND
             MPIS_Queue_wait(my_queue);
 #endif
-            //print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+            // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            //      (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
@@ -167,6 +166,8 @@ int main(int argc, char* argv[])
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
     MPIS_Request_freeall(2, my_other_reqs);
+    MPIS_Free_gpu_mem(send_buf);
+    MPIS_Free_gpu_mem(recv_buf);
 
     MPI_Info_free(&mem_info);
 
