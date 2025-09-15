@@ -30,7 +30,6 @@ public:
 	 *   If barrier operation no request is generated. 
      *
 	 * @param [in] req Request to interpret core operation from 
-	 * \todo why explicit?
 	*/
     explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req), threshold(0)
     {

@@ -15,6 +15,7 @@ namespace Communication
  *		executed in serial or started in parallel. \n
  *      Note entries are NOT removed from item vector after completion
  * 
+ * @ingroup thread
  */ 
 	
 class Bundle

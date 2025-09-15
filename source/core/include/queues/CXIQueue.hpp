@@ -22,6 +22,11 @@
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
 
+/** \defgroup CXI CXI LibFabric Backend
+ * @brief Internal Functions utilized when the CIX libFabric backend is called. 
+ * @ingroup backends
+ */
+
 /** @brief calculate the memory size of the buffer in req
  * @param [in] req Request with the buffer to size
  * @return the memory size of the buffer 
@@ -196,8 +201,10 @@ public:
 
 
 
-	/** @brief
+	/** @brief progress jobs until enough space is free to start new request
 	 * @details
+	 *   Progresses queue until there is space in the completion queue
+	 *   to hold new completion event. 
 	 *  
 	 * @param [in, out] completion_cntr completion counter
 	 */
@@ -227,6 +234,7 @@ public:
     }
 
 private:
+	/** @brief goes through registered counters and updates free space in the queue*/
     //goes through known counters and updates free space for more operations in dwq. 
     inline void update_space_free()
     {
@@ -246,7 +254,14 @@ private:
     }
 
     // Control of DFWQ Space
+	/** @brief amount of space in the queue to hold requested operation
+	*  @details
+	*	 Each requested operation consists of 3 libfabric operations. 
+	*/
     const uint64_t total_space = 84; //unit is CXISends which consist of 3 libfabric operations. 
+	
+	/** @brief amount of space currently occupied in the queue */
+	/** @brief amount of space currently occupied in the queue */
     uint64_t       space_used  = 0;
 
     /** @brief  Progress counter **/
@@ -257,7 +272,7 @@ private:
     std::map<struct fid_cntr*, uint64_t> known_completion_map;
 };
 
-/** @brief 
+/** @brief wrapper for LibFabric counter
  *  @details
  *
  * 
@@ -266,6 +281,9 @@ class CXICounter
 {
 public:
 	//wrapper for libF counter
+	/** @brief register a counter on the given domain
+	* @param [in] domain Libfabric domain on which to create counter
+	*/
     static struct fid_cntr* alloc_counter(struct fid_domain* domain)
     {
         struct fid_cntr*    new_ctr;
@@ -277,7 +295,7 @@ public:
         return new_ctr;
     }
 
-	//wrapper for cxi extension and libf counter 
+	/** @brief create and register a counter on the given domain*/
     CXICounter(struct fid_domain* domain) : counter(alloc_counter(domain))
     {
         // Open (create) CXI Extension object
@@ -292,6 +310,7 @@ public:
         force_hip(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
     }
 
+	/** @brief delete and deregister counter from domain */
     ~CXICounter()
     {
         // Free counter
@@ -299,20 +318,25 @@ public:
         force_hip(hipHostUnregister(mmio_addr));
     }
 
-	//print out counter value
+	/** @brief print out counter value */
     void print()
     {
         size_t value = fi_cntr_read(counter);
         Print::out("Value: ", value);
     }
 
-    // Libfabric Structs
+   /** @brief Libfabric counter */
     struct fid_cntr*        counter;
-    struct fi_cxi_cntr_ops* counter_ops;
+    
+	/** @brief control structure for Libfabric counter */
+	struct fi_cxi_cntr_ops* counter_ops;
     // MMIO Pointers
+	/** @brief registered main memory address */
     void*  mmio_addr;
-    size_t mmio_addr_len;
-    void*  gpu_mmio_addr;
+    /** @brief length of the memory address */
+	size_t mmio_addr_len;
+    /** @brief registered memory address on the gpu */
+	void*  gpu_mmio_addr;
 };
 
 /** @brief Get unique key id for memory location to pass between peer processes */
@@ -326,16 +350,20 @@ static size_t getMRID()
 /** @brief abstraction around concept of completion buffer
  *  @details
  *    array of memory slots for completions
+ *    registered with Libfabric and linked with a counter. 
+ *	  
  * 
  */
 class CompletionBuffer
 {
 public:
+	/** @brief create blank memory region label and allocate memory for buffer **/
     CompletionBuffer() : my_mr(nullptr)
     {
         force_hip(hipHostMalloc(&buffer, DEFAULT_SIZE, hipHostMallocDefault));
     }
 
+	/** @brief Deregister memory reserved for completion buffer if necessary, then delete object */
     ~CompletionBuffer()
     {
         if (my_mr)
@@ -345,7 +373,9 @@ public:
         check_hip(hipHostFree(buffer));
     }
 
+	/**@brief disables copy constructor */
     CompletionBuffer(const CompletionBuffer& other) = delete;
+	/**@brief move constructor */
     CompletionBuffer(CompletionBuffer&& other)
     {
         buffer       = other.buffer;
@@ -354,7 +384,9 @@ public:
         other.my_mr  = nullptr;
     }
 
+	/**@brief disable copy constructor */
     CompletionBuffer& operator=(const CompletionBuffer& rhs) = delete;
+	/**@brief move constructor */
     CompletionBuffer& operator=(CompletionBuffer&& other)
     {
         buffer       = other.buffer;
@@ -364,7 +396,7 @@ public:
         return *this;
     }
 
-	//registers completion buffers inside libFabric space. 
+	/** @brief register completion buffer with libFabric */
     void register_mr(struct fid_domain* domain, struct fid_ep* main_ep)
     {
         force_libfabric(fi_mr_reg(domain, buffer, DEFAULT_SIZE,
@@ -376,13 +408,19 @@ public:
         force_libfabric(fi_mr_enable(my_mr));
     }
 
-	// necessary for order of operations during cleanup (statics get killed last, needs to cleanup sooner)
+	// 
+	/** @brief de-register memory with Libfabric
+	 *  @details
+	 *   necessary for order of operations during cleanup (statics get killed last, needs to cleanup sooner)
+	 */.
     void free_mr()
     {
         check_libfabric(fi_close(&(my_mr)->fid));
         my_mr = nullptr;
     }
 
+
+	/** @brief register memory with Libfabric */
     Buffer alloc_buffer()
     {
         if (current_index >= DEFAULT_ITEMS)
@@ -394,19 +432,25 @@ public:
         current_index++;
         return Buffer(x, DEFAULT_SIZE, fi_mr_key(my_mr), offset_value);
     }
-
+	
+	/** @brief id of the memory region for libFabric */.
     struct fid_mr* my_mr;
+	/** @brief Pointer to start of buffer */.
     void*          buffer;
-    size_t         current_index;
+    /** @brief currently non-filled index of the buffer */.
+	size_t         current_index;
 
+	/** @brief default limit for number of completions */.
     static constexpr size_t DEFAULT_ITEMS     = 1000; //default limit for number of completions
+	/** @brief size of a completion event */.
     static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(size_t); //size of "completion"
+	/** @brief amount of memory necessary to hold buffer */.
     static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE; //"amount of memory to allocate to hold completions"
 };
 
-/** @brief 
+/** @brief A interface for different requests to be used by CXIQueue
  *  @details
- *
+ *		Each different operation expands this class to handle a specific operation. 
  * 
  */
 class CXIRequest
@@ -420,7 +464,7 @@ public:
     }
     virtual ~CXIRequest() = default;
 	
-	/** @brief */
+	/** @brief start processing on stream and host. */
     virtual void start(hipStream_t* the_stream, Threshold& threshold,
                        CXICounter& trigger_cntr)
     {
@@ -439,25 +483,43 @@ public:
     }
 
 protected:
+	/** @brief start requested process on host
+	 * @param [in, out] the_stream the stream being processed
+	 * @param [in] threshold threshold value to check for completion
+	 * @param [out] trigger_cntr Libfabric trigger counter. 
+	 */
     virtual void start_host(hipStream_t* the_stream, Threshold& threshold,
                             CXICounter& trigger_cntr) = 0;
+							
+	/** @brief start requested process on gpu
+	 * @param [in, out] the_stream the stream being processed
+	 * @param [in] threshold threshold value to check for completion
+	 * @param [out] trigger_cntr Libfabric trigger counter. 
+	 */
     virtual void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                            CXICounter& trigger_cntr)  = 0;
-
+    /** Type of GPU Memory to use with request */
     GPUMemoryType memory_type;
+	/** @brief buffer to hold completion signals**/
     Buffer        completion_buffer;
+	/** @brief number of times request has been started **/
     size_t        num_times_started;
 };
 
-/** @brief 
+/** @brief wrapper around MPI_Barrier request so that libFabric can track completion. 
  *  @details
- *
- * 
+ *		Uses "GPUMemoryType::FINE" because this doesn't need a flush
  */
 class FakeBarrier : public CXIRequest
 {
 public:
     // Uses "GPUMemoryType::FINE" because this doesn't need a flush
+	/** @brief allocate memory to hold responses from each process. 
+	 *  @param buffer
+	 *  @param comm
+	 *  @param dwq pointer to deffered work queue
+	 *
+	 */
     FakeBarrier(Buffer buffer, MPI_Comm comm, DeferredWorkQueue& dwq)
         : CXIRequest(GPUMemoryType::FINE, buffer),
           comm_to_use(comm),
@@ -475,6 +537,7 @@ public:
         force_hip(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
     }
 
+	/** @brief wait for thread to join then deallocate memory on the GPU*/
     ~FakeBarrier()
     {
         thr.join();
@@ -482,6 +545,9 @@ public:
         check_hip(hipHostFree(host_wait_location));
     }
 
+	/** @brief wait until value is written in theshold location 
+	* @param [in] the_stream the stream processing the active queue 
+	*/
     void wait_gpu(hipStream_t* the_stream) override
     {
         force_hip(
@@ -500,15 +566,16 @@ protected:
         }
 
         /* And normal thread joining check */
-        if (thr.joinable()p)
+        if (thr.joinable())
         {
             thr.join();
-        }p
+        }
         /* Launch thread */
         finished = false;
         thr      = std::thread(&FakeBarrier::thread_function, this, threshold.value());
     }
-
+	
+	/** @brief write threshold value in known location **/
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override
     {
@@ -517,6 +584,7 @@ protected:
     }
 
 private:
+	/** @brief thread waits for signal from GPU then invokes barrier */
     void thread_function(size_t thread_threshold)
     {
         /* Wait for signal from GPU */
@@ -535,17 +603,22 @@ private:
     }
 
     // Memory locations
+	/** @brief memory location on host to watch to signal start*/
     size_t* host_start_location;
+	/** @brief memory location on host to watch to signal completion*/
     size_t* host_wait_location;
 
+	/** @brief memory location on gpu to watch to signal start*/
     void* gpu_start_location;
+	/** @brief memory location on gpu to watch to signal completion*/
     void* gpu_wait_location;
-    // MPI Variables
+    /** @brief MPI Communciator to use */
     MPI_Comm comm_to_use;
-    // Thread
+    /** @brief handle to thread */
     std::thread thr;
     bool        finished = true;
     // Progress
+	/** @brief handle to deferred work queue */
     DeferredWorkQueue& progress_engine;
 };
 
@@ -559,7 +632,7 @@ public:
 /** @brief 
  *  @details
  *
- * 
+ *   \todo Ask Derek about function
  */
 template <bool FENCE = false>
 class ChainedRMA
@@ -620,6 +693,8 @@ public:
         chain_work_local.op.rma  = &local_base_rma;
         chain_work_remote.op.rma = &remote_base_rma;
     }
+	
+	/** @brief register the memory buffer and counter with libFabric*/
     void queue_work(struct fid_domain* domain)
     {
         /* Increase thresholds before starting! */
@@ -632,35 +707,49 @@ public:
         // print_dfwq_entry(&chain_work_local, "Chain work local completion");
         check_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, &chain_work_local));
     }
-
+	
+	/** @brief getter for memory address */
     uint64_t* get_rma_iov_addr_addr()
     {
         return &(remote_rma_iov.addr);
     }
 
+	/** @brief getter for memory key */
     uint64_t* get_rma_iov_key_addr()
     {
         return &(remote_rma_iov.key);
     }
-
+ 
+    /** @brief getter for threshold */
     uint64_t get_threshold()
     {
         return chain_work_remote.threshold;
     }
 
 private:
+    /** @brief local work queue */
     struct fi_deferred_work chain_work_local;
+	/** @brief registered local memory window */
     struct fi_op_rma        local_base_rma;
+	/** @brief local memory buffer */
     struct fi_rma_iov       local_rma_iov;
 
+	/** @brief remote work queue */
     struct fi_deferred_work chain_work_remote;
+	/** @brief registered local memory window */
     struct fi_op_rma        remote_base_rma;
+	/** @brief registered memory buffer */
     struct fi_rma_iov       remote_rma_iov;
 
+	/** @brief io buffer **/
     struct iovec chain_iovec;
 
+	/** @brief maximum number of completion values to allow at once **/
     static constexpr int MAX_COMP_VALUES = 100000;
+	
+	/** @brief current empty index of completion buffer */
     int                  index           = 0;
+	/** @brief address of completion buffer */
     std::vector<int>     completion_addrs;
 };
 
@@ -676,10 +765,10 @@ enum CommunicationType
     TWO_SIDED = 2, //!< Two-sided communication (Send/Recv) not yet implemented
 };
 
-/** @brief 
+/** @brief Sends message to remote process
  *  @details
  *    Operations used depend on MODE of communication selected. 
- * 
+ *    Only one-sided communication is currently supported. 
  */
 template <CommunicationType MODE>
 class CXISend : public CXIWait
@@ -688,9 +777,10 @@ class CXISend : public CXIWait
                                             struct fi_op_rma, struct fi_op_msg>;
 
 public:
-	/** @brief 
+	/** @brief Send a message to the target peer
 	*  @details
-	*     
+	*     Exchange necessary memory keys if one-sided.
+	*     If one-sided Write message in remote memory
 	* 
 	*/
     CXISend(Buffer local_completion, Request& user_request, struct fid_domain* domain,
@@ -727,7 +817,7 @@ public:
             static_assert(false, "TWO SIDED not implemented yet");
         }
         work_entry.op.rma = &message_description;
-
+		
         auto data_len = static_cast<size_t>(get_size_of_buffer(user_request));
         msg_iov       = {user_request.buffer, data_len};
         /* Last field will be filled in by the match! */
@@ -750,11 +840,7 @@ public:
     }
 
 
-    /** @brief 
-	*  @details
-	*     
-	* 
-	*/
+    /** @brief clear and deregister completion queues */
     ~CXISend()
     {
         my_queue.clear_completion_counter(completion_c,
@@ -765,11 +851,7 @@ public:
         force_libfabric(fi_close(&completion_c->fid));
     }
 
-	/** @brief 
-	*  @details
-	*     
-	* 
-	*/
+	//** @brief set counters and start processing queue
     void start_host(hipStream_t* the_stream, Threshold& threshold,
                     CXICounter& trigger_cntr) override
     {
@@ -798,40 +880,47 @@ public:
         my_queue.consume();
     }
 
-	/** @brief 
-	*  @details
-	*     
-	* 
-	*/
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override;
 
 private:
-    // Structs for the DFWQ Entry:
+    /** @brief Entry for the DFWQ */
     struct fi_deferred_work work_entry;
+	
+	/** @brief Type of message to be sent */
     FI_DFWQ_TYPE            message_description;
+	
+	/** @brief message buffer */
     struct iovec            msg_iov;
     // Always here, if if not always used.
+	/** @brief pointer to rma window */
     struct fi_rma_iov msg_rma_iov;
     // Keep the domain pointer for later use
+	/** @brief pointer to registered domain */
     struct fid_domain* domain_ptr;
 
+	/** @brief deferred work queue */
     DeferredWorkQueue& my_queue;
 
+	/** @brief completion counter for 1st entry in memory tuple **/.
     struct fid_cntr*  completion_a;
+	/** @brief completion counter for 2nd entry in memory tuple **/.
     struct fid_cntr*  completion_b;
+	/** @brief completion counter for 3rd entry in memory tuple **/.
     struct fid_cntr*  completion_c;
+
     ChainedRMA<false> my_chained_completions;
 };
 
-/** @brief 
+/** @brief Receive message from remote process
  *  @details
- *
- * 
+ *		Sets up window and sends memory keys to the originating process
  */
 class CXIRecvOneSided : public CXIWait
 {
 public:
+	/** @brief register buffers, window, and endpoint then send memory keys to peer
+	 */
     CXIRecvOneSided(Buffer& comp_buffer, Request& user_request, struct fid_domain* domain,
                     struct fid_ep* main_ep)
         : CXIRequest(user_request.get_memory_type(), comp_buffer)
@@ -855,18 +944,21 @@ public:
         Communication::OneSideMatch::give(matching_data, user_request);
     }
 
+	/** @brief delete and deregister memory*/
     ~CXIRecvOneSided()
     {
         // Free MR
         force_libfabric(fi_close(&(my_mr)->fid));
     }
 
+    /** @brief not needed as no processing done on this end **/
     void start_host(hipStream_t* the_stream, Threshold& threshold,
                     CXICounter& trigger_cntr) override
     {
         // Do nothing
     }
 
+	/** @brief not needed as no processing done on this end **/
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override
     {
@@ -875,13 +967,16 @@ public:
 
 private:
     // Allocated Libfabric Objects
-    struct fid_mr* my_mr;
+    /** @brief id of memory_keys */
+	struct fid_mr* my_mr;
+	
+	/** @brief pointer to memory keys **/
     uint64_t       mr_key_storage;
 };
 
-/** @brief 
+/** @brief Queue for use with CXI Libfabric operations. 
  *  @details
- *
+ *	Uses HIP API's for the stream. 
  * 
  */
 class CXIQueue : public Queue
@@ -889,6 +984,7 @@ class CXIQueue : public Queue
 public:
     using CXIObjects = std::unique_ptr<CXIRequest>;
 
+	/** @brief setup counters and register processes with Libfabric*/
     CXIQueue(hipStream_t* stream_addr)
         : comm_base(MPI_COMM_WORLD), the_stream(stream_addr)
     {
@@ -909,6 +1005,9 @@ public:
         libfabric_teardown();
     }
 
+	/** @brief get new threshold trigger, flush memory if necessary and start request 
+	 *  @param [in, out] qe request to Start
+	 */
     void enqueue_operation(std::shared_ptr<Request> qe) override
     {
         queue_thresholds.increment_threshold();
@@ -919,6 +1018,9 @@ public:
         enqueue_request(*qe);
     }
 
+	/** @brief get new threshold trigger, flush memory if necessary and start request 
+	 *  @param [in, out] requests vector of requests to Start
+	 */
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
         bool shouldFlush = true;
@@ -933,22 +1035,6 @@ public:
         }
     }
 
-
-    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
-    {
-        bool shouldFlush = true;
-        queue_thresholds.increment_threshold();
-        for (auto& req : requests)
-        {
-            if (shouldFlush && GPUMemoryType::COARSE == req->get_memory_type())
-            {
-                flush_memory(the_stream);
-                shouldFlush = false;
-            }
-            enqueue_request(*req);
-        }
-    }
-
     void enqueue_waitall() override;
 
 	/** @brief force synchronization with stream*/
@@ -958,11 +1044,11 @@ public:
         force_hip(hipStreamSynchronize(*the_stream));
     }
 
-	/** @brief match 
+	/** @brief match request type and prep for execution.  
 	 * @details
-	 * Override of match function. 
-	 * If Barrier Operation: 
-	 * If not 
+	 * Override of match function, behavior depends on matched operation. 
+	 * If Barrier Operation: queue barrier request 
+	 * If not: prepare memory keys for transfer. 
 	*/
     void match(std::shared_ptr<Request> qe) override
     {
@@ -982,20 +1068,22 @@ public:
 
 private:
 
-    /** @brief 
-	 *  @param [in] size
+    /** @brief setup libfabric endpoints
+	 *  @details
+	 *    Currently setup to run to use GFX90A GPU's for running on Tioga
+     *    \todo What happens in default case? Why is USE_GFX90A required for Tioga? See line 34 in CXIQueue.cpp
+     * 	 
+	 * 
+	 *  @param [in] size size of MPI_COMM_WORLD
 	 */
     void libfabric_setup(int size);
     
     /** @brief Get the libfabric addresses of other processes. 
-	 *  @details
-	 *    
-	 * 
-	 *  @param [in] size
+	 *  @param [in] size size of MPI_COMM_WORLD
 	 */
 	void peer_setup(int size);
 	
-	 /** @brief allocate local completion buffer
+	 /** @brief prepare memory key tuple for transfer
 	 * @details
 	 * Data to be exchanged (receiver sends this, sender receives this)
      * 1. MR key for receive buffer
@@ -1047,7 +1135,7 @@ private:
     /** @brief The counters for receiving */
 	struct fid_cntr*   recv_ctr; 
 
-    /** @brief Communicator for context */
+    /** @brief Communicator for context default is MPI_COMM_WORLD*/
     MPI_Comm               comm_base;
     /** @brief rank of this process in the Communicator */
 	int                    my_rank;

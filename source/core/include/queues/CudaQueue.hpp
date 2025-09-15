@@ -13,12 +13,17 @@
 #include "abstract/entry.hpp"
 #include "abstract/queue.hpp"
 
+/** \defgroup cuda CUDA Backend
+ * @brief Internal Functions utilized when the CUDA backend is called. 
+ * @ingroup backends
+ */
+
 /** @brief Derived class from QueueEntry to work with CUDA enabled GPU's
  * @details
  *	 includes overrides for the virtual functions in QueueEntry
  *   as well as flags and pointers for signaling between the cpu and gpu.
+ * @ingroup cuda
  */
-
 class CudaQueueEntry : public QueueEntry
 {
 public:
@@ -60,6 +65,7 @@ protected:
  * @details
  *	 includes overrides for the virtual functions in Queue
  *   contains pointer to Cudastream and monitoring thread. 
+ * @ingroup cuda
  */
 class CudaQueue : public Queue
 {

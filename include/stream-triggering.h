@@ -13,6 +13,16 @@
 extern "C" {
 #endif
 
+
+/** \defgroup backends Supported backend 
+ * @brief Supported backend libraries
+ * @details 
+ *  
+ */
+
+
+
+
 /** \defgroup user_api User-facing MPIS functions
  * @brief Functions designed to be called by end users
  * @details 
@@ -220,9 +230,6 @@ int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
  * @param [in] info MPI_info object to control behavior
  * @param [out] request request object generated for the request
  * @return MPIS_Success upon completion
- 
- \todo confirm where MPI_Info object options/details need to go. 
-
  
  */
 int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,

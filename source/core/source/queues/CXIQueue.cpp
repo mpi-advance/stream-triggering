@@ -31,7 +31,6 @@ void CXIQueue::libfabric_setup(int num_ranks)
     force_libfabric(fi_getinfo(FI_VERSION(1, 15), 0, 0, 0, hints, &fi));
 
     /* Code specific to tioga -- ADD REASON */
-	/** \todo ADD REASON for tioga specfic code */
 #ifdef USE_GFX90A
     int device = -1;
     force_hip(hipGetDevice(&device));

@@ -13,10 +13,16 @@
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 
+/** \defgroup thread Threading Backend
+ * @brief Internal Functions utilized when the threading backend is called. 
+ * @ingroup backends
+ */
+
 /**
  * @brief A thread based queue to process requests
  * @details  
  *   works with Bundles instead of QueueEntry
+ * @ingroup thread
  * 
 */
 template <bool isSerialized>
@@ -26,7 +32,6 @@ public:
     using InternalRequest = QueueEntry;
     using UserRequest     = std::shared_ptr<Request>;
 
-	/** \todo why print out here?  */
     ThreadQueue() : thr(&ThreadQueue::progress, this)
     {
         Print::out("Thread Queue init-ed");
