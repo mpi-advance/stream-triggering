@@ -26,17 +26,10 @@ enum MPIS_Queue_type
     THREAD            = 0,
     THREAD_SERIALIZED = 1,
     GPU_MEM_OPS       = 3,
-    HPE               = 4,
-    MPICH_IMPL        = 5,
-    CXI               = 6
+    CXI               = 4
 };
 
-extern MPIS_Queue ACTIVE_QUEUE;
-
-
 void MPIS_Hello_world();
-
-// APIs from 7/25/24
 
 /* Queue Management */
 // int MPIS_Queue_fence();
@@ -71,7 +64,9 @@ int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
 int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
                    MPI_Info, MPIS_Request*);
 
-// End APIs from 7/25/24
+/* New GPU Memory Allocation functions */
+int MPIS_GPU_mem_alloc(MPI_Aint, MPI_Info, void**);
+int MPIS_Free_gpu_mem(void*);
 
 #ifdef __cplusplus
 }

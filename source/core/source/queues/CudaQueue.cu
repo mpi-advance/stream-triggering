@@ -1,6 +1,6 @@
 #include "misc/print.hpp"
 #include "queues/CudaQueue.hpp"
-#include "safety/cuda.hpp"
+#include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
 CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)

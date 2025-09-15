@@ -6,6 +6,8 @@ target_sources(stream-triggering
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_start.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_startall.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_waitall.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Free_gpu_mem.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_GPU_mem_alloc.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Imatch.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Is_matched.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Match.cc"

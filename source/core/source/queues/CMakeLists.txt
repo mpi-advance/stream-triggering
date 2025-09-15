@@ -13,13 +13,6 @@ if(USE_HIP_BACKEND)
  )
 endif()
 
-if(USE_HPE_BACKEND)
-	target_sources(stream-triggering
-		PRIVATE
-			"${CMAKE_CURRENT_SOURCE_DIR}/HPEQueue.cc"
-	)
-endif()
-
 if(USE_CXI_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
