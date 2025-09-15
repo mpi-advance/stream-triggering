@@ -160,9 +160,9 @@ public:
 	 *  Should be overloaded if stream is going to be run on GPU
 	 *  Function when overridden should start supplied stream. 
      *  If not overridden (e.g no host) does nothing. 
-	 *  @param [in, out] stream stream to wait on. 
+	 *  @param [in, out] the_stream stream to wait on. 
 	 */
-    virtual void wait_gpu(void* stream)
+    virtual void wait_gpu(void* the_stream)
     {
         // Does nothing in base class.
     }

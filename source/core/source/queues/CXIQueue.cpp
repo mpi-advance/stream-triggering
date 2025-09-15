@@ -184,6 +184,7 @@ __global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value
     }
 }
 
+/** @brief flush the write back the L2 buffer*/
 __global__ void flush_buffer()
 {
     asm volatile("buffer_wbl2");

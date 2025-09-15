@@ -9,7 +9,8 @@ namespace Print
 inline int rank = -10;
 
 /** @brief set rank to new_rank
- *  @param [in] new_rank rank to set. 
+ * @ingroup debug 
+ *  @param [in] new_rank rank to print. 
  */
 inline void initialize_rank(int new_rank)
 {
@@ -17,11 +18,9 @@ inline void initialize_rank(int new_rank)
 }
 
 /** @brief Recursively prints the items supplied in args. 
- *  @details 
- *	
- * 
- *  @param [in] Args
- *  @param [in] args lists of arguments to print 
+ * @ingroup debug 
+ *  @param [in] arg item to print
+ *  @param [in] args lists of arguments to print Recursively.  
  */
 template <typename T, typename... Args>
 void print_out_r(const T& arg, Args&&... args)
@@ -34,10 +33,7 @@ void print_out_r(const T& arg, Args&&... args)
 }
 
 /** @brief Recursively prints the ranks supplied in args. 
- *  @details 
- *	
- * 
- *  @param [in] Args
+ * @ingroup debug 
  *  @param [in] args lists of arguments to print 
  */
 template <bool UseRanks = true, typename... Args>
@@ -50,6 +46,10 @@ void always(Args&&... args)
     print_out_r(std::forward<Args>(args)...);
 }
 
+/** @brief Recursively prints the ranks supplied in args if debug flag is set
+ * @ingroup debug 
+ *  @param [in] args lists of arguments to print 
+ */
 template <bool UseRanks = true, typename... Args>
 void out(Args&&... args)
 {

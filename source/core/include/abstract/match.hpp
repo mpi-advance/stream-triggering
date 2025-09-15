@@ -39,7 +39,8 @@ public:
 };
 
 /** @brief constant expression to confirm the MPI_TYPE based on size of the type.  
- * @details \todo Is used by the one-sided functions below, why is this check necessary?
+ * @details 
+ *  Is used to prevent size match error when using libfabric to set up one-way communication. 
  * 
  */
 template <typename T>
@@ -63,11 +64,10 @@ constexpr MPI_Datatype type_to_use()
     }
 }
 
-/** @brief Contains static functions for synchronizing requests using one-way communication. 
+/** @brief Wrapper class contains static functions for synchronizing requests using one-way communication. 
  * @details 
- * Sending side calls give and uses Issend to confirm receipt before the request completes.
- * Receiving side calls take, posts receives and returns.
- * 
+ * Sending side calls give and uses Issend to confirm receipt. Returns immediately after posting sends.  
+ * Receiving side calls take, posts receive requests and returns.
  */
 class OneSideMatch
 {
@@ -79,6 +79,7 @@ public:
 	 * The third send only completes when the recieving peer posts that it has recieved the buffer. 
 	 * Since MPI messages are not overtaking this should ensure that the previous requests
 	 * have been received as well. 
+	 *
 	 * @param [in] data_to_exchange tuple: key to write location, key of completion buffer, offset into completion buffer array 
 	 * @param [in, out] req Request object to be synchronized. 
 	 */

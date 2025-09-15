@@ -5,14 +5,18 @@
 
 #include <iostream>
 
-/** @brief wrapper around Cuda functions to note errors and continue */
+/** @brief wrapper around Cuda functions to note errors and continue 
+ * @ingroup debug 
+ */
 #define check_cuda(function)                                                                        \
 	{                                                                                               \
 		auto err = function;                                                                        \
 		check_cuda_error(err, __FILE__, __LINE__);                                                  \
 	}
 
-/** @brief wrapper around Cuda functions to note errors and continue */
+/** @brief wrapper around Cuda functions to note errors and continue 
+* @ingroup debug 
+*/
 #define force_cuda(function)                                                                        \
 	{                                                                                               \
 		auto err = function;                                                                        \
@@ -21,6 +25,8 @@
 
 /**
  * A function to catch and display errors relayed from CUDA function. 
+ * @ingroup debug 
+ * @param err Cuda error returned. 
  * @param filename file containing the error
  * @param line line where the error occured
  */
@@ -40,7 +46,8 @@ void check_cuda_error(const cudaError_t err, const char *filename, const int lin
 
 /**
  * A function to catch and display errors relayed from CUDA functions. 
- * @param err the error code returned from a wrapped CUDA function. 
+ * @ingroup debug 
+ * @param code the error code returned from a wrapped CUDA function. 
  * @param filename file containing the error
  * @param line line where the error occured
  */

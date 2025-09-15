@@ -85,7 +85,7 @@ int MPIS_Queue_free(MPIS_Queue*);
  * @ingroup user_api
  * @param [out] queue pointer to the generated queue object
  * @param [in] type MPIS_QUEUE_Type to be created. 
- * @param [in] pointer to back-end stream object. 
+ * @param [in] extra_address pointer to back-end stream object. 
  * @return MPIS_Success upon completion, throws error if there is already an ACTIVE_QUEUE
  * /ref Queue, /ref MPIS_Queue_type
  */
@@ -105,8 +105,8 @@ int MPIS_Queue_wait(MPIS_Queue);
  * 
  * @ingroup user_api
  * @param [in] queue queue to start
- * @param [in] length the number of requests inside array of requests. 
- * @param [in] array_of_requests list of requests to enqueue. 
+ * @param [in] len the number of requests inside array of requests. 
+ * @param [in] requests array of requests to enqueue. 
  * @return MPIS_Success upon completion
  */
 int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
@@ -148,9 +148,9 @@ int MPIS_Match(MPIS_Request*, MPI_Status*);
  * @details
  *
  * @ingroup user_api
- * @param [in] length number of requests in the supplied arrays. 
+ * @param [in] len number of requests in the supplied arrays. 
  * @param [in] requests array of requests to match
- * @param [in] status array of status objects for each of the requests. 
+ * @param [in] statuses array of status objects for each of the requests. 
  * @return MPIS_Success upon completion
  */
 int MPIS_Matchall(int, MPIS_Request[], MPI_Status[]);
@@ -159,8 +159,8 @@ int MPIS_Matchall(int, MPIS_Request[], MPI_Status[]);
  * @brief This function synchronizes the supplied requests using one-sided communication 
  * @details
  *
- * @param [in] request 
- * @param [in] request 
+ * @param [in, out] request 
+ * @param [in, out] match_request
  * @return MPIS_Success upon completion
  */
 int MPIS_Imatch(MPIS_Request*, MPIS_Request*);
@@ -169,8 +169,8 @@ int MPIS_Imatch(MPIS_Request*, MPIS_Request*);
  * @brief This function checks if the supplied request has been matched or not. 
  * @details
  * 
- * @param [in] request to the check status of
- * @param [out] result is set to 1 if true or 0 if false. 
+ * @param [in] request request to query
+ * @param [out] matched  set to 1 if true or 0 if false. 
  * @return MPIS_Success upon completion
  */
 int MPIS_Is_matched(MPIS_Request*, int*);
@@ -211,7 +211,7 @@ int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
  * @details
  *
  * * @ingroup user_api
- * @param [in] buf buffer containing the message
+ * @param [in] buffer pointer to buffer containing the message
  * @param [in] count number of elements in buf
  * @param [in] datatype the MPI_Datatype of the elements in buf 
  * @param [in] src the process rank sending the message
@@ -233,10 +233,9 @@ int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
  * @details
  *
  * @ingroup user_api
- * @param [in] buf buffer containing the message
+ * @param [in] buffer pointer to buffer containing the message
  * @param [in] count number of elements in buf
  * @param [in] datatype the MPI_Datatype of the elements in buf 
- * @param [in] dest the process to send the message
  * @param [in] dest the process to send the message
  * @param [in] tag tag to be used when matching messages
  * @param [in] comm MPI_Communicator to be used

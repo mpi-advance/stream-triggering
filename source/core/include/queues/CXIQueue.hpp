@@ -237,7 +237,7 @@ private:
             if (curr_value != last_value)
             {
                 Print::out("*** Counter", counter, "was updated from", last_value, "to",
-                           curr_value);
+                        curr_value);
                 space_used -= (curr_value - last_value);
                 Print::out("*** Space in use:", space_used);
                 value = curr_value;
@@ -500,10 +500,10 @@ protected:
         }
 
         /* And normal thread joining check */
-        if (thr.joinable())
+        if (thr.joinable()p)
         {
             thr.join();
-        }
+        }p
         /* Launch thread */
         finished = false;
         thr      = std::thread(&FakeBarrier::thread_function, this, threshold.value());
@@ -902,6 +902,7 @@ public:
         the_gpu_counter = std::make_unique<CXICounter>(domain);
     }
 
+	/** @brief synch with other processes then teardown and cleanup */
     ~CXIQueue()
     {
         MPI_Barrier(comm_base);
@@ -917,6 +918,21 @@ public:
         }
         enqueue_request(*qe);
     }
+
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
+    {
+        bool shouldFlush = true;
+        queue_thresholds.increment_threshold();
+		if (GPUMemoryType::COARSE == req->get_memory_type())
+		{
+			flush_memory(the_stream);
+		}
+        for (auto& req : requests)
+        {
+            enqueue_request(*req);
+        }
+    }
+
 
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
@@ -971,7 +987,10 @@ private:
 	 */
     void libfabric_setup(int size);
     
-    /** @brief 
+    /** @brief Get the libfabric addresses of other processes. 
+	 *  @details
+	 *    
+	 * 
 	 *  @param [in] size
 	 */
 	void peer_setup(int size);

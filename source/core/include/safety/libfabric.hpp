@@ -5,14 +5,18 @@
 
 #include <iostream>
 
-/** @brief wrapper around libfabric functions to note errors and continue */
+/** @brief wrapper around libfabric functions to note errors and continue 
+ * @ingroup debug 
+ */
 #define check_libfabric(function)             \
     {                                         \
         int err = function;                   \
         check_error(err, __FILE__, __LINE__); \
     }
 
-/** @brief wrapper around libfabric functions to catch errors and terminate */
+/** @brief wrapper around libfabric functions to catch errors and terminate 
+ * @ingroup debug 
+ */
 #define force_libfabric(function)                   \
     {                                               \
         int err = function;                         \
@@ -22,6 +26,7 @@
 	
 /**
  * A function to catch and display errors relayed from HIP functions. 
+ * @ingroup debug 
  * @param err the error code returned from a wrapped libfabric function. 
  * @param filename file containing the error
  * @param line line where the error occured

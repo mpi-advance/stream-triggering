@@ -20,12 +20,7 @@ namespace Communication
 class Bundle
 {
 public:
-    /** @brief default constructor
-	 *  @details
-	 * 		items is created as an empty vector. 
-	 *
-	 *      \todo Ask if function is necessary
-	 */ 
+    /** @brief default constructor */
     Bundle() {};
 
 	/** @brief add the supplied QueueEntry to internal items vector

@@ -57,8 +57,8 @@ public:
     /** @brief MPI_Info object containing control values for the operation.  
 	 * @details
 	 * The MPI_Info object uses the following key/value pairs 
-	 * Key
-	 *
+	 * Keys 
+	 *   MPIS_GPU_MEM_TYPE: COARSE, FINE
 	 */
 	MPI_Info     info;
 
@@ -128,7 +128,7 @@ public:
 	 * @details 
 	 * Expands match_requests to be able to hold num MPI_Requests.
      *
-	 * @param [in] number of requests to create in vector
+	 * @param [in] num number of requests to create in vector
 	 * @return pointer to first MPI_Request inside match_requests
 	 */
     MPI_Request* get_match_requests(size_t num)
@@ -138,13 +138,8 @@ public:
         return match_requests.data();
     }
 
-    /** @brief Function sets vector of requests to match against
-	 * @details 
-	 * Expands match_requests to be able to hold num MPI_Requests.
-     *
-	 * @param [in] number of requests to create in vector
-	 * @return pointer to first MPI_Request inside match_requests
-	 */
+    /** @brief Wait for request to be matched, sets matched to true */
+
     void wait_on_match()
     {
         check_mpi(MPI_Waitall(match_requests.size(), match_requests.data(),

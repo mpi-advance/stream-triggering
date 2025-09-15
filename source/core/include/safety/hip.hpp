@@ -4,14 +4,18 @@
 #include <hip/hip_runtime.h>
 #include <iostream>
 
-/** @brief wrapper around HIP functions to note errors and continue */
+/** @brief wrapper around HIP functions to note errors and continue 
+ * @ingroup debug 
+ */
 #define check_hip(function)                                                                        \
 	{                                                                                              \
 		auto err = function;                                                                       \
 		check_hip_error(err, __FILE__, __LINE__);                                                  \
 	}
 
-/** @brief wrapper around HIP functions to catch errors and terminate*/
+/** @brief wrapper around HIP functions to catch errors and terminate
+ * @ingroup debug 
+ */
 #define force_hip(function)                                                                        \
 	{                                                                                              \
 		auto err = function;                                                                       \
@@ -20,6 +24,7 @@
 	
 /**
  * A function to catch and display errors relayed from HIP functions. 
+ * @ingroup debug 
  * @param err the error code returned from a wrapped HPI function. 
  * @param filename file containing the error
  * @param line line where the error occured

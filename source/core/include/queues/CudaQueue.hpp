@@ -31,20 +31,15 @@ public:
 	*/
     void start_host() override;
 	
-	  /** @copydoc QueueEntry::start_gpu
-	 *	@details 
-	 *	
-	 *		
-	*/
-    void start_gpu(void*) override;
+	/** @copydoc QueueEntry::start_gpu
+	 */
+    void start_gpu(void* stream) override;
 	
 	/** @copydoc QueueEntry::wait_gpu
-	 *	@details 
-	 *	
-	 *		
 	*/
-    void wait_gpu(void*) override;
+    void wait_gpu(void* the_stream) override;
 	
+	/* @brief boolean set to true when queue is complete*/
     bool done() override;
 
 protected:

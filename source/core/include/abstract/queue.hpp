@@ -13,28 +13,27 @@ using namespace Communication;
 /** @brief mostly virtual class to serve as interface across queue types
  *  @details
  *  Contains functions to be overridden based on the derived queue class
- *  \todo what to do about purely virtual functions?
 */
 class Queue
 {
 public:
     virtual ~Queue() = default;
 	
-	/** @brief Add requested operations to an internal list 
-	 * @param [in, out] req Request object to add to pending operations queue. 
+	/** @brief start processing the supplied request. 
+	 * @param [in, out] req Request object to start
 	 */
     virtual void enqueue_operation(std::shared_ptr<Request> req) = 0;
     
-	/** @brief Add all operations in reqs to an internal list 
-	 * @param [in, out] req Request object to add to pending operations queue. 
+	/** @brief start processing the supplied requests. 
+	 * @param [in, out] reqs array of Request object to add to pending operations queue. 
 	 */
 	virtual void enqueue_startall(
         std::vector<std::shared_ptr<Request>> reqs) = 0;
     
-	/** @brief function to add requested operations to an internal list */
+	/** @brief wait for all started requests to finish */
 	virtual void enqueue_waitall()                  = 0;
 
-	/** @brief function to wait on completion of operations by host.  */
+	/** @brief function to wait on completion of operations by GPU.  */
     virtual void host_wait() = 0;
 
 	/** @brief function match requests between devices 
