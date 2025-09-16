@@ -6,6 +6,7 @@
 #endif
 #ifdef CUDA_GPUS
 #include "cuda.h"
+#include "cuda_runtime.h"
 #endif
 
 #include <iostream>
