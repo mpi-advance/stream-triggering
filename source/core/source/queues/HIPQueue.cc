@@ -1,24 +1,24 @@
 #include "queues/HIPQueue.hpp"
 
 #include "misc/print.hpp"
-#include "safety/hip.hpp"
+#include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
 HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req)
     : QueueEntry(req)
 {
-    force_hip(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
+    force_gpu(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
     *start_location = 0;
-    force_hip(hipHostGetDevicePointer(&start_dev, start_location, 0));
-    force_hip(hipHostMalloc((void**)&wait_location, sizeof(int64_t), 0));
+    force_gpu(hipHostGetDevicePointer(&start_dev, start_location, 0));
+    force_gpu(hipHostMalloc((void**)&wait_location, sizeof(int64_t), 0));
     *wait_location = 0;
-    force_hip(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
+    force_gpu(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
 
 HIPQueueEntry::~HIPQueueEntry()
 {
-    check_hip(hipHostFree(start_location));
-    check_hip(hipHostFree(wait_location));
+    check_gpu(hipHostFree(start_location));
+    check_gpu(hipHostFree(wait_location));
 }
 
 void HIPQueueEntry::start_host()
@@ -44,20 +44,20 @@ bool HIPQueueEntry::done()
 
 void HIPQueueEntry::start_gpu(void* the_stream)
 {
-    force_hip(hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev,
+    force_gpu(hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev,
                                     threshold, 0));
 }
 
 void HIPQueueEntry::wait_gpu(void* the_stream)
 {
-    force_hip(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev,
+    force_gpu(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev,
                                    threshold, 0));
 }
 
 HIPQueue::HIPQueue(hipStream_t* stream)
     : thr(&HIPQueue::progress, this), my_stream(stream)
 {
-    // force_hip(hipSetDevice(0));
+    // force_gpu(hipSetDevice(0));
 }
 
 HIPQueue::~HIPQueue()

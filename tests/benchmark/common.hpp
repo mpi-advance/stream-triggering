@@ -42,15 +42,6 @@ void check_hip_error(const hipError_t err, const char* filename, const int line)
     }
 }
 
-void allocate_gpu_memory(void** location, size_t size)
-{
-#ifndef FINE_GRAINED_TEST
-    force_gpu(hipMalloc(location, size));
-#else
-    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
-#endif
-}
-
 void device_sync()
 {
     check_gpu(hipDeviceSynchronize());
@@ -101,11 +92,6 @@ void check_cuda_error(const CUresult code, const char* filename, const int line)
             throw std::runtime_error("CU CUDA Error");
         }
     }
-}
-
-void allocate_gpu_memory(void** location, size_t size)
-{
-    force_gpu(cudaMalloc(location, size));
 }
 
 void device_sync()

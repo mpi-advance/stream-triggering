@@ -1,6 +1,8 @@
 #ifndef ST_BINDING_HELPERS
 #define ST_BINDING_HELPERS
 
+#include <functional>
+#include <map>
 #include <memory>
 #include <type_traits>
 
@@ -9,8 +11,11 @@
 #include "stream-triggering.h"
 
 #ifdef USE_CXI
-#include "safety/hip.hpp"
+#include "safety/gpu.hpp"
 #endif
+
+extern MPIS_Queue                             ACTIVE_QUEUE;
+extern std::map<void*, std::function<void()>> deletors;
 
 enum RequestState
 {
@@ -37,36 +42,38 @@ struct MPISException : public std::runtime_error
 
 static inline void print_device_info()
 {
+#ifdef HIP_GPUS
     int device = -1;
-    int count = -1;
-    force_hip(hipGetDevice(&device));
-    force_hip(hipGetDeviceCount(&count));
+    int count  = -1;
+    force_gpu(hipGetDevice(&device));
+    force_gpu(hipGetDeviceCount(&count));
     Print::out("Current Device:", device, count);
 
-    for(int i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
-        int pci_bus_id = -1;
+        int pci_bus_id    = -1;
         int pci_device_id = -1;
         int pci_domain_id = -1;
-        force_hip(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, i)); 
-        force_hip(hipDeviceGetAttribute(&pci_device_id, hipDeviceAttributePciDeviceId, i)); 
-        force_hip(hipDeviceGetAttribute(&pci_domain_id, hipDeviceAttributePciDomainID, i));
+        force_gpu(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, i));
+        force_gpu(
+            hipDeviceGetAttribute(&pci_device_id, hipDeviceAttributePciDeviceId, i));
+        force_gpu(
+            hipDeviceGetAttribute(&pci_domain_id, hipDeviceAttributePciDomainID, i));
         Print::out("Others:", i, pci_bus_id, pci_device_id, pci_domain_id);
-    }    
-
+    }
+#endif
 }
 
 static inline void init_debugs()
 {
-
     //  Setup printing rank
     int rank = -1;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     Print::initialize_rank(rank);
     Print::out("Initialized");
-    #ifndef NDEBUG
+#ifndef NDEBUG
     print_device_info();
-    #endif
+#endif
 }
 
 // Functions for extracting C++ request from C type (if it's correct request

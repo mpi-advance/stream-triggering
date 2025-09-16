@@ -10,6 +10,15 @@ int main(int argc, char* argv[])
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    // Info hint for buffer
+    MPI_Info mem_info;
+    MPI_Info_create(&mem_info);
+#ifndef FINE_GRAINED_TEST
+    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
+#else
+    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
+#endif
+
     // Make HIP variables
     int BUFFER_SIZE = 10;
     int BLOCK_SIZE  = 128;
@@ -17,8 +26,8 @@ int main(int argc, char* argv[])
 
     void* send_buf = nullptr;
     void* recv_buf = nullptr;
-    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE);
-    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &send_buf);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &recv_buf);
 
     init_buffers2<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf, BUFFER_SIZE,
                                               rank);
@@ -42,15 +51,6 @@ int main(int argc, char* argv[])
     MPIS_Queue_init(&my_queue, CXI, &my_stream);
 #elif defined(THREAD_BACKEND)
     MPIS_Queue_init(&my_queue, THREAD, &my_stream);
-#endif
-
-    // Info hint
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
-#else
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
 #endif
 
     // Make requests
@@ -87,6 +87,8 @@ int main(int argc, char* argv[])
 
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
+    MPIS_Free_mem(send_buf);
+    MPIS_Free_mem(recv_buf);
     MPI_Info_free(&mem_info);
     MPIS_Queue_free(&my_queue);
 

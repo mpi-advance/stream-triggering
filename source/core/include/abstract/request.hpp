@@ -53,8 +53,8 @@ public:
         Print::out("Request made with address, size, count, tag, and ID:", _buffer, size,
                    _count, tag, myID);
 
-        constexpr int string_size = 10;
-        char          info_key[]  = "MPIS_GPU_MEM_TYPE";
+        constexpr int string_size = 100;
+        char          info_key[]  = "mpi_memory_alloc_kinds";
         char          value[string_size];
         int           flag = 0;
         // Pre MPI-4.0
@@ -63,7 +63,7 @@ public:
             force_mpi(MPI_Info_get(_info, info_key, string_size, value, &flag));
         }
 
-        if (0 == strcmp(value, "FINE"))
+        if (0 == strcmp(value, "rocm:device:fine"))
         {
             Print::out("Using fine-grained memory!");
             memory_type = GPUMemoryType::FINE;
