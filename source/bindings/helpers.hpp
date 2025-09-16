@@ -42,6 +42,7 @@ struct MPISException : public std::runtime_error
 
 static inline void print_device_info()
 {
+#ifdef HIP_GPUS
     int device = -1;
     int count  = -1;
     force_gpu(hipGetDevice(&device));
@@ -60,6 +61,7 @@ static inline void print_device_info()
             hipDeviceGetAttribute(&pci_domain_id, hipDeviceAttributePciDomainID, i));
         Print::out("Others:", i, pci_bus_id, pci_device_id, pci_domain_id);
     }
+#endif
 }
 
 static inline void init_debugs()
