@@ -3,7 +3,7 @@
 
 extern "C" {
 
-int MPIS_Free_gpu_mem(void* baseptr)
+int MPIS_Free_mem(void* baseptr)
 {
     deletors.at(baseptr)();
 

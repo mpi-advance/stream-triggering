@@ -65,8 +65,8 @@ int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
                    MPI_Info, MPIS_Request*);
 
 /* New GPU Memory Allocation functions */
-int MPIS_GPU_mem_alloc(MPI_Aint, MPI_Info, void**);
-int MPIS_Free_gpu_mem(void*);
+int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);
+int MPIS_Free_mem(void*);
 
 #ifdef __cplusplus
 }
