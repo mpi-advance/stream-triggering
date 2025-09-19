@@ -20,6 +20,7 @@ target_sources(stream-triggering
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Request_free.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Request_freeall.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Send_init.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Rsend_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Wait.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Waitall.cc"
 )

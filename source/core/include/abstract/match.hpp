@@ -3,6 +3,10 @@
 
 #include <vector>
 
+#ifdef USE_CXI
+#include <rdma/fi_rma.h>
+#endif
+
 #include "abstract/request.hpp"
 #include "misc/print.hpp"
 #include "safety/mpi.hpp"
@@ -21,62 +25,48 @@ public:
     }
 };
 
-template <typename T>
-constexpr MPI_Datatype type_to_use()
-{
-    if constexpr (4 == sizeof(T))
-    {
-        return MPI_INT;
-    }
-    else if constexpr (8 == sizeof(T))
-    {
-        return MPI_LONG;
-    }
-    else
-    {
-#ifdef ADVANCED_CPP23
-        static_assert(false, "Type not supported!");
-#else
-        throw std::runtime_error("Type not supported for matching!");
-#endif
-    }
-}
+#ifdef USE_CXI
 
-class OneSideMatch
+class ProtocolMatch
 {
 public:
-    template <typename T>
-    static void give(std::vector<T*>& data_to_exchange, Request& req)
+    static void receiver(struct fi_rma_iov* user_buffer_details,
+                         struct fi_rma_iov* completion_details, Operation* op_details,
+                         struct fi_rma_iov* cts_details, Request& req)
     {
-        constexpr MPI_Datatype my_type = type_to_use<T>();
+        Print::out("(Receiver) Matching with:", req.peer, "and tag", req.tag);
+        MPI_Request* mpi_requests = req.get_match_requests(REQUESTS_TO_USE);
 
-        MPI_Request* mpi_requests = req.get_match_requests(3);
-
-        Print::out("(Recv) Matching with:", req.peer, "and tag", req.tag);
-        check_mpi(MPI_Isend(data_to_exchange[0], 1, my_type, req.peer, req.tag, req.comm,
-                            &mpi_requests[0]));
-        check_mpi(MPI_Isend(data_to_exchange[1], 1, my_type, req.peer, req.tag, req.comm,
-                            &mpi_requests[1]));
-        check_mpi(MPI_Issend(data_to_exchange[2], 1, my_type, req.peer, req.tag, req.comm,
-                             &mpi_requests[2]));
+        check_mpi(MPI_Isend(user_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
+                            req.tag, req.comm, &mpi_requests[0]));
+        check_mpi(MPI_Isend(completion_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
+                            req.tag, req.comm, &mpi_requests[1]));
+        check_mpi(MPI_Irecv(op_details, sizeof(Operation), MPI_BYTE, req.peer, req.tag,
+                            req.comm, &mpi_requests[2]));
+        check_mpi(MPI_Irecv(cts_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer, req.tag,
+                            req.comm, &mpi_requests[3]));
     }
 
-    template <typename T>
-    static void take(std::vector<T*>& data_to_exchange, Request& req)
+    static void sender(struct fi_rma_iov* recv_buffer_details,
+                       struct fi_rma_iov* completion_details,
+                       struct fi_rma_iov* cts_details, Request& req)
     {
-        constexpr MPI_Datatype my_type = type_to_use<T>();
-
-        MPI_Request* mpi_requests = req.get_match_requests(3);
-
         Print::out("(Send) Matching with:", req.peer, "and tag", req.tag);
-        check_mpi(MPI_Irecv(data_to_exchange[0], 1, my_type, req.peer, req.tag, req.comm,
-                            &mpi_requests[0]));
-        check_mpi(MPI_Irecv(data_to_exchange[1], 1, my_type, req.peer, req.tag, req.comm,
-                            &mpi_requests[1]));
-        check_mpi(MPI_Irecv(data_to_exchange[2], 1, my_type, req.peer, req.tag, req.comm,
-                            &mpi_requests[2]));
+        MPI_Request* mpi_requests = req.get_match_requests(REQUESTS_TO_USE);
+
+        check_mpi(MPI_Irecv(recv_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
+                            req.tag, req.comm, &mpi_requests[0]));
+        check_mpi(MPI_Irecv(completion_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
+                            req.tag, req.comm, &mpi_requests[1]));
+        check_mpi(MPI_Isend(&req.operation, sizeof(Operation), MPI_BYTE, req.peer,
+                            req.tag, req.comm, &mpi_requests[2]));
+        check_mpi(MPI_Isend(cts_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer, req.tag,
+                            req.comm, &mpi_requests[3]));
     }
+
+    static constexpr size_t REQUESTS_TO_USE = 4;
 };
+#endif
 
 }  // namespace Communication
 

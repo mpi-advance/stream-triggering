@@ -10,9 +10,10 @@
 namespace Communication
 {
 
-enum Operation
+enum Operation : int
 {
     SEND,
+    RSEND,
     RECV,
     BARRIER
 };
@@ -50,7 +51,7 @@ public:
     {
         int size = -1;
         check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out("Request made with address, size, count, tag, and ID:", _buffer, size,
+        Print::out(_operation, "Request made with address, size, count, tag, and ID:", _buffer, size,
                    _count, tag, myID);
 
         constexpr int string_size = 100;

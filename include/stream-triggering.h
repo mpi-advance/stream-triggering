@@ -61,8 +61,10 @@ int MPIS_Barrier_init(MPI_Comm, MPI_Info, MPIS_Request*);
 // int MPIS_Bcast_init();
 int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
                    MPIS_Request*);
-int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
-                   MPI_Info, MPIS_Request*);
+int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
+                   MPIS_Request*);
+int MPIS_Rsend_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
+                    MPIS_Request*);
 
 /* New GPU Memory Allocation functions */
 int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);
