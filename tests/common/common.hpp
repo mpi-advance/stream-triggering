@@ -121,6 +121,16 @@ __global__ void init_buffers2(int* send_buf, int* recv_buf, int buffer_len, int 
     recv_buf[index] = -1;
 }
 
+__global__ void init_buffers3(int* send_buf, int* recv_buf, int buffer_len)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    send_buf[index] = index;
+    recv_buf[index] = -1;
+}
+
 __global__ void pack_buffer(int* buffer, int buffer_len, int iteration)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -169,6 +179,19 @@ __global__ void print_buffer2(volatile int* buffer, int buffer_len, int rank)
         return;
 
     printf("<GPU %d> Buffer value @ index: %d is: %d\n", rank, index, buffer[index]);
+}
+
+__global__ void print_buffer3(volatile int* buffer, int buffer_len, int rank)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    if (buffer[index] != index)
+    {
+        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
+               index, buffer[index], index);
+    }
 }
 
 static void inline check_param_size(int* argc, int num_params, std::string usage)

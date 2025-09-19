@@ -6,7 +6,7 @@ build/
 /tests/test
 /tests/flux-*
 /tests/*.core
-/tests/*.sh
+/tests/scratch/
 /tests/benchmark/flux-*
 /tests/benchmark/flux/*
 /tests/benchmark/outputs/*
