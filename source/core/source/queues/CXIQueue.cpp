@@ -190,7 +190,7 @@ __global__ void flush_buffer()
 
 void CXIRequest::wait_gpu(hipStream_t* the_stream)
 {
-    Print::out("This request will wait for:", num_times_started, "at",
+    Print::out("<E> This request will wait for:", num_times_started, "at",
                completion_buffer.address);
     wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)completion_buffer.address,
                                                  num_times_started);
@@ -201,7 +201,7 @@ void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
 {
     if (Operation::RSEND != base_req.operation)
     {
-        Print::out("Starting kernel to wait on CTS;", (size_t*)protocol_buffer.address,
+        Print::out("<E> Starting kernel to wait on CTS;", (size_t*)protocol_buffer.address,
                    num_times_started);
         wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
                                                      num_times_started);
@@ -215,7 +215,7 @@ void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
 
     size_t    counter_bump = threshold.equalize_counter();
     uint64_t* cntr_addr    = (uint64_t*)trigger_cntr.gpu_mmio_addr;
-    Print::out("Launching a kernel to bump a counter by", counter_bump);
+    Print::out("<E> Launching a kernel to bump a counter by", counter_bump);
     add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
 }
 
@@ -224,10 +224,16 @@ void CXIRecvOneSided::start_gpu(hipStream_t* the_stream, Threshold& threshold,
 {
     if (Operation::RSEND != protocol_buffer.operation)
     {
-        Print::out("Enqueueing triggering kernel for CTS!");
+        if (threshold.value() == threshold.counter_value())
+        {
+            // No need to trigger counter, as eventually it should be what we want.
+            return;
+        }
+
         size_t    counter_bump = threshold.equalize_counter();
         uint64_t* cntr_addr    = (uint64_t*)trigger_cntr.gpu_mmio_addr;
-        Print::out("Launching a kernel to bump a counter by", counter_bump);
+        Print::out("<E> Enqueueing triggering kernel for CTS! Bump:", counter_bump);
+
         add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
     }
 }
@@ -244,6 +250,6 @@ void CXIQueue::enqueue_waitall()
 
 void CXIQueue::flush_memory(hipStream_t* the_stream)
 {
-    Print::out("Enqueuing buffer_wbl2 kernel");
+    Print::out("<E> Enqueuing buffer_wbl2 kernel");
     flush_buffer<<<1, 1, 0, *the_stream>>>();
 }

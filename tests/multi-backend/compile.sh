@@ -15,7 +15,7 @@ usage() {
     echo "Usage: $0 [-dgXCHT] [-f file]"
     echo " -d Run with MI300A modules (default MI250X modules)"
     echo " -f [file] Compile file provided."
-    echo " -g Add defines for cuda."
+    echo " -g Add defines for cuda GPUs."
     echo " -X No CXI build"
     echo " -H No HIP build"
     echo " -C No CUDA build"
@@ -85,7 +85,7 @@ module load rocm
 
 ### Prepare output directories
 
-SCRATCH=./scratch
+SCRATCH=../scratch
 EXECS=$SCRATCH/execs
 FLUX=$SCRATCH/flux
 OUTPUT=$SCRATCH/output

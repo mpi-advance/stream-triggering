@@ -5,11 +5,13 @@
 # ### SBATCH --partition=pbatch
 #SBATCH --partition=pdebug
 #SBATCH --exclusive
-#SBATCH --output=scratch/flux/%j.out
+#SBATCH --output=../scratch/flux/%j.out
 
 # Debugging options
 #set -e
 ulimit -c unlimited
+## Go up on directory to tests folder
+cd ..
 
 # Switch between Tioga and Tuo modules
 if [ $# -eq 0 ]; then
@@ -45,7 +47,7 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=rsend
+TEST_NAME=hello_world
 TIME=00:03:00
 
 cd scratch/tmp/

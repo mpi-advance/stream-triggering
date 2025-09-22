@@ -37,6 +37,10 @@ public:
         Print::out("(Receiver) Matching with:", req.peer, "and tag", req.tag);
         MPI_Request* mpi_requests = req.get_match_requests(REQUESTS_TO_USE);
 
+        Print::out("(Recv) Sending: ", user_buffer_details->addr,
+                   user_buffer_details->len, user_buffer_details->key,
+                   completion_details->addr, completion_details->len,
+                   completion_details->key);
         check_mpi(MPI_Isend(user_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
                             req.tag, req.comm, &mpi_requests[0]));
         check_mpi(MPI_Isend(completion_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
@@ -58,6 +62,9 @@ public:
                             req.tag, req.comm, &mpi_requests[0]));
         check_mpi(MPI_Irecv(completion_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer,
                             req.tag, req.comm, &mpi_requests[1]));
+
+        Print::out("(Send) Sending: ", req.operation, cts_details->addr, cts_details->len,
+                   cts_details->key);
         check_mpi(MPI_Isend(&req.operation, sizeof(Operation), MPI_BYTE, req.peer,
                             req.tag, req.comm, &mpi_requests[2]));
         check_mpi(MPI_Isend(cts_details, sizeof(fi_rma_iov), MPI_BYTE, req.peer, req.tag,
