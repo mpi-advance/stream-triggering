@@ -28,6 +28,7 @@ enum MPIS_Queue_type
     GPU_MEM_OPS       = 3,
     CXI               = 4
 };
+typedef enum MPIS_Queue_type MPS_Queue_type;
 
 void MPIS_Hello_world();
 

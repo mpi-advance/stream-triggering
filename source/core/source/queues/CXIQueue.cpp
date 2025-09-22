@@ -201,7 +201,8 @@ void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
 {
     if (Operation::RSEND != base_req.operation)
     {
-        Print::out("Starting kernel to wait on CTS");
+        Print::out("Starting kernel to wait on CTS;", (size_t*)protocol_buffer.address,
+                   num_times_started);
         wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
                                                      num_times_started);
     }

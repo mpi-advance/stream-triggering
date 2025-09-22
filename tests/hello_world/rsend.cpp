@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
 
     // Input parameters
     int num_warmups = 10;
-    int BUFFER_SIZE = 100;
+    int BUFFER_SIZE = 64;
 
     // Info hint for buffer
     MPI_Info mem_info;
@@ -75,26 +75,40 @@ int main(int argc, char* argv[])
     MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
     MPI_Barrier(MPI_COMM_WORLD);
 
+    std::cout << rank << " starting test!" << std::endl;
     double start = MPI_Wtime();
     if (1 == rank)
     {
         sleep(5);
     }
+    MPIS_Enqueue_start(my_queue, &my_reqs[0]);
+    MPIS_Enqueue_waitall(my_queue);
+    MPIS_Queue_wait(my_queue);
+    double end = MPI_Wtime();
 
-    MPIS_Enqueue_startall(my_queue, 2, my_reqs);
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << rank << " time A: " << end - start << std::endl;
+
+    start = MPI_Wtime();
+    if (1 == rank)
+    {
+        sleep(5);
+    }
+    MPIS_Enqueue_start(my_queue, &my_reqs[1]);
     MPIS_Enqueue_waitall(my_queue);
 
     MPIS_Queue_wait(my_queue);
+    end = MPI_Wtime();
 
-    double end = MPI_Wtime();
+    std::cout << rank << " time B: " << end - start << std::endl;
 
     // Final check
 
     device_sync();
     if (1 == rank)
     {
-        print_buffer3<<<1, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE * 2,
-                                                       rank);
+        print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf,
+                                                                BUFFER_SIZE * 2, rank);
     }
     device_sync();
 
@@ -107,7 +121,7 @@ int main(int argc, char* argv[])
 
     MPIS_Queue_free(&my_queue);
 
-    std::cout << rank << " is done: " << end - start << std::endl;
+    std::cout << rank << " is done." << std::endl;
 
     MPI_Finalize();
 
