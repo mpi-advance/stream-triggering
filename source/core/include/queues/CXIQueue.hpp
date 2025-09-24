@@ -321,14 +321,17 @@ private:
 class DeferredWorkQueueEntry
 {
 public:
-    DeferredWorkQueueEntry() {}
+    DeferredWorkQueueEntry()
+    {
+        work_entry.threshold = 0;
+    }
 
     struct fi_deferred_work* get_dwqe()
     {
         return &work_entry;
     }
 
-    void set_completion_counter(fid_cntr* completion_counter)
+    virtual void set_completion_counter(fid_cntr* completion_counter)
     {
         work_entry.completion_cntr = completion_counter;
     }
@@ -338,9 +341,19 @@ public:
         work_entry.triggering_cntr = trigger_cntr.counter;
     }
 
+    virtual void set_trigger_counter(fid_cntr* trigger_counter)
+    {
+        work_entry.triggering_cntr = trigger_counter;
+    }
+
     virtual void set_threshold(Threshold& threshold)
     {
         work_entry.threshold = threshold.value();
+    }
+
+    virtual void bump_threshold()
+    {
+        work_entry.threshold++;
     }
 
 protected:
@@ -394,6 +407,16 @@ public:
     void set_iovec(iovec new_iovec)
     {
         msg_iov = new_iovec;
+    }
+
+    void set_rma_iov(struct fi_rma_iov new_rma_iov)
+    {
+        msg_rma_iov = new_rma_iov;
+    }
+
+    void set_flags(uint64_t flags)
+    {
+        rma_work.flags = flags;
     }
 
 protected:
@@ -640,90 +663,52 @@ public:
     ChainedRMA(CompletionBuffer local_completion, struct fid_ep* ep, fi_addr_t partner,
                fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
                struct fid_cntr* local_cntr, void** comp_desc = nullptr)
+        : chain_work_remote(ep, partner), chain_work_local(ep, self)
     {
         Print::out("Address of completion values:",
                    CompletionBufferFactory::completion_addrs.data());
-        chain_work_remote.threshold       = 0;
-        chain_work_remote.triggering_cntr = trigger;
-        chain_work_remote.completion_cntr = remote_cntr;
-        chain_work_remote.op_type         = FI_OP_WRITE;
 
-        chain_work_local.threshold       = 0;
-        chain_work_local.triggering_cntr = remote_cntr;
-        chain_work_local.completion_cntr = local_cntr;
-        chain_work_local.op_type         = FI_OP_WRITE;
+        chain_work_remote.set_trigger_counter(trigger);
+        chain_work_remote.set_completion_counter(remote_cntr);
 
-        chain_iovec = {};
+        chain_work_local.set_trigger_counter(remote_cntr);
+        chain_work_local.set_completion_counter(local_cntr);
 
         // RMA Send using offsets in remote buffer (not virtual addresses)
         /* Filled in by the type cast of Buffer class */
-        local_rma_iov = local_completion;
+        chain_work_local.set_rma_iov(local_completion);
         /* The first and last values should be filled in by the match! */
-        remote_rma_iov = {0, CompletionBufferFactory::DEFAULT_ITEM_SIZE, 0};
+        chain_work_remote.set_rma_iov({0, CompletionBufferFactory::DEFAULT_ITEM_SIZE, 0});
 
-        local_base_rma.ep  = ep;
-        local_base_rma.msg = {
-            .msg_iov       = &chain_iovec,
-            .desc          = comp_desc,
-            .iov_count     = 1,
-            .addr          = self,
-            .rma_iov       = &local_rma_iov,
-            .rma_iov_count = 1,
-            .context       = nullptr,
-            .data          = 0,
-        };
-
-        remote_base_rma.ep  = ep;
-        remote_base_rma.msg = {
-            .msg_iov       = &chain_iovec,
-            .desc          = comp_desc,
-            .iov_count     = 1,
-            .addr          = partner,
-            .rma_iov       = &remote_rma_iov,
-            .rma_iov_count = 1,
-            .context       = nullptr,
-            .data          = 0,
-        };
-
-        local_base_rma.flags =
-            FI_DELIVERY_COMPLETE | ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE);
-        remote_base_rma.flags =
-            FI_DELIVERY_COMPLETE | ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE);
-        chain_work_local.op.rma  = &local_base_rma;
-        chain_work_remote.op.rma = &remote_base_rma;
+        chain_work_local.set_flags(FI_DELIVERY_COMPLETE |
+                                   ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE));
+        chain_work_remote.set_flags(FI_DELIVERY_COMPLETE |
+                                    ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE));
     }
     void queue_work(LibfabricInstance& libfab)
     {
         /* Increase thresholds before starting! */
-        chain_work_remote.threshold++;
-        chain_work_local.threshold++;
-        chain_iovec = {&CompletionBufferFactory::completion_addrs.at(index++),
-                       CompletionBufferFactory::DEFAULT_ITEM_SIZE};
+        chain_work_remote.bump_threshold();
+        chain_work_local.bump_threshold();
 
-        libfab.queue_work(&chain_work_remote);
-        libfab.queue_work(&chain_work_local);
+        struct iovec chain_iovec = {
+            &CompletionBufferFactory::completion_addrs.at(index++),
+            CompletionBufferFactory::DEFAULT_ITEM_SIZE};
+        chain_work_remote.set_iovec(chain_iovec);
+        chain_work_local.set_iovec(chain_iovec);
+
+        libfab.queue_work(chain_work_remote.get_dwqe());
+        libfab.queue_work(chain_work_local.get_dwqe());
     }
 
-    struct fi_rma_iov* get_rma_iov_addr()
+    struct fi_rma_iov* get_remote_rma_iov_addr()
     {
-        return &remote_rma_iov;
-    }
-
-    uint64_t get_threshold()
-    {
-        return chain_work_remote.threshold;
+        return chain_work_remote.get_rma_iov_addr();
     }
 
 private:
-    struct fi_deferred_work chain_work_local;
-    struct fi_op_rma        local_base_rma;
-    struct fi_rma_iov       local_rma_iov;
-
-    struct fi_deferred_work chain_work_remote;
-    struct fi_op_rma        remote_base_rma;
-    struct fi_rma_iov       remote_rma_iov;
-
-    struct iovec chain_iovec;
+    RMAEntry chain_work_local;
+    RMAEntry chain_work_remote;
 
     // Which completion value are we on?
     int index = 0;
@@ -753,14 +738,14 @@ public:
 
         /* Start requests to exchange from peer */
         Communication::ProtocolMatch::sender(
-            work_entry.get_rma_iov_addr(), my_chained_completions.get_rma_iov_addr(),
+            work_entry.get_rma_iov_addr(),
+            my_chained_completions.get_remote_rma_iov_addr(),
             protocol_buffer.get_rma_iov_addr(), user_request);
     }
 
     ~CXISend()
     {
-        my_queue.clear_completion_counter(completion_c,
-                                          my_chained_completions.get_threshold());
+        my_queue.clear_completion_counter(completion_c, num_times_started);
         // Free counter
         force_libfabric(fi_close(&completion_a->fid));
         force_libfabric(fi_close(&completion_b->fid));
@@ -819,6 +804,7 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
+        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
 
         /* Start requests to exchange from peer */
         Communication::ProtocolMatch::receiver(
@@ -947,7 +933,6 @@ public:
 
 private:
     void prepare_cxi_mr_key(Request&);
-    void libfabric_teardown();
     void flush_memory(hipStream_t*);
 
     void inline enqueue_request(Request& req)

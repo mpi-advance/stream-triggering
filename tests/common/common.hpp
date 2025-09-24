@@ -186,7 +186,7 @@ __global__ void print_buffer3(volatile int* buffer, int buffer_len, int rank)
 
 __global__ void dummy_kernel(int rank, int value)
 {
-    printf("<GPU %d> Dummmy kernel %d\n", rank, value);
+    printf("<GPU %d> Dummy kernel %d\n", rank, value);
 }
 
 static void inline check_param_size(int* argc, int num_params, std::string usage)
