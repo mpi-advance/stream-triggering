@@ -47,7 +47,7 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=hello_world
+TEST_NAME=rsend
 TIME=00:03:00
 
 cd scratch/tmp/

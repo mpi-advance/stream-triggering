@@ -7,8 +7,3 @@ build/
 /tests/flux-*
 /tests/*.core
 /tests/scratch/
-/tests/benchmark/flux-*
-/tests/benchmark/flux/*
-/tests/benchmark/outputs/*
-/tests/benchmark/*.sh
-/tests/benchmark/testing_dir

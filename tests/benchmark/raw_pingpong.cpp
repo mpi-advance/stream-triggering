@@ -1,5 +1,7 @@
-#include "common.hpp"
-#include "timers.hpp"
+#include "../common/common.hpp"
+#include "../common/timers.hpp"
+
+#include "stream-triggering.h"
 
 int main(int argc, char* argv[])
 {
@@ -67,15 +69,15 @@ int main(int argc, char* argv[])
     // Make requests
     MPIS_Request my_reqs[2];
     MPIS_Request my_other_reqs[2];
-    int offset = sizeof(int) * BUFFER_SIZE;
+    int          offset = sizeof(int) * BUFFER_SIZE;
     if (0 == rank % 2)
     {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
+        MPIS_Rsend_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+                        &my_reqs[SEND_REQ]);
         MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
+        MPIS_Rsend_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
+                        MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
         MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
                        MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
     }
@@ -83,12 +85,12 @@ int main(int argc, char* argv[])
     {
         MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
+        MPIS_Rsend_init(send_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+                        &my_reqs[SEND_REQ]);
         MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
                        MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
+        MPIS_Rsend_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
+                        MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
     }
 
     MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
@@ -122,8 +124,9 @@ int main(int argc, char* argv[])
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
                 MPIS_Enqueue_waitall(my_queue);
+            
                 // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+                //    (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
@@ -135,7 +138,7 @@ int main(int argc, char* argv[])
                 // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
+                    (int*)active_send_buffer, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
                 device_sync();
 #endif
@@ -166,9 +169,9 @@ int main(int argc, char* argv[])
     do_cycles.template operator()<false>(num_warmups);
     MPI_Barrier(MPI_COMM_WORLD);
     Timing::set_base_timer();
-    double start = MPI_Wtime();
+    double             start = MPI_Wtime();
     do_cycles.template operator()<true>(num_iters);
-    double end = MPI_Wtime();
+    double             end = MPI_Wtime();
 
     // Final check
     device_sync();

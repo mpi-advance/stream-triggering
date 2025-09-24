@@ -1,15 +1,17 @@
 #!/bin/bash
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=00:05:00
+#SBATCH --time=01:00:00
 # ### SBATCH --partition=pbatch
 #SBATCH --partition=pdebug
 #SBATCH --exclusive
-#SBATCH --output=flux/%j.out
+#SBATCH --output=../scratch/flux/%j.out
 
 # Debugging options
 #set -e
 ulimit -c unlimited
+## Go up on directory to tests folder
+cd ..
 
 # Switch between Tioga and Tuo modules
 if [ $# -eq 0 ]; then
@@ -25,8 +27,8 @@ fi
 module load rocm
 
 #Control output
-USER_BASE="$HOME/git/stream-triggering/tests/benchmark"
-FILENAME_BASE="$USER_BASE/outputs/$SYSTEM-$(date +%m-%d)"
+USER_BASE="$HOME/git/stream-triggering/tests/scratch"
+FILENAME_BASE="$USER_BASE/output/$SYSTEM-$(date +%m-%d)"
 COUNT=1
 TARGET="${FILENAME_BASE}-${COUNT}.out"
 
@@ -45,12 +47,13 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
+TEST_NAME=raw_pingpong
 TIME=00:03:00
 START_EXP=3
-END_EXP=4
-NUM_ITERS=100
+END_EXP=26
+NUM_ITERS=100000
 
-cd testing_dir/
+cd scratch/tmp/
 
 # Print out variables in run file just for tracking
 HOSTNAMES_FILE="a-hostnames.tmp"
@@ -63,7 +66,7 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    srun --time=$TIME --output=$RUN_FILE ./$1 $NUM_ITERS $BUFF_SIZE
+    srun --time=$TIME --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
@@ -82,9 +85,9 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     run_test "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_test "hip-test"
-    run_test "thread-test"
-    run_test "mpi-test"
+    run_test "hip"
+    run_test "thread"
+    run_test "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED
 
     # While slurm has append to file, flux does not. So we have to 

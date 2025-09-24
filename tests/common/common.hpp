@@ -13,7 +13,6 @@
 #include <iostream>
 
 #include "mpi.h"
-#include "stream-triggering.h"
 
 #if NEED_HIP
 #define check_gpu(function)                       \
