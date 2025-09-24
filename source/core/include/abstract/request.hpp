@@ -1,8 +1,9 @@
 #ifndef ST_REQUEST_QUEUE
 #define ST_REQUEST_QUEUE
 
-#include <vector>
 #include <string.h>
+
+#include <vector>
 
 #include "misc/print.hpp"
 #include "safety/mpi.hpp"
@@ -51,7 +52,8 @@ public:
     {
         int size = -1;
         check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out(_operation, "Request made with address, size, count, tag, and ID:", _buffer, size,
+        Print::out(_operation,
+                   "Request made with address, size, count, tag, and ID:", _buffer, size,
                    _count, tag, myID);
 
         constexpr int string_size = 100;
@@ -103,6 +105,12 @@ public:
     GPUMemoryType get_memory_type()
     {
         return memory_type;
+    }
+
+    bool needs_gpu_flush()
+    {
+        return (GPUMemoryType::COARSE == memory_type) &&
+               ((Operation::SEND == operation) || (Operation::RSEND == operation));
     }
 
 protected:

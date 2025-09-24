@@ -734,6 +734,7 @@ public:
                                  completion_b, completion_c)
     {
         work_entry.set_completion_counter(completion_a);
+        work_entry.set_flags(FI_DELIVERY_COMPLETE);
         my_queue.register_completion_counter(completion_c);
 
         /* Start requests to exchange from peer */
@@ -884,14 +885,14 @@ public:
         my_buffer.free_mr();
     }
 
-    void enqueue_operation(std::shared_ptr<Request> qe) override
+    void enqueue_operation(std::shared_ptr<Request> req) override
     {
         queue_thresholds.increment_threshold();
-        if (GPUMemoryType::COARSE == qe->get_memory_type())
+        if (req->needs_gpu_flush())
         {
             flush_memory(the_stream);
         }
-        enqueue_request(*qe);
+        enqueue_request(*req);
     }
 
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
@@ -900,7 +901,7 @@ public:
         queue_thresholds.increment_threshold();
         for (auto& req : requests)
         {
-            if (shouldFlush && GPUMemoryType::COARSE == req->get_memory_type())
+            if (shouldFlush && req->needs_gpu_flush())
             {
                 flush_memory(the_stream);
                 shouldFlush = false;

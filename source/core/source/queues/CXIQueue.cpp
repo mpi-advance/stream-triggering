@@ -169,24 +169,6 @@ LibfabricInstance::~LibfabricInstance()
     check_libfabric(fi_close(&(fabric)->fid));
 }
 
-__global__ void check_buffers(size_t* array, size_t array_len, int rank)
-{
-    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= array_len)
-        return;
-
-    printf("<GPU %d> Completion index %zu: %zu\n", rank, index, array[index]);
-}
-
-__global__ void sleep_kernel()
-{
-    auto a = clock64() + 1'000'000'000;
-    while(clock64() < a)
-    {
-        // Party;
-    }
-}
-
 __global__ void add_to_counter(uint64_t* cntr, size_t value)
 {
     *cntr = value;
@@ -199,7 +181,6 @@ __global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value
     {
         curr_value = *comp_addr;
     }
-    //printf("Init: %zu Goal: %zu\n", init_value, goal_value);
 }
 
 __global__ void flush_buffer()
@@ -224,7 +205,6 @@ void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    (size_t*)protocol_buffer.address, num_times_started);
         wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
                                                      num_times_started);
-        //sleep_kernel<<<1, 1, 0, *the_stream>>>();
     }
 
     if (threshold.value() == threshold.counter_value())
@@ -260,15 +240,12 @@ void CXIRecvOneSided::start_gpu(hipStream_t* the_stream, Threshold& threshold,
 
 void CXIQueue::enqueue_waitall()
 {
-    // check_buffers<<<1, 4, 0, *the_stream>>>((size_t*)my_buffer.buffer, 4, my_rank);
     for (auto req : active_requests)
     {
         Print::out("Waiting on request:", req);
         request_map.at(req)->wait_gpu(the_stream);
     }
     active_requests.clear();
-    // check_buffers<<<1, 4, 0, *the_stream>>>((size_t*)my_buffer.buffer, 4, my_rank);
-    // sleep_kernel<<<1, 1, 0, *the_stream>>>();
 }
 
 void CXIQueue::flush_memory(hipStream_t* the_stream)
