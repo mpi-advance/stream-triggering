@@ -5,14 +5,12 @@
 
 CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
-    force_gpu(cuMemHostAlloc(
-        (void**)&start_location, sizeof(int64_t),
-        CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
+    force_gpu(cuMemHostAlloc((void**)&start_location, sizeof(int64_t),
+                             CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
     *start_location = 0;
     force_gpu(cuMemHostGetDevicePointer(&start_dev, start_location, 0));
-    force_gpu(cudaHostAlloc(
-        (void**)&wait_location, sizeof(int64_t),
-        CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
+    force_gpu(cudaHostAlloc((void**)&wait_location, sizeof(int64_t),
+                            CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
     *wait_location = 0;
     force_gpu(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
@@ -25,10 +23,12 @@ CudaQueueEntry::~CudaQueueEntry()
 
 void CudaQueueEntry::start_host()
 {
+    Print::out("Starting host for an entry!");
     while ((*start_location) != threshold)
     {
         std::this_thread::yield();
     }
+    Print::out("CUDA Host done!");
     // Call parent method to launch MPI stuff
     QueueEntry::start_host();
 }
@@ -39,6 +39,7 @@ bool CudaQueueEntry::done()
     bool value = QueueEntry::done();
     if (value)
     {
+        Print::out("Done waiting on MPI! Signaling GPU:", threshold);
         (*wait_location) = threshold;
     }
     return value;
@@ -46,13 +47,16 @@ bool CudaQueueEntry::done()
 
 void CudaQueueEntry::start_gpu(void* the_stream)
 {
+    threshold++;
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
+    Print::out("Starting asking GPU to write:", threshold);
     force_gpu(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
 }
 
 void CudaQueueEntry::wait_gpu(void* the_stream)
 {
+    Print::out("Asked GPU to wait for: ", threshold);
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
     force_gpu(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));

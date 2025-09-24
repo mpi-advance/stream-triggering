@@ -4,8 +4,7 @@
 #include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
-HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req)
-    : QueueEntry(req)
+HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
     force_gpu(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
     *start_location = 0;
@@ -23,10 +22,12 @@ HIPQueueEntry::~HIPQueueEntry()
 
 void HIPQueueEntry::start_host()
 {
+    Print::out("Starting host for an entry!");
     while ((*start_location) != threshold)
     {
         std::this_thread::yield();
     }
+    Print::out("HIP Host done!");
     // Call parent method to launch MPI stuff
     QueueEntry::start_host();
 }
@@ -37,6 +38,7 @@ bool HIPQueueEntry::done()
     bool value = QueueEntry::done();
     if (value)
     {
+        Print::out("Done waiting on MPI! Signaling GPU:", threshold);
         (*wait_location) = threshold;
     }
     return value;
@@ -44,14 +46,16 @@ bool HIPQueueEntry::done()
 
 void HIPQueueEntry::start_gpu(void* the_stream)
 {
-    force_gpu(hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev,
-                                    threshold, 0));
+    threshold++;
+    Print::out("Starting asking GPU to write:", threshold);
+    force_gpu(
+        hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev, threshold, 0));
 }
 
 void HIPQueueEntry::wait_gpu(void* the_stream)
 {
-    force_gpu(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev,
-                                   threshold, 0));
+    Print::out("Asked GPU to wait for: ", threshold);
+    force_gpu(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev, threshold, 0));
 }
 
 HIPQueue::HIPQueue(hipStream_t* stream)
@@ -126,7 +130,7 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
 
 void HIPQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> reqs)
 {
-    for(auto& req: reqs)
+    for (auto& req : reqs)
     {
         enqueue_operation(req);
     }

@@ -11,19 +11,22 @@ using namespace Communication;
 class QueueEntry
 {
 public:
-    explicit QueueEntry(std::shared_ptr<Request> req) : original_request(req), threshold(0)
+    explicit QueueEntry(std::shared_ptr<Request> req)
+        : original_request(req), threshold(0)
     {
         switch (req->operation)
         {
             case Communication::Operation::SEND:
-                check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype,
-                                        req->peer, req->tag, req->comm,
-                                        &mpi_request));
+                check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype, req->peer,
+                                        req->tag, req->comm, &mpi_request));
+                break;
+            case Communication::Operation::RSEND:
+                check_mpi(MPI_Rsend_init(req->buffer, req->count, req->datatype,
+                                         req->peer, req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::RECV:
-                check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype,
-                                        req->peer, req->tag, req->comm,
-                                        &mpi_request));
+                check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype, req->peer,
+                                        req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::BARRIER:
                 break;
@@ -48,8 +51,7 @@ public:
 
     // Only Moving
     QueueEntry(QueueEntry&& other) noexcept
-        : mpi_request(other.mpi_request),
-          original_request(other.original_request)
+        : mpi_request(other.mpi_request), original_request(other.original_request)
     {
         // clear other structs
         other.mpi_request = MPI_REQUEST_NULL;
@@ -78,18 +80,12 @@ public:
         {
             check_mpi(MPI_Start(&mpi_request));
         }
+        Print::out("Base Host done!");
     }
 
     virtual void start_gpu(void* stream)
     {
         // Does nothing in base class.
-    }
-
-    virtual void start(void* stream)
-    {
-        threshold++;
-        start_host();
-        start_gpu(stream);
     }
 
     virtual void wait_gpu(void* stream)

@@ -3,10 +3,20 @@
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
-CompletionBuffer  CXIQueue::my_buffer;
-DeferredWorkQueue CXIQueue::my_queue;
+CompletionBufferFactory CXIQueue::my_buffer;
+DeferredWorkQueue       CXIQueue::my_queue;
 
-void CXIQueue::libfabric_setup(int num_ranks)
+std::vector<size_t> populate_completion_vector()
+{
+    std::vector<size_t> new_vec(CompletionBufferFactory::MAX_COMP_VALUES);
+    std::iota(new_vec.begin(), new_vec.end(), 1);
+    return new_vec;
+}
+
+std::vector<size_t> CompletionBufferFactory::completion_addrs =
+    populate_completion_vector();
+
+void LibfabricInstance::initialize_libfabric()
 {
     // Hints will be freed by helper call below
     struct fi_info* hints;
@@ -82,7 +92,7 @@ void CXIQueue::libfabric_setup(int num_ranks)
     // Make Address Vector
     struct fi_av_attr av_attr = {};
     av_attr.type              = FI_AV_TABLE;
-    av_attr.count             = num_ranks;
+    av_attr.count             = comm_size;
     av_attr.flags             = FI_SYMMETRIC;
     force_libfabric(fi_av_open(domain, &av_attr, &av, 0));
 
@@ -96,18 +106,13 @@ void CXIQueue::libfabric_setup(int num_ranks)
     check_libfabric(fi_ep_bind(ep, &(av)->fid, 0));
     check_libfabric(fi_enable(ep));
 
-    recv_ctr = CXICounter::alloc_counter(domain);
+    recv_ctr = alloc_counter();
     check_libfabric(fi_ep_bind(ep, &(recv_ctr)->fid, FI_RECV));
-
-    // Register MR
-    my_buffer.register_mr(domain, ep);
-
-    // Register progress counter
-    my_queue.register_progress_counter(recv_ctr);
 }
 
-void CXIQueue::peer_setup(int size)
+void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm_base)
 {
+    Print::out("Doing an allgather to get", comm_size, "ranks.");
     // Get our "cxi address"
     static constexpr size_t name_array_len = 100;
     char                    name[name_array_len];
@@ -115,10 +120,12 @@ void CXIQueue::peer_setup(int size)
     check_libfabric(fi_getname(&(ep)->fid, name, &_array_size));
 
     // All other ranks
-    char* all_names = new char[_array_size * size];
-    memset(all_names, 0, _array_size * size * sizeof(char));
+    char* all_names = new char[_array_size * comm_size];
+    memset(all_names, 0, _array_size * comm_size * sizeof(char));
     force_mpi(MPI_Allgather(name, 4, MPI_CHAR, all_names, 4, MPI_CHAR, comm_base));
-    check_libfabric(fi_av_insert(av, all_names, size, peers.data(), 0, 0));
+
+    peers.resize(comm_size, 0);
+    check_libfabric(fi_av_insert(av, all_names, comm_size, peers.data(), 0, 0));
 
     delete[] all_names;
 }
@@ -127,23 +134,21 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
 {
     /* New request that prepares the user's request to be enqueued later*/
     std::unique_ptr<CXIRequest> converted_request = nullptr;
-    /* Buffer for local completion RMAs */
-    Buffer local_completion = my_buffer.alloc_buffer();
 
     /* Data to be exchanged (receiver sends this, sender receives this)
      * 1. MR key for receive buffer
      * 2. Remote completion buffer mr key
-     * 3. Remote completion buffer offset  */
+     * 3. Remote completion buffer offset
+     * TODO: UPDATE FOR NEW LISTS OF 5 ITEMS
+     */
     if (Communication::Operation::RECV == req.operation)
     {
-        converted_request =
-            std::make_unique<CXIRecvOneSided>(local_completion, req, domain, ep);
+        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab);
     }
-    else if (Communication::Operation::SEND == req.operation)
+    else if (Communication::Operation::RSEND >= req.operation)
     {
-        converted_request = std::make_unique<CXISend<CommunicationType::ONE_SIDED>>(
-            local_completion, req, domain, ep, my_queue, peers.at(req.peer),
-            peers.at(my_rank));
+        converted_request = std::make_unique<CXISend>(req, my_buffer, libfab, my_queue,
+                                                      libfab.get_peer(my_rank));
     }
     else
     {
@@ -153,11 +158,8 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     request_map.insert(std::make_pair(req.getID(), std::move(converted_request)));
 }
 
-void CXIQueue::libfabric_teardown()
+LibfabricInstance::~LibfabricInstance()
 {
-    the_gpu_counter.reset();
-    request_map.clear();
-    my_buffer.free_mr();
     check_libfabric(fi_close(&(ep)->fid));
     check_libfabric(fi_close(&(recv_ctr)->fid));
     check_libfabric(fi_close(&(av)->fid));
@@ -186,25 +188,54 @@ __global__ void flush_buffer()
     asm volatile("buffer_wbl2");
 }
 
-void CXIWait::wait_gpu(hipStream_t* the_stream)
+void CXIRequest::wait_gpu(hipStream_t* the_stream)
 {
+    Print::out("<E> This request will wait for:", num_times_started, "at",
+               completion_buffer.address);
     wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)completion_buffer.address,
                                                  num_times_started);
 }
 
-template <CommunicationType MODE>
-void CXISend<MODE>::start_gpu(hipStream_t* the_stream, Threshold& threshold,
-                              CXICounter& trigger_cntr)
+void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                        CXICounter& trigger_cntr)
 {
+    if (Operation::RSEND != base_req.operation)
+    {
+        Print::out("<E> Starting kernel to wait on CTS;",
+                   (size_t*)protocol_buffer.address, num_times_started);
+        wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
+                                                     num_times_started);
+    }
+
     if (threshold.value() == threshold.counter_value())
     {
-        // No need to trigger counter, as eventually it should be what we want.
+        Print::out("Skipping kernel for trigger -- counter already there");
         return;
     }
 
     size_t    counter_bump = threshold.equalize_counter();
     uint64_t* cntr_addr    = (uint64_t*)trigger_cntr.gpu_mmio_addr;
+    Print::out("<E> Launching a kernel to bump a counter by", counter_bump);
     add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
+}
+
+void CXIRecvOneSided::start_gpu(hipStream_t* the_stream, Threshold& threshold,
+                                CXICounter& trigger_cntr)
+{
+    if (Operation::RSEND != protocol_buffer.operation)
+    {
+        if (threshold.value() == threshold.counter_value())
+        {
+            Print::out("Skipping kernel for CTS trigger -- counter already there");
+            return;
+        }
+
+        size_t    counter_bump = threshold.equalize_counter();
+        uint64_t* cntr_addr    = (uint64_t*)trigger_cntr.gpu_mmio_addr;
+        Print::out("<E> Enqueueing triggering kernel for CTS! Bump:", counter_bump);
+
+        add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
+    }
 }
 
 void CXIQueue::enqueue_waitall()
@@ -219,6 +250,6 @@ void CXIQueue::enqueue_waitall()
 
 void CXIQueue::flush_memory(hipStream_t* the_stream)
 {
-    Print::out("Enqueuing buffer_wbl2 kernel");
+    Print::out("<E> Enqueuing buffer_wbl2 kernel");
     flush_buffer<<<1, 1, 0, *the_stream>>>();
 }

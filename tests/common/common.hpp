@@ -13,7 +13,6 @@
 #include <iostream>
 
 #include "mpi.h"
-#include "stream-triggering.h"
 
 #if NEED_HIP
 #define check_gpu(function)                       \
@@ -169,6 +168,24 @@ __global__ void print_buffer2(volatile int* buffer, int buffer_len, int rank)
         return;
 
     printf("<GPU %d> Buffer value @ index: %d is: %d\n", rank, index, buffer[index]);
+}
+
+__global__ void print_buffer3(volatile int* buffer, int buffer_len, int rank)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    if (buffer[index] != index)
+    {
+        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
+               index, buffer[index], index);
+    }
+}
+
+__global__ void dummy_kernel(int rank, int value)
+{
+    printf("<GPU %d> Dummy kernel %d\n", rank, value);
 }
 
 static void inline check_param_size(int* argc, int num_params, std::string usage)
