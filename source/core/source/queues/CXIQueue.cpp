@@ -110,7 +110,7 @@ void LibfabricInstance::initialize_libfabric()
     check_libfabric(fi_ep_bind(ep, &(recv_ctr)->fid, FI_RECV));
 }
 
-void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm_base)
+void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm)
 {
     Print::out("Doing an allgather to get", comm_size, "ranks.");
     // Get our "cxi address"
@@ -122,7 +122,7 @@ void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm_base)
     // All other ranks
     char* all_names = new char[_array_size * comm_size];
     memset(all_names, 0, _array_size * comm_size * sizeof(char));
-    force_mpi(MPI_Allgather(name, 4, MPI_CHAR, all_names, 4, MPI_CHAR, comm_base));
+    force_mpi(MPI_Allgather(name, 4, MPI_CHAR, all_names, 4, MPI_CHAR, comm));
 
     peers.resize(comm_size, 0);
     check_libfabric(fi_av_insert(av, all_names, comm_size, peers.data(), 0, 0));
@@ -154,6 +154,8 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     {
         throw std::runtime_error("Operation not supported");
     }
+
+    converted_request->match(match_phase_a, match_phase_b);
 
     request_map.insert(std::make_pair(req.getID(), std::move(converted_request)));
 }

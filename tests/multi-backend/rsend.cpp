@@ -1,5 +1,7 @@
 #include "../common/common.hpp"
 
+#include "stream-triggering.h"
+
 int main(int argc, char* argv[])
 {
     int mode;
