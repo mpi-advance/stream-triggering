@@ -83,7 +83,7 @@ public:
 
 private:
 
-`	/** @brief list of QueueEntries to process */
+	/** @brief list of QueueEntries to process */
     std::vector<std::reference_wrapper<QueueEntry>> items;
 };
 }  // namespace Communication
