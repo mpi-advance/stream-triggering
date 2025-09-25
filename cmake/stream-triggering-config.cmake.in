@@ -1,0 +1,6 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/stream-triggeringTargets.cmake")
+message(STATUS "config message")
+find_package(OpenMP)
+find_package(MPI REQUIRED)

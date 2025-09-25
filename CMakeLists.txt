@@ -112,3 +112,37 @@ install(
 	ARCHIVE DESTINATION lib
 	PUBLIC_HEADER DESTINATION include
 )
+
+
+###### Exporting Package
+install(TARGETS stream-triggering
+	    EXPORT stream-triggeringTargets)
+
+
+include(CMakePackageConfigHelpers)
+
+# Create the configuration file
+configure_package_config_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/cmake/stream-triggering-config.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+	INSTALL_DESTINATION share/${PROJECT_NAME}
+)
+
+## Version file
+write_basic_package_version_file(
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+	COMPATIBILITY SameMinorVersion
+)
+
+install(FILES
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+	DESTINATION share/${PROJECT_NAME}
+)
+
+message(STATUS "MAKING PACKAGE")
+
+# Export the targets into a CMake package
+install(EXPORT stream-triggeringTargets
+        NAMESPACE MPIAdvance::
+        DESTINATION share/${PROJECT_NAME})
