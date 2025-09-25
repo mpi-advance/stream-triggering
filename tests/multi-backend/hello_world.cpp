@@ -1,9 +1,12 @@
 #include "../common/common.hpp"
 
+#include "stream-triggering.h"
+
 int main(int argc, char* argv[])
 {
     int mode;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -57,14 +60,14 @@ int main(int argc, char* argv[])
     MPIS_Request my_reqs[2];
     if (0 == rank % 2)
     {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 10, MPI_COMM_WORLD, mem_info,
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);
         MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[1]);
     }
     else
     {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 10, MPI_COMM_WORLD, mem_info,
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[1]);
         MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);

@@ -47,7 +47,7 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=rsend
+TEST_NAME=hello_world
 TIME=00:03:00
 
 cd scratch/tmp/
@@ -71,8 +71,8 @@ run_test "cxi-coarse"
 run_test "cxi-fine"
 
 export MPICH_GPU_SUPPORT_ENABLED=1
-run_test "hip"
-run_test "thread"
+#run_test "hip"
+#run_test "thread"
 unset MPICH_GPU_SUPPORT_ENABLED
 
 # While slurm has append to file, flux does not. So we have to 

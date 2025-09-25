@@ -93,12 +93,12 @@ public:
     LibfabricInstance() = default;
     ~LibfabricInstance();
 
-    void initialize(MPI_Comm comm_base)
+    void initialize(MPI_Comm comm)
     {
         comm_size = -1;
-        check_mpi(MPI_Comm_size(comm_base, &comm_size));
+        check_mpi(MPI_Comm_size(comm, &comm_size));
         initialize_libfabric();
-        initialize_peer_addresses(comm_base);
+        initialize_peer_addresses(comm);
     }
 
     struct fid_cntr* alloc_counter()
@@ -552,6 +552,8 @@ public:
         return base_req.get_memory_type();
     }
 
+    virtual void match(MPI_Comm phase_a, MPI_Comm phase_b) = 0;
+
 protected:
     virtual void start_host(hipStream_t* the_stream, Threshold& threshold,
                             CXICounter& trigger_cntr) = 0;
@@ -595,6 +597,8 @@ public:
         force_gpu(
             hipStreamWaitValue64(*the_stream, gpu_wait_location, num_times_started, 0));
     }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override {}
 
 protected:
     void start_host(hipStream_t* the_stream, Threshold& threshold,
@@ -736,12 +740,6 @@ public:
         work_entry.set_completion_counter(completion_a);
         work_entry.set_flags(FI_DELIVERY_COMPLETE);
         my_queue.register_completion_counter(completion_c);
-
-        /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::sender(
-            work_entry.get_rma_iov_addr(),
-            my_chained_completions.get_remote_rma_iov_addr(),
-            protocol_buffer.get_rma_iov_addr(), user_request);
     }
 
     ~CXISend()
@@ -751,6 +749,15 @@ public:
         force_libfabric(fi_close(&completion_a->fid));
         force_libfabric(fi_close(&completion_b->fid));
         force_libfabric(fi_close(&completion_c->fid));
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::sender(
+            work_entry.get_rma_iov_addr(),
+            my_chained_completions.get_remote_rma_iov_addr(),
+            protocol_buffer.get_rma_iov_addr(), base_req, comm_a, comm_b);
     }
 
     void start_host(hipStream_t* the_stream, Threshold& threshold,
@@ -806,11 +813,6 @@ public:
 
         cts_entry.set_completion_counter(completion_a);
         cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
-
-        /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::receiver(
-            &user_buffer_rma_iov, completion_buffer.get_rma_iov_addr(),
-            &protocol_buffer.operation, cts_entry.get_rma_iov_addr(), user_request);
     }
 
     ~CXIRecvOneSided()
@@ -819,6 +821,15 @@ public:
         force_libfabric(fi_close(&completion_a->fid));
         // Free MR
         force_libfabric(fi_close(&(my_mr)->fid));
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::receiver(
+            &user_buffer_rma_iov, completion_buffer.get_rma_iov_addr(),
+            &protocol_buffer.operation, cts_entry.get_rma_iov_addr(), base_req, comm_a,
+            comm_b);
     }
 
     void start_host(hipStream_t* the_stream, Threshold& threshold,
@@ -867,7 +878,11 @@ public:
     {
         Print::out("CXI Queue init-ed");
         force_mpi(MPI_Comm_rank(comm_base, &my_rank));
-        libfab.initialize(comm_base);
+        Print::out("Starting MPI Comm Dupes");
+        force_mpi(MPI_Comm_dup(comm_base, &match_phase_a));
+        force_mpi(MPI_Comm_dup(comm_base, &match_phase_b));
+        Print::out("Starting Allreduce to get CXI address data");
+        libfab.initialize(match_phase_a);
         the_gpu_counter = std::make_unique<CXICounter>(libfab);
 
         // Register MR
@@ -880,6 +895,8 @@ public:
     ~CXIQueue()
     {
         MPI_Barrier(comm_base);
+        MPI_Comm_free(&match_phase_a);
+        MPI_Comm_free(&match_phase_b);
         the_gpu_counter.reset();
         request_map.clear();
         my_buffer.free_mr();
@@ -953,6 +970,8 @@ private:
     // Peer information
     MPI_Comm comm_base;
     int      my_rank;
+    MPI_Comm match_phase_a;
+    MPI_Comm match_phase_b;
 
     // Map of Request ID to CXIObject (counters, mr)
     std::map<size_t, CXIObjects> request_map;
