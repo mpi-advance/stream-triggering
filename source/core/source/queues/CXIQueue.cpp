@@ -1,6 +1,6 @@
 #include "queues/CXIQueue.hpp"
 
-#include "safety/hip.hpp"
+#include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
 CompletionBuffer  CXIQueue::my_buffer;
@@ -33,11 +33,11 @@ void CXIQueue::libfabric_setup(int num_ranks)
     /* Code specific to tioga -- ADD REASON */
 #ifdef USE_GFX90A
     int device = -1;
-    force_hip(hipGetDevice(&device));
+    force_gpu(hipGetDevice(&device));
     int pci_bus_id = -1;
-    force_hip(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, device));
-	
-	//fi is list of OFI providers
+    force_gpu(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, device));
+
+
     while (fi != nullptr)
     {
         Print::out(fi->nic->bus_attr->attr.pci.domain_id,

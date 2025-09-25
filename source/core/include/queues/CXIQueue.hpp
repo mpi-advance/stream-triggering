@@ -18,7 +18,7 @@
 #include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 #include "misc/print.hpp"
-#include "safety/hip.hpp"
+#include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
 
@@ -305,9 +305,9 @@ public:
         check_libfabric(
             counter_ops->get_mmio_addr(&counter->fid, &mmio_addr, &mmio_addr_len));
         // Register MMIO Address w/ HIP
-        force_hip(hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
+        force_gpu(hipHostRegister(mmio_addr, mmio_addr_len, hipHostRegisterDefault));
         // Get GPU version of MMIO address
-        force_hip(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
+        force_gpu(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
     }
 
 	/** @brief delete and deregister counter from domain */
@@ -315,7 +315,7 @@ public:
     {
         // Free counter
         force_libfabric(fi_close(&counter->fid));
-        force_hip(hipHostUnregister(mmio_addr));
+        force_gpu(hipHostUnregister(mmio_addr));
     }
 
 	/** @brief print out counter value */
@@ -360,7 +360,7 @@ public:
 	/** @brief create blank memory region label and allocate memory for buffer **/
     CompletionBuffer() : my_mr(nullptr)
     {
-        force_hip(hipHostMalloc(&buffer, DEFAULT_SIZE, hipHostMallocDefault));
+        force_gpu(hipHostMalloc(&buffer, DEFAULT_SIZE, hipHostMallocDefault));
     }
 
 	/** @brief Deregister memory reserved for completion buffer if necessary, then delete object */
@@ -370,7 +370,7 @@ public:
         {
             force_libfabric(fi_close(&(my_mr)->fid));
         }
-        check_hip(hipHostFree(buffer));
+        check_gpu(hipHostFree(buffer));
     }
 
 	/**@brief disables copy constructor */
@@ -527,22 +527,22 @@ public:
           progress_engine(dwq)
     {
         // Setup GPU memory locations
-        force_hip(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
+        force_gpu(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_start_location = 0;
-        force_hip(hipHostGetDevicePointer(&gpu_start_location, host_start_location, 0));
-        force_hip(hipHostMalloc((void**)&host_wait_location, sizeof(int64_t),
+        force_gpu(hipHostGetDevicePointer(&gpu_start_location, host_start_location, 0));
+        force_gpu(hipHostMalloc((void**)&host_wait_location, sizeof(int64_t),
                                 hipHostMallocDefault));
         *host_wait_location = 0;
-        force_hip(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
+        force_gpu(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
     }
 
 	/** @brief wait for thread to join then deallocate memory on the GPU*/
     ~FakeBarrier()
     {
         thr.join();
-        check_hip(hipHostFree(host_start_location));
-        check_hip(hipHostFree(host_wait_location));
+        check_gpu(hipHostFree(host_start_location));
+        check_gpu(hipHostFree(host_wait_location));
     }
 
 	/** @brief wait until value is written in theshold location 
@@ -550,7 +550,7 @@ public:
 	*/
     void wait_gpu(hipStream_t* the_stream) override
     {
-        force_hip(
+        force_gpu(
             hipStreamWaitValue64(*the_stream, gpu_wait_location, num_times_started, 0));
     }
 
@@ -579,7 +579,7 @@ protected:
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
                    CXICounter& trigger_cntr) override
     {
-        force_hip(
+        force_gpu(
             hipStreamWriteValue64(*the_stream, gpu_start_location, threshold.value(), 0));
     }
 
@@ -1043,7 +1043,7 @@ public:
     void host_wait() override
     {
         Print::out("Waiting on device!");
-        force_hip(hipStreamSynchronize(*the_stream));
+        force_gpu(hipStreamSynchronize(*the_stream));
     }
 
 	/** @brief match request type and prep for execution.  

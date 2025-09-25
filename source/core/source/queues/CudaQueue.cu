@@ -1,26 +1,26 @@
 #include "misc/print.hpp"
 #include "queues/CudaQueue.hpp"
-#include "safety/cuda.hpp"
+#include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
 CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
-    force_cuda(cuMemHostAlloc(
+    force_gpu(cuMemHostAlloc(
         (void**)&start_location, sizeof(int64_t),
         CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
     *start_location = 0;
-    force_cuda(cuMemHostGetDevicePointer(&start_dev, start_location, 0));
-    force_cuda(cudaHostAlloc(
+    force_gpu(cuMemHostGetDevicePointer(&start_dev, start_location, 0));
+    force_gpu(cudaHostAlloc(
         (void**)&wait_location, sizeof(int64_t),
         CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
     *wait_location = 0;
-    force_cuda(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
+    force_gpu(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
 
 CudaQueueEntry::~CudaQueueEntry()
 {
-    check_cuda(cudaFreeHost(start_location));
-    check_cuda(cudaFreeHost(wait_location));
+    check_gpu(cudaFreeHost(start_location));
+    check_gpu(cudaFreeHost(wait_location));
 }
 
 void CudaQueueEntry::start_host()
@@ -48,21 +48,21 @@ void CudaQueueEntry::start_gpu(void* the_stream)
 {
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
-    force_cuda(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
+    force_gpu(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
 }
 
 void CudaQueueEntry::wait_gpu(void* the_stream)
 {
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
-    force_cuda(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));
+    force_gpu(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));
 }
 
 CudaQueue::CudaQueue(cudaStream_t* stream)
     : thr(&CudaQueue::progress, this), my_stream(stream), wait_cntr(0)
 {
-    // force_cuda(cuInit(0));
-    // force_cuda(cudaSetDevice(0));
+    // force_gpu(cuInit(0));
+    // force_gpu(cudaSetDevice(0));
 }
 
 CudaQueue::~CudaQueue()
@@ -73,7 +73,7 @@ CudaQueue::~CudaQueue()
 
 void CudaQueue::progress()
 {
-    check_cuda(cudaSetDevice(0));
+    check_gpu(cudaSetDevice(0));
     while (!shutdown)
     {
         while (s_ongoing.size() > 0 || wait_cntr.load() > 0)

@@ -118,8 +118,8 @@ int main()
     // Info hint
     MPI_Info mem_info;
     MPI_Info_create(&mem_info);
-    MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "COARSE");
-    // MPI_Info_set(mem_info, "MPIS_GPU_MEM_TYPE", "FINE");
+    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
+    // MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
 
     // Make requests
     MPIS_Request my_reqs[2];

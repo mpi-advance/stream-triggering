@@ -8,7 +8,6 @@ option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
 option(USE_HIP_BACKEND "Enable the HIP backend for the queue objects" OFF)
 option(USE_CUDA_BACKEND "Enable the CUDA backend for the queue objects" OFF)
 option(USE_CXI_BACKEND "Enable the CXI backend for the queue objects" OFF)
-option(USE_HPE_BACKEND "Enable the HPE (cray-mpich stream triggering) backend for queue objects" OFF)
 
 # Language settings
 set(CMAKE_CXX_STANDARD 23)
@@ -86,13 +85,6 @@ if(USE_CXI_BACKEND)
         message(STATUS "Adding custom code for the gfx90a")
         add_definitions(-DUSE_GFX90A)
     endif()
-endif()
-
-if(USE_HPE_BACKEND)
-    message(STATUS "Using HPE's stream triggering as the underlying implementation.")
-    set(NEED_GPU ON)
-    set(GPU_TYPE "AMD")
-    add_definitions( -DUSE_HPE )
 endif()
 
 if( (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13) OR

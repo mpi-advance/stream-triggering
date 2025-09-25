@@ -59,24 +59,10 @@ enum MPIS_Queue_type
     THREAD            = 0, ///<Basic Threaded queue
     THREAD_SERIALIZED = 1, ///< Serialized Thread queue
     GPU_MEM_OPS       = 3, ///<Support for GPU memory
-    HPE               = 4, ///<Support for HPE
-    MPICH_IMPL        = 5, ///<MPICH optimized queue
-    CXI               = 6  ///<CXI optimized queue
+    CXI               = 4  ///<CXI optimized queue
 };
 
-/** @brief Pointer to currently active queue (ONLY ONE QUEUE MAY BE ACTIVE AT A TIME)
- * @details
- * 
- * 
- */
-extern MPIS_Queue ACTIVE_QUEUE;
-
-/** @brief Function to debug and test MPI_Init issues
- * @details 
- */
 void MPIS_Hello_world();
-
-// APIs from 7/25/24
 
 /* Queue Management */
 // int MPIS_Queue_fence();
@@ -252,6 +238,11 @@ int MPIS_Recv_init(void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
  */	
 int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm,
                    MPI_Info, MPIS_Request*);
+
+
+/* New GPU Memory Allocation functions */
+int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);
+int MPIS_Free_mem(void*);
 
 
 #ifdef __cplusplus
