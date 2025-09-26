@@ -17,9 +17,9 @@ fi
 ## Compile normal version 
 cd ../multi-backend
 if [ "$SYSTEM" == "TUOLUMNE" ]; then
-    ./compile.sh -f ../benchmark/raw_pingpong.cpp -C -d
+    ./compile.sh -f ../benchmark/pingpong_st_db.cpp -C -d
 else
-    ./compile.sh -f ../benchmark/raw_pingpong.cpp -C
+    ./compile.sh -f ../benchmark/pingpong_st_db.cpp -C
 fi
 cd ../benchmark
 
@@ -31,7 +31,7 @@ else
 fi
 ## Compile MPI Version
 
-EXEC="../scratch/execs/raw_pingpong_"$SYSTEM"_mpi"
+EXEC="../scratch/execs/pingpong_st_db_"$SYSTEM"_mpi"
 echo -e "$ARROW$EXEC"
 set -x
-CC -D__HIP_PLATFORM_AMD__ -O3 -g -std=c++20 -x hip -o$EXEC pingpong_mpi.cpp -DNEED_HIP
+CC -D__HIP_PLATFORM_AMD__ -O3 -g -std=c++20 -x hip -o$EXEC pingpong_mpi_db.cpp -DNEED_HIP

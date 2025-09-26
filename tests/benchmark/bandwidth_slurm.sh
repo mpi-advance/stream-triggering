@@ -47,7 +47,7 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=raw_pingpong
+TEST_NAME=pingpong_st_db
 TIME=00:03:00
 START_EXP=3
 END_EXP=26
