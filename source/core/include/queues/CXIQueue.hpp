@@ -87,6 +87,104 @@ public:
     Operation operation;
 };
 
+class DeferredWorkQueue
+{
+public:
+    DeferredWorkQueue() = default;
+
+    void register_progress_counter(struct fid_cntr* p_cntr)
+    {
+        Print::out("Currently in use:", space_used);
+        progress_cntr = p_cntr;
+    }
+
+    void register_completion_counter(struct fid_cntr* c_cntr)
+    {
+        if (!known_completion_map.contains(c_cntr))
+        {
+            Print::out("Adding completion counter:", c_cntr);
+            known_completion_map.insert({c_cntr, 0});
+        }
+    }
+
+    void consume()
+    {
+        Print::out("*** Consumed");
+        space_used++;
+    }
+
+    void clear_completion_counter(struct fid_cntr* completion_cntr,
+                                  uint64_t         max_threshold)
+    {
+        Print::out("Clearing counter to:", max_threshold);
+        uint64_t last_value = known_completion_map.at(completion_cntr);
+        Print::out("[Counter, space] used before clearing:", last_value, space_used);
+
+        uint64_t new_value = fi_cntr_read(completion_cntr);
+        while (new_value != max_threshold)
+        {
+            progress();
+            new_value = fi_cntr_read(completion_cntr);
+        }
+
+        // Cleanup
+        space_used -= (new_value - last_value);
+        Print::out("[Counter, space] used after clearing:", new_value, space_used);
+        known_completion_map.erase(completion_cntr);
+    }
+
+    void make_space()
+    {
+        Print::out("*** Asked to make space at", space_used);
+        if ((space_used + 1) >= total_space)
+        {
+            while ((space_used + 1) >= total_space)
+            {
+                progress();
+                update_space_free();
+            }
+        }
+    }
+
+    uint64_t progress()
+    {
+        return fi_cntr_read(progress_cntr);
+    }
+
+    void print_status()
+    {
+        Print::always("Space in use:", space_used);
+    }
+
+private:
+    inline void update_space_free()
+    {
+        for (auto& [counter, value] : known_completion_map)
+        {
+            uint64_t last_value = value;
+            uint64_t curr_value = fi_cntr_read(counter);
+            if (curr_value != last_value)
+            {
+                Print::out("*** Counter", counter, "was updated from", last_value, "to",
+                           curr_value);
+                space_used -= (curr_value - last_value);
+                Print::out("*** Space in use:", space_used);
+                value = curr_value;
+            }
+        }
+    }
+
+    // Control of DFWQ Space
+    const uint64_t total_space = 84;
+    uint64_t       space_used  = 0;
+
+    // Progress counter
+    struct fid_cntr* progress_cntr;
+
+    // Last known completions
+    std::map<struct fid_cntr*, uint64_t> known_completion_map;
+};
+
 class LibfabricInstance
 {
 public:
@@ -101,7 +199,7 @@ public:
         initialize_peer_addresses(comm);
     }
 
-    struct fid_cntr* alloc_counter()
+    struct fid_cntr* alloc_counter(bool register_with_dwq)
     {
         struct fid_cntr*    new_ctr;
         struct fi_cntr_attr cntr_attr = {
@@ -109,7 +207,21 @@ public:
             .wait_obj = FI_WAIT_UNSPEC,
         };
         force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
+        // Register with DWQ entity as this counter will tell us when space is freed
+        if (register_with_dwq)
+        {
+            my_queue.register_completion_counter(new_ctr);
+        }
         return new_ctr;
+    }
+
+    void dealloc_counter(struct fid_cntr* counter, uint64_t threshold = 0)
+    {
+        if (threshold != 0)
+        {
+            my_queue.clear_completion_counter(counter, threshold);
+        }
+        force_libfabric(fi_close(&counter->fid));
     }
 
     struct fid_mr* create_mr(const void* buffer, size_t len, uint64_t access,
@@ -134,7 +246,14 @@ public:
     void queue_work(struct fi_deferred_work* work_entry)
     {
         print_dfwq_entry(work_entry);
+        my_queue.make_space();
         force_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, work_entry));
+        my_queue.consume();
+    }
+
+    void progress_dwq()
+    {
+        my_queue.progress();
     }
 
     struct fi_info*    fi;       /*!< Provider's data and features */
@@ -159,12 +278,15 @@ private:
 
     int                    comm_size;
     std::vector<fi_addr_t> peers;
+
+    // Deferred Work Queue Management
+    static DeferredWorkQueue my_queue;
 };
 
 class CXICounter
 {
 public:
-    CXICounter(LibfabricInstance& libfab) : counter(libfab.alloc_counter())
+    CXICounter(LibfabricInstance& libfab) : counter(libfab.alloc_counter(false))
     {
         // Open (create) CXI Extension object
         check_libfabric(fi_open_ops(&(counter->fid), FI_CXI_COUNTER_OPS, 0,
@@ -425,104 +547,6 @@ protected:
     struct fi_rma_iov msg_rma_iov;
 };
 
-class DeferredWorkQueue
-{
-public:
-    DeferredWorkQueue() = default;
-
-    void register_progress_counter(struct fid_cntr* p_cntr)
-    {
-        Print::out("Currently in use:", space_used);
-        progress_cntr = p_cntr;
-    }
-
-    void register_completion_counter(struct fid_cntr* c_cntr)
-    {
-        if (!known_completion_map.contains(c_cntr))
-        {
-            Print::out("Adding completion counter:", c_cntr);
-            known_completion_map.insert({c_cntr, 0});
-        }
-    }
-
-    void consume()
-    {
-        Print::out("*** Consumed");
-        space_used++;
-    }
-
-    void clear_completion_counter(struct fid_cntr* completion_cntr,
-                                  uint64_t         max_threshold)
-    {
-        Print::out("Clearing counter to:", max_threshold);
-        uint64_t last_value = known_completion_map.at(completion_cntr);
-        Print::out("[Counter, space] used before clearing:", last_value, space_used);
-
-        uint64_t new_value = fi_cntr_read(completion_cntr);
-        while (new_value != max_threshold)
-        {
-            progress();
-            new_value = fi_cntr_read(completion_cntr);
-        }
-
-        // Cleanup
-        space_used -= (new_value - last_value);
-        Print::out("[Counter, space] used after clearing:", new_value, space_used);
-        known_completion_map.erase(completion_cntr);
-    }
-
-    void make_space()
-    {
-        Print::out("*** Asked to make space at", space_used);
-        if ((space_used + 1) >= total_space)
-        {
-            while ((space_used + 1) >= total_space)
-            {
-                progress();
-                update_space_free();
-            }
-        }
-    }
-
-    uint64_t progress()
-    {
-        return fi_cntr_read(progress_cntr);
-    }
-
-    void print_status()
-    {
-        Print::always("Space in use:", space_used);
-    }
-
-private:
-    inline void update_space_free()
-    {
-        for (auto& [counter, value] : known_completion_map)
-        {
-            uint64_t last_value = value;
-            uint64_t curr_value = fi_cntr_read(counter);
-            if (curr_value != last_value)
-            {
-                Print::out("*** Counter", counter, "was updated from", last_value, "to",
-                           curr_value);
-                space_used -= (curr_value - last_value);
-                Print::out("*** Space in use:", space_used);
-                value = curr_value;
-            }
-        }
-    }
-
-    // Control of DFWQ Space
-    const uint64_t total_space = 84;
-    uint64_t       space_used  = 0;
-
-    // Progress counter
-    struct fid_cntr* progress_cntr;
-
-    // Last known completions
-    std::map<struct fid_cntr*, uint64_t> known_completion_map;
-};
-
 class CXIRequest
 {
 public:
@@ -571,8 +595,9 @@ class FakeBarrier : public CXIRequest
 {
 public:
     // Uses "GPUMemoryType::FINE" because this doesn't need a flush
-    FakeBarrier(Request& req, CompletionBufferFactory& buffers, DeferredWorkQueue& dwq)
-        : CXIRequest(req, buffers), finished(true), progress_engine(dwq)
+    FakeBarrier(Request& req, CompletionBufferFactory& buffers,
+                LibfabricInstance& _libfab)
+        : CXIRequest(req, buffers), finished(true), progress_engine(_libfab)
     {
         // Setup GPU memory locations
         force_gpu(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
@@ -608,7 +633,7 @@ protected:
         while (!finished)
         {
             /* Do progress (fi_cntr_read) */
-            progress_engine.progress();
+            progress_engine.progress_dwq();
         }
 
         /* And normal thread joining check */
@@ -657,7 +682,7 @@ private:
     std::thread thr;
     bool        finished = true;
     // Progress
-    DeferredWorkQueue& progress_engine;
+    LibfabricInstance& progress_engine;
 };
 
 template <bool FENCE = false>
@@ -722,33 +747,30 @@ class CXISend : public CXIRequest
 {
 public:
     CXISend(Request& user_request, CompletionBufferFactory& buffers,
-            LibfabricInstance& _libfab, DeferredWorkQueue& dwq, fi_addr_t self)
+            LibfabricInstance& _libfab, fi_addr_t self)
         : CXIRequest(user_request, buffers),
           work_entry(_libfab.ep,
                      {user_request.buffer,
                       static_cast<size_t>(get_size_of_buffer(user_request))},
                      _libfab.get_peer(user_request.peer)),
           libfab(_libfab),
-          my_queue(dwq),
-          completion_a(_libfab.alloc_counter()),
-          completion_b(_libfab.alloc_counter()),
-          completion_c(_libfab.alloc_counter()),
+          completion_a(_libfab.alloc_counter(true)),
+          completion_b(_libfab.alloc_counter(true)),
+          completion_c(_libfab.alloc_counter(true)),
           my_chained_completions(completion_buffer, _libfab.ep,
                                  _libfab.get_peer(user_request.peer), self, completion_a,
                                  completion_b, completion_c)
     {
         work_entry.set_completion_counter(completion_a);
         work_entry.set_flags(FI_DELIVERY_COMPLETE);
-        my_queue.register_completion_counter(completion_c);
     }
 
     ~CXISend()
     {
-        my_queue.clear_completion_counter(completion_c, num_times_started);
         // Free counter
-        force_libfabric(fi_close(&completion_a->fid));
-        force_libfabric(fi_close(&completion_b->fid));
-        force_libfabric(fi_close(&completion_c->fid));
+        libfab.dealloc_counter(completion_a, num_times_started);
+        libfab.dealloc_counter(completion_b, num_times_started);
+        libfab.dealloc_counter(completion_c, num_times_started);
     }
 
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
@@ -768,14 +790,11 @@ public:
         // Adjust the triggering counter to use
         work_entry.set_trigger_counter(trigger_cntr);
 
-        // Make sure we can add at 1 iteration (3 DFWQ entries technically)
-        my_queue.make_space();
-
+        // Queue up send of user data
         libfab.queue_work(work_entry.get_dwqe());
 
         // Queue up chained actions
         my_chained_completions.queue_work(libfab);
-        my_queue.consume();
     }
 
     void start_gpu(hipStream_t* the_stream, Threshold& threshold,
@@ -787,8 +806,6 @@ private:
 
     // Reference to global libfabric stuff
     LibfabricInstance& libfab;
-
-    DeferredWorkQueue& my_queue;
 
     struct fid_cntr*  completion_a;
     struct fid_cntr*  completion_b;
@@ -804,7 +821,7 @@ public:
         : CXIRequest(user_request, buffers),
           libfab(_libfab),
           cts_entry(_libfab.ep, _libfab.get_peer(user_request.peer)),
-          completion_a(_libfab.alloc_counter())
+          completion_a(_libfab.alloc_counter(true))
     {
         my_mr = _libfab.create_mr(user_request.buffer, get_size_of_buffer(user_request),
                                   FI_REMOTE_WRITE, FI_MR_ALLOCATED);
@@ -818,7 +835,7 @@ public:
     ~CXIRecvOneSided()
     {
         // Free counter
-        force_libfabric(fi_close(&completion_a->fid));
+        libfab.dealloc_counter(completion_a, num_times_started);
         // Free MR
         force_libfabric(fi_close(&(my_mr)->fid));
     }
@@ -887,9 +904,6 @@ public:
 
         // Register MR
         my_buffer.register_mr(libfab);
-
-        // Register progress counter
-        my_queue.register_progress_counter(libfab.recv_ctr);
     }
 
     ~CXIQueue()
@@ -941,7 +955,7 @@ public:
         {
             /* Add request to map */
             request_map.insert(std::make_pair(
-                qe->getID(), std::make_unique<FakeBarrier>(*qe, my_buffer, my_queue)));
+                qe->getID(), std::make_unique<FakeBarrier>(*qe, my_buffer, libfab)));
         }
         else
         {
@@ -979,9 +993,6 @@ private:
 
     // Completion buffers
     static CompletionBufferFactory my_buffer;
-
-    // Deferred Work Queue Management
-    static DeferredWorkQueue my_queue;
 
     // Hip Stream
     hipStream_t* the_stream;

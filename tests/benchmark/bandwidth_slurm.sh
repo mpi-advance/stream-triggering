@@ -50,8 +50,8 @@ export HSA_XNACK=1
 TEST_NAME=pingpong_st_db
 TIME=00:03:00
 START_EXP=3
-END_EXP=26
-NUM_ITERS=100000
+END_EXP=4
+NUM_ITERS=100
 
 cd scratch/tmp/
 
