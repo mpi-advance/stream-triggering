@@ -80,7 +80,7 @@ public:
 
     void print() override
     {
-        Print::out("ProtocolBuffer:", operation, address, remote_description.addr,
+        Print::out("Protocol Buffer:", operation, address, remote_description.addr,
                    remote_description.len, remote_description.key);
     }
 
@@ -109,7 +109,6 @@ public:
 
     void consume()
     {
-        Print::out("*** Consumed");
         space_used++;
     }
 
@@ -556,6 +555,9 @@ public:
           protocol_buffer(buffers.alloc_protocol_buffer(req.operation)),
           num_times_started(0)
     {
+        Print::out("Request ID: ", req.getID());
+        completion_buffer.print();
+        protocol_buffer.print();
     }
 
     virtual ~CXIRequest() = default;
@@ -565,8 +567,6 @@ public:
         num_times_started++;
         start_host(the_stream, threshold, trigger_cntr);
         start_gpu(the_stream, threshold, trigger_cntr);
-        completion_buffer.print();
-        protocol_buffer.print();
     }
 
     virtual void wait_gpu(hipStream_t* the_stream);
@@ -762,7 +762,8 @@ public:
                                  completion_b, completion_c)
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_DELIVERY_COMPLETE);
+        // work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE );
+        work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_FENCE );
     }
 
     ~CXISend()
@@ -810,7 +811,7 @@ private:
     struct fid_cntr*  completion_a;
     struct fid_cntr*  completion_b;
     struct fid_cntr*  completion_c;
-    ChainedRMA<false> my_chained_completions;
+    ChainedRMA<true> my_chained_completions;
 };
 
 class CXIRecvOneSided : public CXIRequest
@@ -829,7 +830,8 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
+        // cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
+        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_FENCE);
     }
 
     ~CXIRecvOneSided()

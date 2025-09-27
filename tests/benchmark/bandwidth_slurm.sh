@@ -2,8 +2,8 @@
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
-#SBATCH --partition=pbatch
-# ### SBATCH --partition=pdebug
+# ### SBATCH --partition=pbatch
+#SBATCH --partition=pdebug
 #SBATCH --exclusive
 #SBATCH --output=../scratch/flux/%j.out
 
@@ -47,11 +47,11 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=pingpong_st_db
+TEST_NAME=pingpong_st
 TIME=00:03:00
 START_EXP=3
 END_EXP=4
-NUM_ITERS=100
+NUM_ITERS=5
 
 cd scratch/tmp/
 
@@ -70,6 +70,19 @@ run_test()(
     sed -i "1i$STRING" $RUN_FILE
 )
 
+run_db_test()(
+    RUN_FILE="${1}_db.tmp"
+    STRING="Test: ${1}_db $NUM_ITERS $BUFF_SIZE"
+    srun --time=$TIME --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    sed -i "1i$STRING" $RUN_FILE
+)
+
+run_tests()
+(
+    run_test $1
+    run_db_test $1
+)
+
 for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     BUFF_SIZE=$((2 ** $exp))
 
@@ -81,13 +94,13 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
 
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
-    run_test "cxi-coarse"
-    run_test "cxi-fine"
+    run_tests "cxi-coarse"
+    run_tests "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_test "hip"
-    run_test "thread"
-    run_test "mpi"
+    run_tests "hip"
+    run_tests "thread"
+    run_tests "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED
 
     # While slurm has append to file, flux does not. So we have to 

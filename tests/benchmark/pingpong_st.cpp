@@ -102,8 +102,11 @@ int main(int argc, char* argv[])
                 MPIS_Enqueue_startall(my_queue, 2, my_reqs);
                 MPIS_Enqueue_waitall(my_queue);
 
-                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
+//#ifdef THREAD_BACKEND
+//                MPIS_Queue_wait(my_queue);
+//#endif
+//                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+//                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
@@ -112,8 +115,8 @@ int main(int argc, char* argv[])
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(my_queue);
 #endif
-                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+//                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+//                     (int*)recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
