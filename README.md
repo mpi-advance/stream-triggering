@@ -13,7 +13,7 @@ Currently, the CXI backend needs to do a bidirectional data exchange in the matc
 ```c
 MPI_Comm my_comm_a; // Custom communicator with at least ranks (0,1)
 MPI_Comm my_comm_b; // Custom communicator with at least ranks (0,1)
-MPIS_Request my_reqs[4];
+MPIS_Request my_reqs[2];
 
 // "rank 0"
 MPIS_Send_init(/*to rank 1*/, my_comm_a, &my_reqs[0]); // A
@@ -22,7 +22,7 @@ MPIS_Send_init(/*to rank 1*/, my_comm_b, &my_reqs[1]); // B
 MPIS_Recv_init(/*to rank 0*/, my_comm_b, &my_reqs[0]); // C
 MPIS_Recv_init(/*to rank 0*/, my_comm_a, &my_reqs[1]); // D
 
-MPIS_Matchall(4, my_reqs, MPI_STATUSES_IGNORE);
+MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
 
 ```
 then a collision will likely still occur in the match. In this particular example, `A` will match with `C` instead of the user's desire to match `A` and `D`.
