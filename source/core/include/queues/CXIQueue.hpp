@@ -762,8 +762,7 @@ public:
                                  completion_b, completion_c)
     {
         work_entry.set_completion_counter(completion_a);
-        // work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE );
-        work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_FENCE );
+        work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE );
     }
 
     ~CXISend()
@@ -808,10 +807,10 @@ private:
     // Reference to global libfabric stuff
     LibfabricInstance& libfab;
 
-    struct fid_cntr*  completion_a;
-    struct fid_cntr*  completion_b;
-    struct fid_cntr*  completion_c;
-    ChainedRMA<true> my_chained_completions;
+    struct fid_cntr* completion_a;
+    struct fid_cntr* completion_b;
+    struct fid_cntr* completion_c;
+    ChainedRMA<false> my_chained_completions;
 };
 
 class CXIRecvOneSided : public CXIRequest
@@ -830,8 +829,7 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        // cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
-        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_FENCE);
+        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
     }
 
     ~CXIRecvOneSided()
@@ -930,15 +928,17 @@ public:
 
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
-        bool shouldFlush = true;
         queue_thresholds.increment_threshold();
         for (auto& req : requests)
         {
-            if (shouldFlush && req->needs_gpu_flush())
+            if (req->needs_gpu_flush())
             {
                 flush_memory(the_stream);
-                shouldFlush = false;
+                break;
             }
+        }
+        for (auto& req : requests)
+        {
             enqueue_request(*req);
         }
     }
