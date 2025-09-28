@@ -4,7 +4,6 @@
 #include "safety/libfabric.hpp"
 
 CompletionBufferFactory CXIQueue::my_buffer;
-DeferredWorkQueue       LibfabricInstance::my_queue;
 
 std::vector<size_t> populate_completion_vector()
 {
@@ -106,11 +105,8 @@ void LibfabricInstance::initialize_libfabric()
     check_libfabric(fi_ep_bind(ep, &(av)->fid, 0));
     check_libfabric(fi_enable(ep));
 
-    recv_ctr = alloc_counter(false);
-    check_libfabric(fi_ep_bind(ep, &(recv_ctr)->fid, FI_RECV));
-
-    // Register progress counter
-    my_queue.register_progress_counter(recv_ctr);
+    progress_ctr = alloc_counter();
+    check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV));
 }
 
 void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm)
@@ -166,7 +162,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
 LibfabricInstance::~LibfabricInstance()
 {
     check_libfabric(fi_close(&(ep)->fid));
-    check_libfabric(fi_close(&(recv_ctr)->fid));
+    check_libfabric(fi_close(&(progress_ctr)->fid));
     check_libfabric(fi_close(&(av)->fid));
     check_libfabric(fi_close(&(rxcq)->fid));
     check_libfabric(fi_close(&(txcq)->fid));
