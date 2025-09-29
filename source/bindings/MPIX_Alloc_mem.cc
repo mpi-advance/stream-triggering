@@ -28,7 +28,8 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
 #if defined(HIP_GPUS)
             Print::out("Created:", "rocm:device:fine");
             force_gpu(hipExtMallocWithFlags(baseptr, size, hipDeviceMallocFinegrained));
-            delete_fn = [baseptr]() { check_gpu(hipFree(*baseptr)); };
+            auto p_val = *baseptr;
+            delete_fn = [p_val]() { check_gpu(hipFree(p_val)); };
 #else
             throw std::runtime_error(
                 "Library was not built with required GPU support enabled.");
@@ -40,7 +41,8 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
 #if defined(HIP_GPUS)
             Print::out("Created:", "rocm:device");
             force_gpu(hipMalloc(baseptr, size));
-            delete_fn = [baseptr]() { check_gpu(hipFree(*baseptr)); };
+            auto p_val = *baseptr;
+            delete_fn = [p_val]() { check_gpu(hipFree(p_val)); };
 #else
             throw std::runtime_error(
                 "Library was not built with required GPU support enabled.");
@@ -51,7 +53,8 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
 #if defined(CUDA_GPUS)
             Print::out("Created:", "cuda:device");
             force_gpu(cudaMalloc(baseptr, size));
-            delete_fn = [baseptr]() { check_gpu(cudaFree(*baseptr)); };
+            auto p_val = *baseptr;
+            delete_fn = [p_val]() { check_gpu(cudaFree(p_val)); };
 #endif
         }
         /* Also offer a case for host memory, but not sure if this is useful (especially
@@ -60,7 +63,8 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
         {
             Print::out("Created:", "system");
             *baseptr  = operator new(size);
-            delete_fn = [baseptr]() { operator delete(*baseptr); };
+            auto p_val = *baseptr;
+            delete_fn = [p_val]() { operator delete(p_val); };
         }
         else
         {
