@@ -38,7 +38,8 @@ int main(int argc, char* argv[])
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buffer);
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buffer);
 
-    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
+    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buffer, (int*)recv_buffer,
+                                             BUFFER_SIZE);
     device_sync();
 
 #if defined(NEED_HIP)
@@ -102,11 +103,11 @@ int main(int argc, char* argv[])
                 MPIS_Enqueue_startall(my_queue, 2, my_reqs);
                 MPIS_Enqueue_waitall(my_queue);
 
-//#ifdef THREAD_BACKEND
-//                MPIS_Queue_wait(my_queue);
-//#endif
-//                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-//                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
+                // #ifdef THREAD_BACKEND
+                //                 MPIS_Queue_wait(my_queue);
+                // #endif
+                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
@@ -115,8 +116,8 @@ int main(int argc, char* argv[])
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(my_queue);
 #endif
-//                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-//                     (int*)recv_buffer, BUFFER_SIZE, i, rank);
+                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
@@ -139,7 +140,7 @@ int main(int argc, char* argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     Timing::set_base_timer();
     double             start = MPI_Wtime();
-    do_cycles.template operator()<true>(num_iters);
+    do_cycles.template operator()<false>(num_iters);
     double             end = MPI_Wtime();
 
     // Final check
@@ -158,7 +159,7 @@ int main(int argc, char* argv[])
     MPIS_Queue_free(&my_queue);
 
     std::cout << rank << " is done: " << end - start << std::endl;
-    Timing::print_timers(rank);
+    // Timing::print_timers(rank);
     Timing::free_timers();
 
     MPI_Finalize();

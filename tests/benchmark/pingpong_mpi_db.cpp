@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     Timing::set_base_timer();
     double             start = MPI_Wtime();
-    do_cycles.template operator()<true>(num_iters);
+    do_cycles.template operator()<false>(num_iters);
     double             end = MPI_Wtime();
 
     // Final check
@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     MPI_Request_free(&my_other_reqs[RECV_REQ]);
 
     std::cout << rank << " is done: " << end - start << std::endl;
-    Timing::print_timers(rank);
+    //Timing::print_timers(rank);
     Timing::free_timers();
 
     MPI_Finalize();

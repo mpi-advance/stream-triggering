@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=1
-#SBATCH --time=00:05:00
+#SBATCH --nodes=16
+#SBATCH --ntasks-per-node=4
+#SBATCH --time=00:5:00
 # ### SBATCH --partition=pbatch
 #SBATCH --partition=pdebug
 #SBATCH --exclusive
@@ -9,7 +9,7 @@
 
 # Debugging options
 #set -e
-ulimit -c unlimited
+#ulimit -c unlimited
 ## Go up on directory to tests folder
 cd ..
 
@@ -47,8 +47,12 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=hello_world
-TIME=00:03:00
+TEST_NAME=halo
+TIME=00:02:00
+NUM_ITERS=1000
+BUFF_SIZE=4
+NODES=16
+PPN=4
 
 cd scratch/tmp/
 
@@ -63,7 +67,7 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    srun --time=$TIME --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --time=$TIME --nodes=$NODES --ntasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 

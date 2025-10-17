@@ -31,6 +31,7 @@ if [ "$SYSTEM" == "TUOLUMNE" ]; then
 else
     module load craype-accel-amd-gfx90a
 fi
+module load rocm
 ## Compile MPI Version
 
 EXEC="../scratch/execs/pingpong_st_db_"$SYSTEM"_mpi"

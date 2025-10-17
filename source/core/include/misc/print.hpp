@@ -33,6 +33,19 @@ void always(Args&&... args)
 }
 
 template <bool UseRanks = true, typename... Args>
+void alwaysZ(Args&&... args)
+{
+    if(Print::rank == 0)
+    {
+        if constexpr (UseRanks)
+        {
+            std::cout << "Rank: " << Print::rank << " - ";
+        }
+        print_out_r(std::forward<Args>(args)...);
+    }
+}
+
+template <bool UseRanks = true, typename... Args>
 void out(Args&&... args)
 {
 #ifndef NDEBUG

@@ -113,6 +113,28 @@ public:
                ((Operation::SEND == operation) || (Operation::RSEND == operation));
     }
 
+    int resolve_comm_world()
+    {
+        return rankLookup(peer, comm, MPI_COMM_WORLD);
+    }
+
+    // Figure out "base_rank"'s rank in "lookup_comm"
+    static inline int rankLookup(int base_rank, MPI_Comm base_comm, MPI_Comm lookup_comm)
+    {
+        MPI_Group base_group;
+        force_mpi(MPI_Comm_group(base_comm, &base_group));
+        MPI_Group lookup_group;
+        force_mpi(MPI_Comm_group(lookup_comm, &lookup_group));
+        int base_ranks[1]   = {base_rank};
+        int lookup_ranks[1] = {-1};
+        force_mpi(MPI_Group_translate_ranks(base_group, 1, base_ranks, lookup_group,
+                                            lookup_ranks));
+        force_mpi(MPI_Group_free(&base_group));
+        force_mpi(MPI_Group_free(&lookup_group));
+        Print::out("Started with rank:", base_rank, " ended up with", lookup_ranks[0]);
+        return lookup_ranks[0];
+    }
+
 protected:
     size_t                   myID;
     GPUMemoryType            memory_type;
