@@ -86,7 +86,7 @@ public:
         initialize_peer_addresses(comm);
     }
 
-    struct fid_cntr* alloc_counter()
+    struct fid_cntr* alloc_counter(bool dwq_track)
     {
         struct fid_cntr*    new_ctr;
         struct fi_cntr_attr cntr_attr = {
@@ -94,11 +94,21 @@ public:
             .wait_obj = FI_WAIT_UNSPEC,
         };
         force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
+        if (dwq_track)
+        {
+            dwq_progres_counters[new_ctr] = 0;
+        }
         return new_ctr;
     }
 
     void dealloc_counter(struct fid_cntr* counter)
     {
+        if (dwq_progres_counters.contains(counter))
+        {
+            /* Twice based on Whit's findings */
+            progress_dwq();
+            progress_dwq();
+        }
         force_libfabric(fi_close(&counter->fid));
     }
 
@@ -124,21 +134,33 @@ public:
     void queue_work(struct fi_deferred_work* work_entry)
     {
         Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr);
-        auto code = fi_control(&domain->fid, FI_QUEUE_WORK, work_entry);
-        while (code != FI_SUCCESS)
+
+        while (dwq_slots_used == MAX_DWQ_SLOTS)
         {
-            if (code != -11)
-            {
-                force_libfabric(code);
-            }
             progress_dwq();
-            code = fi_control(&domain->fid, FI_QUEUE_WORK, work_entry);
         }
+        force_libfabric(fi_control(&domain->fid, FI_QUEUE_WORK, work_entry));
+        dwq_slots_used++;
     }
 
     void progress_dwq()
     {
+        /* Progress regular counter first. */
         fi_cntr_read(progress_ctr);
+        uint64_t freed_slots = 0;
+        for (auto& [counter, last_value] : dwq_progres_counters)
+        {
+            uint64_t new_value = fi_cntr_read(counter);
+            freed_slots += (new_value - last_value);
+            last_value = new_value;
+        }
+
+        if(freed_slots)
+        {
+            Print::out("Freed:", freed_slots, dwq_slots_used);
+        }
+
+        dwq_slots_used -= freed_slots;
     }
 
     struct fi_info*    fi;           /*!< Provider's data and features */
@@ -151,7 +173,7 @@ public:
     struct fid_cntr*   progress_ctr; /*!< The counters for receiving */
 
 private:
-    void select_fi_nic(fi_info*);
+    void select_fi_nic(fi_info*&);
     void initialize_libfabric();
     void initialize_peer_addresses(MPI_Comm comm);
 
@@ -164,12 +186,16 @@ private:
 
     int                    comm_size;
     std::vector<fi_addr_t> peers;
+
+    uint64_t                      dwq_slots_used = 0;
+    uint64_t                      MAX_DWQ_SLOTS  = 254;
+    std::map<fid_cntr*, uint64_t> dwq_progres_counters;
 };
 
 class CXICounter
 {
 public:
-    CXICounter(LibfabricInstance& libfab) : counter(libfab.alloc_counter())
+    CXICounter(LibfabricInstance& libfab) : counter(libfab.alloc_counter(false))
     {
         // Open (create) CXI Extension object
         check_libfabric(fi_open_ops(&(counter->fid), FI_CXI_COUNTER_OPS, 0,
@@ -703,9 +729,9 @@ public:
                       static_cast<size_t>(get_size_of_buffer(user_request))},
                      _libfab.get_peer(user_request.resolve_comm_world())),
           libfab(_libfab),
-          completion_a(_libfab.alloc_counter()),
-          completion_b(_libfab.alloc_counter()),
-          completion_c(_libfab.alloc_counter()),
+          completion_a(_libfab.alloc_counter(true)),
+          completion_b(_libfab.alloc_counter(true)),
+          completion_c(_libfab.alloc_counter(true)),
           my_chained_completions(completion_buffer.get_rma_ioc_addr(), _libfab.ep,
                                  _libfab.get_peer(user_request.resolve_comm_world()),
                                  self, completion_a, completion_b, completion_c)
@@ -777,7 +803,7 @@ public:
         : CXIRequest(user_request, buffers),
           libfab(_libfab),
           cts_entry(_libfab.ep, _libfab.get_peer(user_request.resolve_comm_world())),
-          completion_a(_libfab.alloc_counter())
+          completion_a(_libfab.alloc_counter(true))
     {
         my_mr = _libfab.create_mr(user_request.buffer, get_size_of_buffer(user_request),
                                   FI_REMOTE_WRITE, FI_MR_ALLOCATED);
