@@ -28,33 +28,10 @@ void LibfabricInstance::initialize_libfabric()
     // hints
     force_libfabric(fi_getinfo(FI_VERSION(1, 15), 0, 0, 0, hints, &fi));
 
-    /* Code specific to tioga -- ADD REASON */
-#ifdef USE_GFX90A
-    int device = -1;
-    force_gpu(hipGetDevice(&device));
-    int pci_bus_id = -1;
-    force_gpu(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, device));
-
-    while (fi != nullptr)
-    {
-        Print::out(fi->nic->bus_attr->attr.pci.domain_id,
-                   std::to_string(fi->nic->bus_attr->attr.pci.bus_id),
-                   std::to_string(fi->nic->bus_attr->attr.pci.device_id));
-
-        if ((int)fi->nic->bus_attr->attr.pci.bus_id == (pci_bus_id - 1) ||
-            (int)fi->nic->bus_attr->attr.pci.bus_id == (pci_bus_id + 4))
-        {
-            Print::out("FOUND!");
-            break;
-        }
-        fi = fi->next;
-    }
-#endif
-
-    if (fi == nullptr)
-    {
-        throw std::runtime_error("Unable to select FI provider");
-    }
+    select_fi_nic(fi);
+    Print::out(fi->nic->bus_attr->attr.pci.domain_id,
+               std::to_string(fi->nic->bus_attr->attr.pci.bus_id),
+               std::to_string(fi->nic->bus_attr->attr.pci.device_id));
 
     fi_freeinfo(hints);  // deallocate hints
 
@@ -97,6 +74,51 @@ void LibfabricInstance::initialize_libfabric()
 
     progress_ctr = alloc_counter();
     check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV));
+}
+
+void LibfabricInstance::select_fi_nic(fi_info* info)
+{
+    /* Get device information */
+    int device = -1;
+    force_gpu(hipGetDevice(&device));
+    int device_pci_bus_id    = -1;
+    int device_pci_domain_id = -1;
+    force_gpu(
+        hipDeviceGetAttribute(&device_pci_bus_id, hipDeviceAttributePciBusId, device));
+    force_gpu(hipDeviceGetAttribute(&device_pci_domain_id, hipDeviceAttributePciDomainID,
+                                    device));
+
+    auto validation_lambda = [&](fid_nic* nic_info) {
+#if defined(USE_TIOGA) /* Code specific to tioga's NIC & GPU layout */
+        return ((int)nic_info->bus_attr->attr.pci.bus_id == (device_pci_bus_id - 1) ||
+                (int)nic_info->bus_attr->attr.pci.bus_id == (device_pci_bus_id + 4));
+
+#elif defined(USE_TUOLUMNE)
+        return ((int)nic_info->bus_attr->attr.pci.domain_id == device_pci_domain_id);
+#else
+        Print::always("Warning -- taking first CXI provider found!");
+        return true;
+#endif
+    };
+
+    while (info != nullptr)
+    {
+        Print::out(info->nic->bus_attr->attr.pci.domain_id,
+                   std::to_string(info->nic->bus_attr->attr.pci.bus_id),
+                   std::to_string(info->nic->bus_attr->attr.pci.device_id));
+
+        if (validation_lambda(info->nic))
+        {
+            Print::out("Found acceptable nic!");
+            break;
+        }
+        info = info->next;
+    }
+
+    if (info == nullptr)
+    {
+        throw std::runtime_error("Unable to select FI provider");
+    }
 }
 
 void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm)
@@ -182,7 +204,7 @@ __global__ void flush_buffer()
 void CXIRequest::wait_gpu(hipStream_t* the_stream)
 {
     Print::out("<E> This request will wait for:", num_times_started, "at",
-                  completion_buffer.address);
+               completion_buffer.address);
     wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)completion_buffer.address,
                                                  num_times_started);
 }
@@ -193,7 +215,7 @@ void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
     if (Operation::RSEND != base_req.operation)
     {
         Print::out("<E> Starting kernel to wait on CTS;",
-                      (size_t*)protocol_buffer.address, num_times_started);
+                   (size_t*)protocol_buffer.address, num_times_started);
         wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
                                                      num_times_started);
     }
@@ -220,6 +242,6 @@ void CXIQueue::enqueue_trigger()
     size_t    counter_bump = queue_thresholds.equalize_counter();
     uint64_t* cntr_addr    = (uint64_t*)(the_gpu_counter->gpu_mmio_addr);
     Print::out("<E> Bump counter by", counter_bump,
-                  "to new threshold:", queue_thresholds.value());
+               "to new threshold:", queue_thresholds.value());
     add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
 }

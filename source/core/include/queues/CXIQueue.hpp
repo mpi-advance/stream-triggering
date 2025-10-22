@@ -151,6 +151,7 @@ public:
     struct fid_cntr*   progress_ctr; /*!< The counters for receiving */
 
 private:
+    void select_fi_nic(fi_info*);
     void initialize_libfabric();
     void initialize_peer_addresses(MPI_Comm comm);
 
