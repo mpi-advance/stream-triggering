@@ -105,9 +105,11 @@ public:
     {
         if (dwq_progres_counters.contains(counter))
         {
-            /* Twice based on Whit's findings */
+            /* Progress twice based on Whit's findings */
             progress_dwq();
             progress_dwq();
+            /* Remove it from available progress counters */
+            dwq_progres_counters.erase(counter);
         }
         force_libfabric(fi_close(&counter->fid));
     }
