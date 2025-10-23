@@ -73,13 +73,17 @@ def main():
                         
                         test_search = False
                         _, test, num_iters, buff_size = line.strip().split(" ")
+                        if("_" in test):
+                            test, mode = test.split("_")
+                        else:
+                            mode = "sb"
                     elif "0 is done:" in line:
                         if test_search:
                             raise ValueError("Expceted to find test -- found a time value instead")
                         
                         _, time = line.strip().split(":")
                             
-                        writer.writerow([device, test, num_iters, buff_size, time.strip()])
+                        writer.writerow([device, test, mode, num_iters, buff_size, time.strip()])
                         test_search = True
 
 if __name__ == "__main__":

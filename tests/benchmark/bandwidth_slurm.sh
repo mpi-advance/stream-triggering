@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=01:00:00
+#SBATCH --time=00:25:00
 # ### SBATCH --partition=pbatch
 #SBATCH --partition=pdebug
 #SBATCH --exclusive
@@ -9,7 +9,7 @@
 
 # Debugging options
 #set -e
-ulimit -c unlimited
+#ulimit -c unlimited
 ## Go up on directory to tests folder
 cd ..
 
@@ -50,8 +50,8 @@ export HSA_XNACK=1
 TEST_NAME=pingpong_st
 TIME=00:03:00
 START_EXP=3
-END_EXP=4
-NUM_ITERS=5
+END_EXP=3
+NUM_ITERS=100
 
 cd scratch/tmp/
 
@@ -73,7 +73,7 @@ run_test()(
 run_db_test()(
     RUN_FILE="${1}_db.tmp"
     STRING="Test: ${1}_db $NUM_ITERS $BUFF_SIZE"
-    srun --time=$TIME --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --time=$TIME --output=$RUN_FILE "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
@@ -98,9 +98,9 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     run_tests "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_tests "hip"
-    run_tests "thread"
-    run_tests "mpi"
+    #run_tests "hip"
+    #run_tests "thread"
+    #run_tests "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED
 
     # While slurm has append to file, flux does not. So we have to 

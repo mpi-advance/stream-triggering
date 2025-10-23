@@ -80,15 +80,15 @@ int main(int argc, char* argv[])
                 device_sync();
                 MPI_Startall(2, my_reqs);
                 MPI_Waitall(2, my_reqs, MPI_STATUSES_IGNORE);
-                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                //    (int*)recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
                 MPI_Start(&my_reqs[RECV_REQ]);
                 MPI_Wait(&my_reqs[RECV_REQ], MPI_STATUS_IGNORE);
-                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)recv_buffer, BUFFER_SIZE, i, rank);
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                //    (int*)recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
                 device_sync();
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     Timing::set_base_timer();
     double             start = MPI_Wtime();
-    do_cycles.template operator()<true>(num_iters);
+    do_cycles.template operator()<false>(num_iters);
     double             end = MPI_Wtime();
 
     // Final check
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
     MPI_Request_free(&my_reqs[RECV_REQ]);
 
     std::cout << rank << " is done: " << end - start << std::endl;
-    Timing::print_timers(rank);
+    //Timing::print_timers(rank);
     Timing::free_timers();
 
     MPI_Finalize();
