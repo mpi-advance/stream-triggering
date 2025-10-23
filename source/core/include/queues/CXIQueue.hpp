@@ -157,7 +157,7 @@ public:
             last_value = new_value;
         }
 
-        if(freed_slots)
+        if (freed_slots)
         {
             Print::out("Freed:", freed_slots, dwq_slots_used);
         }
@@ -911,6 +911,7 @@ public:
 
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
+#if defined(USE_TIOGA)
         /* If any kernel needs a flush, go ahead and do it first */
         for (auto& req : requests)
         {
@@ -920,6 +921,7 @@ public:
                 break;
             }
         }
+#endif
 
         bool needs_final_trigger = false;
         for (auto& req : requests)

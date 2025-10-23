@@ -43,8 +43,7 @@ void LibfabricInstance::initialize_libfabric()
 
     // Make some completion queues!
     struct fi_cq_attr cq_attr = {};
-    //cq_attr.size              = fi->tx_attr->size;
-    cq_attr.size              = 256;
+    cq_attr.size              = fi->tx_attr->size;
     cq_attr.flags             = 0;
     cq_attr.format            = FI_CQ_FORMAT_DATA;
     cq_attr.wait_obj          = FI_WAIT_UNSPEC;
@@ -53,8 +52,7 @@ void LibfabricInstance::initialize_libfabric()
     cq_attr.wait_set          = 0;
     force_libfabric(fi_cq_open(domain, &cq_attr, &txcq, 0));
 
-    //cq_attr.size = fi->rx_attr->size;
-    cq_attr.size = 256;
+    cq_attr.size = fi->rx_attr->size;
     force_libfabric(fi_cq_open(domain, &cq_attr, &rxcq, 0));
 
     // Make Address Vector
