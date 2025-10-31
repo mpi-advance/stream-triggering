@@ -96,20 +96,20 @@ public:
         force_libfabric(fi_cntr_open(domain, &cntr_attr, &new_ctr, NULL));
         if (dwq_track)
         {
-            dwq_progres_counters[new_ctr] = 0;
+            dwq_progress_counters[new_ctr] = 0;
         }
         return new_ctr;
     }
 
     void dealloc_counter(struct fid_cntr* counter)
     {
-        if (dwq_progres_counters.contains(counter))
+        if (dwq_progress_counters.contains(counter))
         {
             /* Progress twice based on Whit's findings */
             progress_dwq();
             progress_dwq();
             /* Remove it from available progress counters */
-            dwq_progres_counters.erase(counter);
+            dwq_progress_counters.erase(counter);
         }
         force_libfabric(fi_close(&counter->fid));
     }
@@ -150,7 +150,7 @@ public:
         /* Progress regular counter first. */
         fi_cntr_read(progress_ctr);
         uint64_t freed_slots = 0;
-        for (auto& [counter, last_value] : dwq_progres_counters)
+        for (auto& [counter, last_value] : dwq_progress_counters)
         {
             uint64_t new_value = fi_cntr_read(counter);
             freed_slots += (new_value - last_value);
@@ -163,6 +163,8 @@ public:
         }
 
         dwq_slots_used -= freed_slots;
+        /* Read again */
+        fi_cntr_read(progress_ctr);
     }
 
     struct fi_info*    fi;           /*!< Provider's data and features */
@@ -191,7 +193,7 @@ private:
 
     uint64_t                      dwq_slots_used = 0;
     uint64_t                      MAX_DWQ_SLOTS  = 254;
-    std::map<fid_cntr*, uint64_t> dwq_progres_counters;
+    std::map<fid_cntr*, uint64_t> dwq_progress_counters;
 };
 
 class CXICounter
