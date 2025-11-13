@@ -12,14 +12,11 @@ void LibfabricInstance::initialize_libfabric()
     hints = fi_allocinfo();
 
     // set our requirements for the providers
-    hints->caps = FI_SHARED_AV | FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM |
-                  FI_TRIGGER;
+    hints->caps = FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
     hints->ep_attr->type = FI_EP_RDM;  // Must use for connection-less
-    hints->tx_attr->caps =
-        FI_SHARED_AV | FI_RMA | FI_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
-    hints->rx_attr->caps =
-        FI_SHARED_AV | FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
+    hints->tx_attr->caps = FI_RMA | FI_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
+    hints->rx_attr->caps = FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
     hints->domain_attr->mr_mode =
         FI_MR_ENDPOINT | FI_MR_ALLOCATED | FI_MR_LOCAL | FI_MR_HMEM;
     hints->mode = FI_CONTEXT;
@@ -156,7 +153,12 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     {
         converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab);
     }
-    else if (Communication::Operation::RSEND >= req.operation)
+    else if (Communication::Operation::RSEND == req.operation)
+    {
+        converted_request =
+            std::make_unique<CXIRSend>(req, my_buffer, libfab, libfab.get_peer(my_rank));
+    }
+    else if (Communication::Operation::SEND == req.operation)
     {
         converted_request =
             std::make_unique<CXISend>(req, my_buffer, libfab, libfab.get_peer(my_rank));
@@ -209,18 +211,6 @@ void CXIRequest::wait_gpu(hipStream_t* the_stream)
                                                  num_times_started);
 }
 
-void CXISend::start_gpu(hipStream_t* the_stream, Threshold& threshold,
-                        CXICounter& trigger_cntr)
-{
-    if (Operation::RSEND != base_req.operation)
-    {
-        Print::out("<E> Starting kernel to wait on CTS;",
-                   (size_t*)protocol_buffer.address, num_times_started);
-        wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)protocol_buffer.address,
-                                                     num_times_started);
-    }
-}
-
 void CXIQueue::enqueue_waitall()
 {
     for (auto req : active_requests)
@@ -237,11 +227,10 @@ void CXIQueue::flush_memory()
     flush_buffer<<<1, 1, 0, *the_stream>>>();
 }
 
-void CXIQueue::enqueue_trigger()
+void CXICounter::enqueue_trigger(hipStream_t* the_stream)
 {
-    size_t    counter_bump = queue_thresholds.equalize_counter();
-    uint64_t* cntr_addr    = (uint64_t*)(the_gpu_counter->gpu_mmio_addr);
-    Print::out("<E> Bump counter by", counter_bump,
-               "to new threshold:", queue_thresholds.value());
-    add_to_counter<<<1, 1, 0, *the_stream>>>(cntr_addr, counter_bump);
+    Print::out("<E> Bump counter by 1");
+    add_to_counter<<<1, 1, 0, *the_stream>>>((uint64_t*)(gpu_mmio_addr), 1);
+    /* Increment number of times used. */
+    use_count++;
 }
