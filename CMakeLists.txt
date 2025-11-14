@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
 # set project
-project(stream-triggering VERSION 0.1 LANGUAGES C CXX)
+project(stream-triggering VERSION 0.5.0 LANGUAGES C CXX)
 
 # Backend settings
 option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
