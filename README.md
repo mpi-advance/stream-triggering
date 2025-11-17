@@ -26,3 +26,8 @@ MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
 
 ```
 then a collision will likely still occur in the match. In this particular example, `A` will match with `C` instead of the user's desire to match `A` and `D`.
+
+# Acknowledgements
+This work was also performed with support from the U.S. Department of Energy's National Nuclear Security Administration (NNSA) under the Predictive Science Academic Alliance Program (PSAAP-III), Award DE-NA0003966. 
+
+Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the U.S. Department of Energy's National Nuclear Security Administration.
