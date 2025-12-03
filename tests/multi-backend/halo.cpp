@@ -227,10 +227,10 @@ int main(int argc, char* argv[])
             // #ifdef THREAD_BACKEND
             // MPIS_Queue_wait(my_queue);
             // #endif
-            //print_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-            //    (int*)top_r, (int*)bottom_r, (int*)left_r, (int*)right_r, BUFFER_SIZE,
-            //    rank, lookup_ranks[0], lookup_ranks[1], lookup_ranks[2], lookup_ranks[3],
-            //    i);
+            print_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                (int*)top_r, (int*)bottom_r, (int*)left_r, (int*)right_r, BUFFER_SIZE,
+                rank, lookup_ranks[0], lookup_ranks[1], lookup_ranks[2], lookup_ranks[3],
+                i);
             std::cout << rank << " step: " << i << "/" << num_iters << std::endl;
         }
         MPIS_Queue_wait(my_queue);

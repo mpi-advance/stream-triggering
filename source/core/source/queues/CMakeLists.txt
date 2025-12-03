@@ -16,6 +16,6 @@ endif()
 if(USE_CXI_BACKEND)
 	target_sources(stream-triggering
 		PRIVATE
-			"${CMAKE_CURRENT_SOURCE_DIR}/CXIQueue.cpp"
+			"${CMAKE_CURRENT_SOURCE_DIR}/CXIQueue.hip"
 	)
 endif()

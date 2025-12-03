@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
-# set project
-project(stream-triggering VERSION 0.5.0 LANGUAGES C CXX)
+# Version
+set(CURR_VERSION 0.5.0)
 
 # Backend settings
 option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
@@ -9,17 +9,20 @@ option(USE_HIP_BACKEND "Enable the HIP backend for the queue objects" OFF)
 option(USE_CUDA_BACKEND "Enable the CUDA backend for the queue objects" OFF)
 option(USE_CXI_BACKEND "Enable the CXI backend for the queue objects" OFF)
 
-# Language settings
-set(CMAKE_CXX_STANDARD 23)
-set(BUILD_SHARED_LIBS ON)
-
 if(USE_CUDA_BACKEND)
-    # This must come before making any targets or else cmake falls apart!
-    enable_language(CUDA)
+    project(stream-triggering VERSION ${CURR_VERSION} LANGUAGES CUDA C CXX)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
     set(CMAKE_CUDA_ARCHITECTURES native)
+elseif(USE_HIP_BACKEND)
+    project(stream-triggering VERSION ${CURR_VERSION} LANGUAGES HIP C CXX)
+else() 
+    project(stream-triggering VERSION ${CURR_VERSION} LANGUAGES C CXX)
 endif()
+
+# Language settings
+set(CMAKE_CXX_STANDARD 23)
+set(BUILD_SHARED_LIBS ON)
 
 # Make main library
 add_library(stream-triggering "")
@@ -80,7 +83,6 @@ if(USE_CXI_BACKEND)
     find_package(LibFabric REQUIRED)
     target_include_directories(stream-triggering PUBLIC ${LIBFABRIC_INCLUDE_DIR})
     target_link_libraries(stream-triggering ${LIBFABRIC_LIBRARY})
-    target_compile_options(stream-triggering PUBLIC -x hip)
     if("${CMAKE_HIP_ARCHITECTURES}" STREQUAL "gfx90a")
         message(STATUS "Adding custom code for the gfx90a")
         add_definitions(-DUSE_TIOGA)
@@ -88,12 +90,6 @@ if(USE_CXI_BACKEND)
         message(STATUS "Adding custom code for the gfx942")
         add_definitions(-DUSE_TUOLUMNE)
     endif()
-endif()
-
-if( (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13) OR
-    (CMAKE_CXX_COMPILER_ID STREQUAL Clang AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17))
-    message(STATUS "Using advanced C++ features")
-    add_definitions( -DADVANCED_CPP23 )
 endif()
 
 if(NEED_GPU)
