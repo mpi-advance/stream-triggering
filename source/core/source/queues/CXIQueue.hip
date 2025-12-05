@@ -1,5 +1,4 @@
 #include "queues/CXIQueue.hpp"
-
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
@@ -151,7 +150,8 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
      */
     if (Communication::Operation::RECV == req.operation)
     {
-        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab);
+        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
+                                                              libfab.get_peer(my_rank));
     }
     else if (Communication::Operation::RSEND == req.operation)
     {
