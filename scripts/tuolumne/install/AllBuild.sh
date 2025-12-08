@@ -7,7 +7,7 @@ module load rocm
 
 if [ $# -eq 0 ]; then
     echo "Building in debug mode"
-    MODE="RelWithDebInfo"
+    MODE="Debug"
 else
     echo "Building in release mode"
     MODE="Release"
