@@ -147,7 +147,8 @@ public:
 
     void queue_work(struct fi_deferred_work* work_entry)
     {
-        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr);
+        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr,
+                   work_entry->completion_cntr);
 
         while (dwq_slots_used == MAX_DWQ_SLOTS)
         {
@@ -672,7 +673,7 @@ public:
           completion_b(_libfab.alloc_counter(true))
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_TRANSMIT_COMPLETE);
+        work_entry.set_flags(FI_INJECT_COMPLETE);
         local_completion.set_trigger_counter(completion_a);
         local_completion.set_completion_counter(completion_b);
     }
@@ -706,8 +707,6 @@ public:
 
         // Queue up completion DWQ
         local_completion.bump_threshold();
-
-        // chain_work_local.print();
         libfab.queue_work(local_completion.get_dwqe());
 
         return TriggerStatus::GLOBAL_BUMP;
@@ -740,11 +739,12 @@ public:
           libfab(_libfab),
           completion_a(_libfab.alloc_counter(true)),
           completion_b(_libfab.alloc_counter(true)),
-          triggered(_libfab)  // TBD if "false" is right for counter tracking
+          triggered(_libfab)
     {
-        work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_TRANSMIT_COMPLETE);
         work_entry.set_trigger_counter(triggered);
+        work_entry.set_completion_counter(completion_a);
+        work_entry.set_flags(FI_INJECT_COMPLETE);
+
         local_completion.set_trigger_counter(completion_a);
         local_completion.set_completion_counter(completion_b);
 
@@ -790,8 +790,6 @@ public:
 
         // Queue up completion DWQ
         local_completion.bump_threshold();
-
-        // chain_work_local.print();
         libfab.queue_work(local_completion.get_dwqe());
 
         triggered.enqueue_trigger(the_stream);
@@ -834,7 +832,7 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        cts_entry.set_flags(FI_TRANSMIT_COMPLETE);
+        cts_entry.set_flags(FI_INJECT_COMPLETE);
         local_completion.set_trigger_counter(completion_b);
         local_completion.set_completion_counter(completion_c);
     }
@@ -843,10 +841,10 @@ public:
     {
         // Free counter
         libfab.dealloc_counter(completion_a);
-        libfab.dealloc_counter(completion_b);
         libfab.dealloc_counter(completion_c);
         // Free MR
         force_libfabric(fi_close(&(my_mr)->fid));
+        libfab.dealloc_counter(completion_b);
     }
 
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
@@ -860,6 +858,7 @@ public:
     TriggerStatus start_derived(hipStream_t* the_stream,
                                 CXICounter&  trigger_cntr) override
     {
+        TriggerStatus rc = TriggerStatus::NOT_NEEDED;
         if (Operation::RSEND != peer_op)
         {
             Print::out("Queue CTS to Libfabric!");
@@ -868,16 +867,14 @@ public:
             // Adjust the triggering counter to use
             cts_entry.set_trigger_counter(trigger_cntr);
             libfab.queue_work(cts_entry.get_dwqe());
-            return TriggerStatus::GLOBAL_BUMP;
+            rc = TriggerStatus::GLOBAL_BUMP;
         }
 
         // Queue up completion DWQ
         local_completion.bump_threshold();
-
-        // chain_work_local.print();
         libfab.queue_work(local_completion.get_dwqe());
 
-        return TriggerStatus::NOT_NEEDED;
+        return rc;
     }
 
 private:

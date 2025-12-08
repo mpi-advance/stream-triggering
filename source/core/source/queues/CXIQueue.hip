@@ -11,7 +11,7 @@ void LibfabricInstance::initialize_libfabric()
     hints = fi_allocinfo();
 
     // set our requirements for the providers
-    hints->caps = FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
+    hints->caps = FI_RMA | FI_RMA_EVENT | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
     hints->ep_attr->type = FI_EP_RDM;  // Must use for connection-less
     hints->tx_attr->caps = FI_RMA | FI_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
