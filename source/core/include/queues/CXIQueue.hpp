@@ -673,7 +673,6 @@ public:
           completion_b(_libfab.alloc_counter(true))
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_INJECT_COMPLETE);
         local_completion.set_trigger_counter(completion_a);
         local_completion.set_completion_counter(completion_b);
     }
@@ -743,7 +742,6 @@ public:
     {
         work_entry.set_trigger_counter(triggered);
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_INJECT_COMPLETE);
 
         local_completion.set_trigger_counter(completion_a);
         local_completion.set_completion_counter(completion_b);
@@ -832,7 +830,6 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        cts_entry.set_flags(FI_INJECT_COMPLETE);
         local_completion.set_trigger_counter(completion_b);
         local_completion.set_completion_counter(completion_c);
     }
