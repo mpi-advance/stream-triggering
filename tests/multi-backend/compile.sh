@@ -12,22 +12,23 @@ set -e
 
 ### Command-line options
 usage() {
-    echo "Usage: $0 [-dgXCHT] [-f file]"
-    echo " -d Run with MI300A modules (default MI250X modules)"
+    echo "Usage: $0 [-d value] [gXCHT] [-f file] [-S path]"
+    echo " -d [value] Specify cluster  0 (Tioga), 1 (Tuoloumne), 2 (Frontier) (default TIOGA version)"
     echo " -f [file] Compile file provided."
     echo " -g Add defines for cuda GPUs."
     echo " -X No CXI build"
     echo " -H No HIP build"
     echo " -C No CUDA build"
-    echo " -T No THREAD build" 
+    echo " -T No THREAD build"
+    echo " -S [path] Path to stream-triggering installation" 
 }
 
 # Parse command line options
 DEVICE_DEFINE="-DNEED_HIP"
-while getopts ":dgXCHTf:" opt; do
+while getopts ":d:gXCHTf:S:" opt; do
     case $opt in
         d)
-            MI300A=1
+            VERSION="$OPTARG"
             ;;
         g)
             DEVICE_DEFINE="-DNEED_CUDA"
@@ -46,6 +47,9 @@ while getopts ":dgXCHTf:" opt; do
             ;;
         f)
             PROGRAM="$OPTARG"
+            ;;
+        S)
+            ST_PATH="$OPTARG"
             ;;
         *)
             usage
@@ -70,15 +74,23 @@ BASE_OUTPUT=${PROGRAM%.*}
 BASE_OUTPUT=${BASE_OUTPUT##*/}
 
 ### Modules and device settings
+if [ -z $VERSION ]; then
+    VERSION=0
+fi
+
 DEVICE="_"
-if [ ! -v MI300A ]; then
-    echo " -> Running for the MI250X"
+if [ "$VERSION" -eq 0 ]; then
+    echo " -> Running for TIOGA"
     module load craype-accel-amd-gfx90a
     DEVICE+="TIOGA"
-else
-    echo " -> Running for the MI300A"
+elif [ "$VERSION" -eq 1 ]; then
+    echo " -> Running for TUOLUMNE"
     module load craype-accel-amd-gfx942
     DEVICE+="TUOLUMNE"
+elif [ "$VERSION" -eq 2 ]; then
+    echo " -> Running for FRONTIER"
+    module load craype-accel-amd-gfx90a
+    DEVICE+="FRONTIER"
 fi
 
 module load rocm
@@ -122,7 +134,6 @@ BASE_OUTPUT+=$DEVICE
 BASE_OUTPUT=$EXECS/$BASE_OUTPUT
 echo " -> $PROGRAM -> $BASE_OUTPUT"
 
-ST_PATH=/g/g16/derek/apps/stream_trigger
 ST_LIB_PATH=$ST_PATH/lib
 ST_INC_PATH=$ST_PATH/include
 

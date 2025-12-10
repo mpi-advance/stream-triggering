@@ -7,22 +7,30 @@ set -e
 
 # Switch between Tioga and Tuo modules
 if [ $# -eq 0 ]; then
-    echo "Running for the MI250X"
+    echo "Running for Tioga"
     SYSTEM="TIOGA"
-else
-    echo "Running for the MI300A"
+    VERSION=0
+elif [ $1 -eq 1 ]; then
+    echo "Running for Tuolumne"
     SYSTEM="TUOLUMNE"
+    VERSION=1
+elif [ $1 -eq 2 ]; then
+    echo "Running for Frontier"
+    SYSTEM="FRONTIER"
+    VERSION=2
 fi
+
+if [ "$SYSTEM" == "FRONTIER" ]; then
+    ST_PATH=/ccs/home/dschafer/apps/stream_trigger
+else
+    ST_PATH=/g/g16/derek/apps/stream_trigger
+fi
+
 
 ## Compile normal version 
 cd ../multi-backend
-if [ "$SYSTEM" == "TUOLUMNE" ]; then
-    ./compile.sh -f ../benchmark/pingpong_st_db.cpp -C -d
-    ./compile.sh -f ../benchmark/pingpong_st.cpp -C -d
-else
-    ./compile.sh -f ../benchmark/pingpong_st_db.cpp -C
-    ./compile.sh -f ../benchmark/pingpong_st.cpp -C
-fi
+./compile.sh -f ../benchmark/pingpong_st_db.cpp -C -d $VERSION -S $ST_PATH
+./compile.sh -f ../benchmark/pingpong_st.cpp -C -d $VERSION -S $ST_PATH
 cd ../benchmark
 
 
