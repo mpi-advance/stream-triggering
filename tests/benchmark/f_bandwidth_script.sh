@@ -6,7 +6,9 @@
 #SBATCH --output=../scratch/flux/%j.out
 #SBATCH --exclusive
 
+NODES=$SLURM_NNODES
 PPN=1
+TLES=$((1024 / $PPN))
 
 # Debugging options
 #set -e
@@ -61,14 +63,14 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    srun -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --network=single_node_vni,job_vni,def_tles=$TLES -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
 run_db_test()(
     RUN_FILE="${1}_db.tmp"
     STRING="Test: ${1}_db $NUM_ITERS $BUFF_SIZE"
-    srun -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --network=single_node_vni,job_vni,def_tles=$TLES -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
