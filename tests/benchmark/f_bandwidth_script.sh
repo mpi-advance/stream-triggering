@@ -45,9 +45,9 @@ export HSA_XNACK=1
 
 # Settings related to individual tests
 TEST_NAME=pingpong_st
-TIME=00:30:00
+TIME=00:03:00
 START_EXP=3
-END_EXP=4
+END_EXP=28
 NUM_ITERS=100000
 
 cd scratch/tmp/
@@ -95,7 +95,7 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     run_tests "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_tests "hip"
+    #run_tests "hip"
     #run_tests "thread"
     run_tests "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED
