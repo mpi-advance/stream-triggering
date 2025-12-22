@@ -56,7 +56,7 @@ def main():
     for entry in dir_to_search.iterdir():
         if entry.is_file():
             print(f"{blue}Found: {reset}{entry}")
-            if "TIOGA" in entry.name:
+            if "TIOGA" in entry.name or "FRONTIER" in entry.name:
                 device = "MI250"
             elif "TUO" in entry.name:
                 device = "MI300"
