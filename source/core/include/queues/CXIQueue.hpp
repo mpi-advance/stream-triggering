@@ -656,28 +656,24 @@ private:
     LibfabricInstance& progress_engine;
 };
 
-template <bool FENCE = false>
 class ChainedRMA
 {
 public:
     ChainedRMA(struct fi_rma_ioc* local_completion, struct fid_ep* ep, fi_addr_t partner,
-               fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* remote_cntr,
-               struct fid_cntr* local_cntr, void** comp_desc = nullptr)
+               fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* comp_cntr)
         : chain_work_remote(ep, partner), chain_work_local(ep, self, local_completion)
     {
         chain_work_remote.set_trigger_counter(trigger);
-        chain_work_remote.set_completion_counter(remote_cntr);
+        chain_work_remote.set_completion_counter(comp_cntr);
 
-        chain_work_local.set_trigger_counter(remote_cntr);
-        chain_work_local.set_completion_counter(local_cntr);
+        chain_work_local.set_trigger_counter(trigger);
+        chain_work_local.set_completion_counter(comp_cntr);
 
         /* The first and last values should be filled in by the match! */
         chain_work_remote.set_rma_iov({0, 1, 0});
 
-        chain_work_local.set_flags(FI_DELIVERY_COMPLETE |
-                                   ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE));
-        chain_work_remote.set_flags(FI_DELIVERY_COMPLETE |
-                                    ((FENCE) ? FI_FENCE : FI_CXI_WEAK_FENCE));
+        chain_work_local.set_flags(FI_DELIVERY_COMPLETE);
+        chain_work_remote.set_flags(FI_DELIVERY_COMPLETE);
     }
     void queue_work(LibfabricInstance& libfab)
     {
@@ -717,13 +713,12 @@ public:
           libfab(_libfab),
           completion_a(_libfab.alloc_counter(true)),
           completion_b(_libfab.alloc_counter(true)),
-          completion_c(_libfab.alloc_counter(true)),
           my_chained_completions(completion_buffer.get_rma_ioc_addr(), _libfab.ep,
                                  _libfab.get_peer(user_request.resolve_comm_world()),
-                                 self, completion_a, completion_b, completion_c)
+                                 self, completion_a, completion_b)
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
+        work_entry.set_flags(FI_DELIVERY_COMPLETE);
     }
 
     ~CXIRSend()
@@ -731,7 +726,6 @@ public:
         // Free counter
         libfab.dealloc_counter(completion_a);
         libfab.dealloc_counter(completion_b);
-        libfab.dealloc_counter(completion_c);
     }
 
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
@@ -770,7 +764,7 @@ private:
     struct fid_cntr*  completion_a;
     struct fid_cntr*  completion_b;
     struct fid_cntr*  completion_c;
-    ChainedRMA<false> my_chained_completions;
+    ChainedRMA my_chained_completions;
 };
 
 class CXISend : public CXIRequest
@@ -786,14 +780,13 @@ public:
           libfab(_libfab),
           completion_a(_libfab.alloc_counter(true)),
           completion_b(_libfab.alloc_counter(true)),
-          completion_c(_libfab.alloc_counter(true)),
           triggered(_libfab),  // TBD if "false" is right for counter tracking
           my_chained_completions(completion_buffer.get_rma_ioc_addr(), _libfab.ep,
                                  _libfab.get_peer(user_request.resolve_comm_world()),
-                                 self, completion_a, completion_b, completion_c)
+                                 self, completion_a, completion_b)
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
+        work_entry.set_flags(FI_DELIVERY_COMPLETE);
         work_entry.set_trigger_counter(triggered);
 
         /* Setup CTS buffer */
@@ -814,7 +807,6 @@ public:
         // Free counter
         libfab.dealloc_counter(completion_a);
         libfab.dealloc_counter(completion_b);
-        libfab.dealloc_counter(completion_c);
         check_gpu(hipHostFree(cts_buffer));
         check_libfabric(fi_close(&(cts_mr)->fid));
     }
@@ -854,8 +846,7 @@ private:
 
     struct fid_cntr*  completion_a;
     struct fid_cntr*  completion_b;
-    struct fid_cntr*  completion_c;
-    ChainedRMA<false> my_chained_completions;
+    ChainedRMA my_chained_completions;
 
     CXICounter triggered;
     void*      cts_buffer;
@@ -878,7 +869,7 @@ public:
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        cts_entry.set_flags(FI_DELIVERY_COMPLETE | FI_CXI_WEAK_FENCE);
+        cts_entry.set_flags(FI_DELIVERY_COMPLETE);
     }
 
     ~CXIRecvOneSided()

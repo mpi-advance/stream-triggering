@@ -41,6 +41,11 @@ void check_hip_error(const hipError_t err, const char* filename, const int line)
     }
 }
 
+void stream_sync(hipStream_t stream)
+{
+    check_gpu(hipStreamSynchronize(stream));
+}
+
 void device_sync()
 {
     check_gpu(hipDeviceSynchronize());

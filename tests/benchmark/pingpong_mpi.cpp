@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)send_buffer,
                                                                       BUFFER_SIZE, i);
 
-                device_sync();
+                stream_sync(my_stream);
                 MPI_Startall(2, my_reqs);
                 MPI_Waitall(2, my_reqs, MPI_STATUSES_IGNORE);
                 // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
                 //    (int*)recv_buffer, BUFFER_SIZE, i, rank);
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
-                device_sync();
+                stream_sync(my_stream);
                 MPI_Start(&my_reqs[SEND_REQ]);
                 MPI_Wait(&my_reqs[SEND_REQ], MPI_STATUS_IGNORE);
             }

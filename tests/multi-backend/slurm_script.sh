@@ -48,9 +48,10 @@ export HSA_XNACK=1
 
 # Settings related to individual tests
 TEST_NAME=halo
+#TEST_NAME=rsend
 TIME=00:02:00
-NUM_ITERS=1000
-BUFF_SIZE=4
+NUM_ITERS=50
+BUFF_SIZE=50
 NODES=16
 PPN=4
 
