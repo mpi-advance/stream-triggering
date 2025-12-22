@@ -40,7 +40,7 @@ touch "$TARGET"
 echo $TARGET
 
 # Any extra environment variables we need
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/g/g16/derek/apps/stream_trigger/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1

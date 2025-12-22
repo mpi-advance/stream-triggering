@@ -20,12 +20,7 @@ elif [ $1 -eq 2 ]; then
     VERSION=2
 fi
 
-if [ "$SYSTEM" == "FRONTIER" ]; then
-    ST_PATH=${HOME}/apps/stream_trigger
-else
-    ST_PATH=/g/g16/derek/apps/stream_trigger
-fi
-
+ST_PATH=${HOME}/apps/stream_trigger
 
 ## Compile normal version 
 cd ../multi-backend
