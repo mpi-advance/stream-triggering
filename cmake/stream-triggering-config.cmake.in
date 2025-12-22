@@ -1,0 +1,3 @@
+@PACKAGE_INIT@
+
+find_package(MPI REQUIRED)

@@ -105,9 +105,33 @@ endif()
 add_subdirectory(include)
 add_subdirectory(source)
 
-install(
-	TARGETS stream-triggering
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-	PUBLIC_HEADER DESTINATION include
+install(TARGETS stream-triggering
+	    EXPORT stream-triggeringTargets)
+
+##### Code for CMake Packaging
+include(CMakePackageConfigHelpers)
+
+# Create the configuration file
+configure_package_config_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/cmake/stream-triggering-config.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+	INSTALL_DESTINATION share/${PROJECT_NAME}
+)
+
+## Version file
+write_basic_package_version_file(
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+	COMPATIBILITY SameMinorVersion
+)
+
+install(FILES
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config-version.cmake
+	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+	DESTINATION share/${PROJECT_NAME}
+)
+
+# Install everything
+install(EXPORT stream-triggeringTargets
+	NAMESPACE MPIAdvance::
+	DESTINATION share/${PROJECT_NAME}
 )
