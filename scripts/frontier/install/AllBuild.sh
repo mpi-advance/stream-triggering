@@ -20,7 +20,7 @@ fi
 mkdir $DIR_TO_BUILD && cd $DIR_TO_BUILD
 
 cmake -DUSE_HIP_BACKEND=ON -DUSE_CXI_BACKEND=ON -DLIBFABRIC_PREFIX=/opt/cray/libfabric/1.22.0/ \
-      -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_INSTALL_PREFIX=/ccs/home/dschafer/apps/stream_trigger \
+      -DCMAKE_HIP_ARCHITECTURES=gfx90a -DCMAKE_INSTALL_PREFIX=${HOME}/apps/stream_trigger \
       -DCMAKE_BUILD_TYPE=$MODE ..
 
 make -j8

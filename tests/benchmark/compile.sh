@@ -21,7 +21,7 @@ elif [ $1 -eq 2 ]; then
 fi
 
 if [ "$SYSTEM" == "FRONTIER" ]; then
-    ST_PATH=/ccs/home/dschafer/apps/stream_trigger
+    ST_PATH=${HOME}/apps/stream_trigger
 else
     ST_PATH=/g/g16/derek/apps/stream_trigger
 fi
