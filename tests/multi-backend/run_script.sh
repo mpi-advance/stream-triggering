@@ -1,11 +1,10 @@
 #!/bin/bash
-#SBATCH --nodes=16
-#SBATCH --ntasks-per-node=4
-#SBATCH --time=00:5:00
-# ### SBATCH --partition=pbatch
-#SBATCH --partition=pdebug
-#SBATCH --exclusive
-#SBATCH --output=../scratch/flux/%j.out
+#flux: --nodes=16
+#flux: --nslots=64
+#flux: --time-limit=5m
+#flux: --queue=pdebug
+#flux: --exclusive
+#flux: --output=../scratch/flux/{{jobid}}.out
 
 # Debugging options
 #set -e
@@ -41,7 +40,7 @@ touch "$TARGET"
 echo $TARGET
 
 # Any extra environment variables we need
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/g/g16/derek/apps/stream_trigger/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
@@ -49,7 +48,7 @@ export HSA_XNACK=1
 # Settings related to individual tests
 TEST_NAME=halo
 #TEST_NAME=rsend
-TIME=00:02:00
+TIME=2m
 NUM_ITERS=50
 BUFF_SIZE=50
 NODES=16
@@ -68,7 +67,7 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    srun --time=$TIME --nodes=$NODES --ntasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    flux run --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 

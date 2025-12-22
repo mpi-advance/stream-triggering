@@ -30,54 +30,46 @@ public:
 class ProtocolMatch
 {
 public:
-    static void receiver(struct fi_rma_iov* user_buffer_details,
-                         struct fi_rma_ioc* completion_details, Operation* op_details,
+    static void receiver(struct fi_rma_iov* user_buffer_details, Operation* op_details,
                          struct fi_rma_ioc* cts_details, Request& req, MPI_Comm phase_a,
                          MPI_Comm phase_b)
     {
         int real_rank = req.resolve_comm_world();
-        Print::out("(Receiver)", req.getID(), "Matching with:", real_rank, "(",
-                      req.peer, ") and tag", req.tag);
+        Print::out("(Receiver)", req.getID(), "Matching with:", real_rank, "(", req.peer,
+                   ") and tag", req.tag);
         MPI_Request* mpi_requests = req.get_match_requests(REQUESTS_TO_USE);
 
         Print::out("(Recv) Sending: ", user_buffer_details->addr,
-                   user_buffer_details->len, user_buffer_details->key,
-                   completion_details->addr, completion_details->count,
-                   completion_details->key);
+                   user_buffer_details->len, user_buffer_details->key);
         check_mpi(MPI_Isend(user_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, real_rank,
                             req.tag, phase_a, &mpi_requests[0]));
-        check_mpi(MPI_Isend(completion_details, sizeof(fi_rma_ioc), MPI_BYTE, real_rank,
-                            req.tag, phase_a, &mpi_requests[1]));
         check_mpi(MPI_Irecv(op_details, sizeof(Operation), MPI_BYTE, real_rank, req.tag,
-                            phase_b, &mpi_requests[2]));
+                            phase_b, &mpi_requests[1]));
         check_mpi(MPI_Irecv(cts_details, sizeof(fi_rma_ioc), MPI_BYTE, real_rank, req.tag,
-                            phase_b, &mpi_requests[3]));
+                            phase_b, &mpi_requests[2]));
     }
 
     static void sender(struct fi_rma_iov* recv_buffer_details,
-                       struct fi_rma_ioc* completion_details,
                        struct fi_rma_ioc* cts_details, Request& req, MPI_Comm phase_a,
                        MPI_Comm phase_b)
     {
         int real_rank = req.resolve_comm_world();
-        Print::out("(Send)", req.getID(),"Matching with:", real_rank, "(", req.peer, ") and tag",
-                      req.tag);
+        Print::out("(Send)", req.getID(), "Matching with:", real_rank, "(", req.peer,
+                   ") and tag", req.tag);
         MPI_Request* mpi_requests = req.get_match_requests(REQUESTS_TO_USE);
 
         check_mpi(MPI_Irecv(recv_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, real_rank,
                             req.tag, phase_a, &mpi_requests[0]));
-        check_mpi(MPI_Irecv(completion_details, sizeof(fi_rma_ioc), MPI_BYTE, real_rank,
-                            req.tag, phase_a, &mpi_requests[1]));
 
         Print::out("(Send) Sending: ", req.operation, cts_details->addr,
                    cts_details->count, cts_details->key);
         check_mpi(MPI_Isend(&req.operation, sizeof(Operation), MPI_BYTE, real_rank,
-                            req.tag, phase_b, &mpi_requests[2]));
+                            req.tag, phase_b, &mpi_requests[1]));
         check_mpi(MPI_Isend(cts_details, sizeof(fi_rma_ioc), MPI_BYTE, real_rank, req.tag,
-                            phase_b, &mpi_requests[3]));
+                            phase_b, &mpi_requests[2]));
     }
 
-    static constexpr size_t REQUESTS_TO_USE = 4;
+    static constexpr size_t REQUESTS_TO_USE = 3;
 };
 #endif
 

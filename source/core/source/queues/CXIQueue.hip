@@ -1,5 +1,4 @@
 #include "queues/CXIQueue.hpp"
-
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
@@ -12,7 +11,7 @@ void LibfabricInstance::initialize_libfabric()
     hints = fi_allocinfo();
 
     // set our requirements for the providers
-    hints->caps = FI_RMA | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
+    hints->caps = FI_RMA | FI_RMA_EVENT | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
     hints->ep_attr->type = FI_EP_RDM;  // Must use for connection-less
     hints->tx_attr->caps = FI_RMA | FI_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
@@ -151,7 +150,8 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
      */
     if (Communication::Operation::RECV == req.operation)
     {
-        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab);
+        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
+                                                              libfab.get_peer(my_rank));
     }
     else if (Communication::Operation::RSEND == req.operation)
     {

@@ -1,13 +1,14 @@
 #!/bin/bash
-#flux: --nodes=1
-#flux: --nslots=2
-#flux: --time=1h
-#flux: --queue=pbatch
-#flux: --gpus-per-slot=1
-#flux: --output=../scratch/flux/{{jobid}}.out
-#flux: --exclusive
-#flux: --env=NODES={{nnodes}}
-PPN=2
+#SBATCH --nodes=2
+#SBATCH --time=01:00:00
+#SBATCH --partition=batch
+#SBATCH --account=csc698
+#SBATCH --output=../scratch/flux/%j.out
+#SBATCH --exclusive
+
+NODES=$SLURM_NNODES
+PPN=1
+TLES=$((1024 / $PPN))
 
 # Debugging options
 #set -e
@@ -16,15 +17,9 @@ PPN=2
 cd ..
 
 # Switch between Tioga and Tuo modules
-if [ $# -eq 0 ]; then
-    echo "Running for the MI250X"
-    module load craype-accel-amd-gfx90a
-    SYSTEM="TIOGA"
-else
-    echo "Running for the MI300A"
-    module load craype-accel-amd-gfx942
-    SYSTEM="TUOLUMNE"
-fi
+echo "Running for the MI250X"
+module load craype-accel-amd-gfx90a
+SYSTEM="FRONTIER"
 
 module load rocm
 
@@ -43,14 +38,14 @@ touch "$TARGET"
 echo $TARGET
 
 # Any extra environment variables we need
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/apps/stream_trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
 TEST_NAME=pingpong_st
-TIME=3m
+TIME=00:03:00
 START_EXP=3
 END_EXP=28
 NUM_ITERS=100000
@@ -68,14 +63,14 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    flux run -N$NODES --tasks-per-node=$PPN --output="$RUN_FILE" --time-limit=$TIME "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --network=single_node_vni,job_vni,def_tles=$TLES -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
 run_db_test()(
     RUN_FILE="${1}_db.tmp"
     STRING="Test: ${1}_db $NUM_ITERS $BUFF_SIZE"
-    flux run -N$NODES --tasks-per-node=$PPN --output="$RUN_FILE" --time-limit=$TIME "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    srun --network=single_node_vni,job_vni,def_tles=$TLES -N$NODES --ntasks-per-node=$PPN --output="$RUN_FILE" --time=$TIME "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
@@ -100,7 +95,7 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     run_tests "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_tests "hip"
+    #run_tests "hip"
     #run_tests "thread"
     run_tests "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED

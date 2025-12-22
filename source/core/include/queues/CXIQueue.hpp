@@ -147,7 +147,8 @@ public:
 
     void queue_work(struct fi_deferred_work* work_entry)
     {
-        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr);
+        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr,
+                   work_entry->completion_cntr);
 
         while (dwq_slots_used == MAX_DWQ_SLOTS)
         {
@@ -656,50 +657,6 @@ private:
     LibfabricInstance& progress_engine;
 };
 
-class ChainedRMA
-{
-public:
-    ChainedRMA(struct fi_rma_ioc* local_completion, struct fid_ep* ep, fi_addr_t partner,
-               fi_addr_t self, struct fid_cntr* trigger, struct fid_cntr* comp_cntr)
-        : chain_work_remote(ep, partner), chain_work_local(ep, self, local_completion)
-    {
-        chain_work_remote.set_trigger_counter(trigger);
-        chain_work_remote.set_completion_counter(comp_cntr);
-
-        chain_work_local.set_trigger_counter(trigger);
-        chain_work_local.set_completion_counter(comp_cntr);
-
-        /* The first and last values should be filled in by the match! */
-        chain_work_remote.set_rma_iov({0, 1, 0});
-
-        chain_work_local.set_flags(FI_DELIVERY_COMPLETE);
-        chain_work_remote.set_flags(FI_DELIVERY_COMPLETE);
-    }
-    void queue_work(LibfabricInstance& libfab)
-    {
-        /* Increase thresholds before starting! */
-        chain_work_remote.bump_threshold();
-        chain_work_local.bump_threshold();
-
-        // chain_work_remote.print();
-        libfab.queue_work(chain_work_remote.get_dwqe());
-        // chain_work_local.print();
-        libfab.queue_work(chain_work_local.get_dwqe());
-    }
-
-    struct fi_rma_ioc* get_remote_rma_ioc_addr()
-    {
-        return chain_work_remote.get_rma_ioc_addr();
-    }
-
-private:
-    AtomicEntry chain_work_local;
-    AtomicEntry chain_work_remote;
-
-    // Which completion value are we on?
-    int index = 0;
-};
-
 class CXIRSend : public CXIRequest
 {
 public:
@@ -710,15 +667,14 @@ public:
                      {user_request.buffer,
                       static_cast<size_t>(get_size_of_buffer(user_request))},
                      _libfab.get_peer(user_request.resolve_comm_world())),
+          local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr()),
           libfab(_libfab),
           completion_a(_libfab.alloc_counter(true)),
-          completion_b(_libfab.alloc_counter(true)),
-          my_chained_completions(completion_buffer.get_rma_ioc_addr(), _libfab.ep,
-                                 _libfab.get_peer(user_request.resolve_comm_world()),
-                                 self, completion_a, completion_b)
+          completion_b(_libfab.alloc_counter(true))
     {
         work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_DELIVERY_COMPLETE);
+        local_completion.set_trigger_counter(completion_a);
+        local_completion.set_completion_counter(completion_b);
     }
 
     ~CXIRSend()
@@ -731,10 +687,9 @@ public:
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::sender(
-            work_entry.get_rma_iov_addr(),
-            my_chained_completions.get_remote_rma_ioc_addr(),
-            protocol_buffer.get_rma_ioc_addr(), base_req, comm_a, comm_b);
+        Communication::ProtocolMatch::sender(work_entry.get_rma_iov_addr(),
+                                             protocol_buffer.get_rma_ioc_addr(), base_req,
+                                             comm_a, comm_b);
     }
 
     TriggerStatus start_derived(hipStream_t* the_stream,
@@ -749,45 +704,47 @@ public:
         // work_entry.print();
         libfab.queue_work(work_entry.get_dwqe());
 
-        // Queue up chained actions
-        my_chained_completions.queue_work(libfab);
+        // Queue up completion DWQ
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
+
         return TriggerStatus::GLOBAL_BUMP;
     }
 
 private:
     // Structs for the DFWQ Entry:
-    RMAEntry work_entry;
+    RMAEntry    work_entry;
+    AtomicEntry local_completion;
 
     // Reference to global libfabric stuff
     LibfabricInstance& libfab;
 
-    struct fid_cntr*  completion_a;
-    struct fid_cntr*  completion_b;
-    struct fid_cntr*  completion_c;
-    ChainedRMA my_chained_completions;
+    struct fid_cntr* completion_a;
+    struct fid_cntr* completion_b;
+    struct fid_cntr* completion_c;
 };
 
 class CXISend : public CXIRequest
 {
 public:
     CXISend(Request& user_request, CompletionBufferFactory& buffers,
-             LibfabricInstance& _libfab, fi_addr_t self)
+            LibfabricInstance& _libfab, fi_addr_t self)
         : CXIRequest(user_request, buffers),
           work_entry(_libfab.ep,
                      {user_request.buffer,
                       static_cast<size_t>(get_size_of_buffer(user_request))},
                      _libfab.get_peer(user_request.resolve_comm_world())),
+          local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr()),
           libfab(_libfab),
           completion_a(_libfab.alloc_counter(true)),
           completion_b(_libfab.alloc_counter(true)),
-          triggered(_libfab),  // TBD if "false" is right for counter tracking
-          my_chained_completions(completion_buffer.get_rma_ioc_addr(), _libfab.ep,
-                                 _libfab.get_peer(user_request.resolve_comm_world()),
-                                 self, completion_a, completion_b)
+          triggered(_libfab)
     {
-        work_entry.set_completion_counter(completion_a);
-        work_entry.set_flags(FI_DELIVERY_COMPLETE);
         work_entry.set_trigger_counter(triggered);
+        work_entry.set_completion_counter(completion_a);
+
+        local_completion.set_trigger_counter(completion_a);
+        local_completion.set_completion_counter(completion_b);
 
         /* Setup CTS buffer */
         force_gpu(hipHostMalloc(&cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE,
@@ -814,10 +771,9 @@ public:
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::sender(
-            work_entry.get_rma_iov_addr(),
-            my_chained_completions.get_remote_rma_ioc_addr(),
-            protocol_buffer.get_rma_ioc_addr(), base_req, comm_a, comm_b);
+        Communication::ProtocolMatch::sender(work_entry.get_rma_iov_addr(),
+                                             protocol_buffer.get_rma_ioc_addr(), base_req,
+                                             comm_a, comm_b);
     }
 
     TriggerStatus start_derived(hipStream_t* the_stream,
@@ -830,8 +786,9 @@ public:
         // work_entry.print();
         libfab.queue_work(work_entry.get_dwqe());
 
-        // Queue up chained actions
-        my_chained_completions.queue_work(libfab);
+        // Queue up completion DWQ
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
 
         triggered.enqueue_trigger(the_stream);
         return TriggerStatus::GLOBAL_BUMP;
@@ -839,14 +796,14 @@ public:
 
 private:
     // Structs for the DFWQ Entry:
-    RMAEntry work_entry;
+    RMAEntry    work_entry;
+    AtomicEntry local_completion;
 
     // Reference to global libfabric stuff
     LibfabricInstance& libfab;
 
-    struct fid_cntr*  completion_a;
-    struct fid_cntr*  completion_b;
-    ChainedRMA my_chained_completions;
+    struct fid_cntr* completion_a;
+    struct fid_cntr* completion_b;
 
     CXICounter triggered;
     void*      cts_buffer;
@@ -857,40 +814,48 @@ class CXIRecvOneSided : public CXIRequest
 {
 public:
     CXIRecvOneSided(Request& user_request, CompletionBufferFactory& buffers,
-                    LibfabricInstance& _libfab)
+                    LibfabricInstance& _libfab, fi_addr_t self)
         : CXIRequest(user_request, buffers),
           libfab(_libfab),
           cts_entry(_libfab.ep, _libfab.get_peer(user_request.resolve_comm_world())),
-          completion_a(_libfab.alloc_counter(true))
+          completion_a(_libfab.alloc_counter(true)),   // CTS DWQ completion tracker
+          completion_b(_libfab.alloc_counter(false)),  // registered with user MR
+          completion_c(_libfab.alloc_counter(true)),   // Local completion DWQ Tracker
+          local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr())
     {
-        my_mr = _libfab.create_mr(user_request.buffer, get_size_of_buffer(user_request),
-                                  FI_REMOTE_WRITE, FI_MR_ALLOCATED);
+        my_mr = _libfab.create_mr_with_counter(
+            user_request.buffer, get_size_of_buffer(user_request), FI_REMOTE_WRITE,
+            FI_MR_ALLOCATED, completion_b, FI_REMOTE_WRITE);
 
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
         cts_entry.set_completion_counter(completion_a);
-        cts_entry.set_flags(FI_DELIVERY_COMPLETE);
+        local_completion.set_trigger_counter(completion_b);
+        local_completion.set_completion_counter(completion_c);
     }
 
     ~CXIRecvOneSided()
     {
         // Free counter
         libfab.dealloc_counter(completion_a);
+        libfab.dealloc_counter(completion_c);
         // Free MR
         force_libfabric(fi_close(&(my_mr)->fid));
+        libfab.dealloc_counter(completion_b);
     }
 
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::receiver(
-            &user_buffer_rma_iov, completion_buffer.get_rma_ioc_addr(), &peer_op,
-            cts_entry.get_rma_ioc_addr(), base_req, comm_a, comm_b);
+        Communication::ProtocolMatch::receiver(&user_buffer_rma_iov, &peer_op,
+                                               cts_entry.get_rma_ioc_addr(), base_req,
+                                               comm_a, comm_b);
     }
 
     TriggerStatus start_derived(hipStream_t* the_stream,
                                 CXICounter&  trigger_cntr) override
     {
+        TriggerStatus rc = TriggerStatus::NOT_NEEDED;
         if (Operation::RSEND != peer_op)
         {
             Print::out("Queue CTS to Libfabric!");
@@ -899,10 +864,14 @@ public:
             // Adjust the triggering counter to use
             cts_entry.set_trigger_counter(trigger_cntr);
             libfab.queue_work(cts_entry.get_dwqe());
-            return TriggerStatus::GLOBAL_BUMP;
+            rc = TriggerStatus::GLOBAL_BUMP;
         }
 
-        return TriggerStatus::NOT_NEEDED;
+        // Queue up completion DWQ
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
+
+        return rc;
     }
 
 private:
@@ -919,6 +888,11 @@ private:
 
     // User buffer details
     struct fi_rma_iov user_buffer_rma_iov;
+
+    // Local completion
+    struct fid_cntr* completion_b;
+    struct fid_cntr* completion_c;
+    AtomicEntry      local_completion;
 };
 
 class CXIQueue : public Queue
