@@ -711,7 +711,7 @@ public:
         return TriggerStatus::GLOBAL_BUMP;
     }
 
-private:
+protected:
     // Structs for the DFWQ Entry:
     RMAEntry    work_entry;
     AtomicEntry local_completion;
@@ -721,30 +721,17 @@ private:
 
     struct fid_cntr* completion_a;
     struct fid_cntr* completion_b;
-    struct fid_cntr* completion_c;
 };
 
-class CXISend : public CXIRequest
+class CXISend : public CXIRSend
 {
 public:
     CXISend(Request& user_request, CompletionBufferFactory& buffers,
             LibfabricInstance& _libfab, fi_addr_t self)
-        : CXIRequest(user_request, buffers),
-          work_entry(_libfab.ep,
-                     {user_request.buffer,
-                      static_cast<size_t>(get_size_of_buffer(user_request))},
-                     _libfab.get_peer(user_request.resolve_comm_world())),
-          local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr()),
-          libfab(_libfab),
-          completion_a(_libfab.alloc_counter(true)),
-          completion_b(_libfab.alloc_counter(true)),
+        : CXIRSend(user_request, buffers, _libfab, self),
           triggered(_libfab)
     {
         work_entry.set_trigger_counter(triggered);
-        work_entry.set_completion_counter(completion_a);
-
-        local_completion.set_trigger_counter(completion_a);
-        local_completion.set_completion_counter(completion_b);
 
         /* Setup CTS buffer */
         force_gpu(hipHostMalloc(&cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE,
@@ -761,19 +748,9 @@ public:
 
     ~CXISend()
     {
-        // Free counter
-        libfab.dealloc_counter(completion_a);
-        libfab.dealloc_counter(completion_b);
+        /* Free CTS related items */
         check_gpu(hipHostFree(cts_buffer));
         check_libfabric(fi_close(&(cts_mr)->fid));
-    }
-
-    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
-    {
-        /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::sender(work_entry.get_rma_iov_addr(),
-                                             protocol_buffer.get_rma_ioc_addr(), base_req,
-                                             comm_a, comm_b);
     }
 
     TriggerStatus start_derived(hipStream_t* the_stream,
@@ -795,16 +772,6 @@ public:
     }
 
 private:
-    // Structs for the DFWQ Entry:
-    RMAEntry    work_entry;
-    AtomicEntry local_completion;
-
-    // Reference to global libfabric stuff
-    LibfabricInstance& libfab;
-
-    struct fid_cntr* completion_a;
-    struct fid_cntr* completion_b;
-
     CXICounter triggered;
     void*      cts_buffer;
     fid_mr*    cts_mr;

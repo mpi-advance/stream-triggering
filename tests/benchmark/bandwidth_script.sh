@@ -1,13 +1,13 @@
 #!/bin/bash
-#flux: --nodes=1
+#flux: --nodes=2
 #flux: --nslots=2
 #flux: --time=1h
-#flux: --queue=pbatch
+#flux: --queue=pdebug
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
 #flux: --env=NODES={{nnodes}}
-PPN=2
+PPN=1
 
 # Debugging options
 #set -e
@@ -52,7 +52,7 @@ export HSA_XNACK=1
 TEST_NAME=pingpong_st
 TIME=3m
 START_EXP=3
-END_EXP=28
+END_EXP=3
 NUM_ITERS=100000
 
 cd scratch/tmp/
@@ -100,7 +100,7 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     run_tests "cxi-fine"
 
     export MPICH_GPU_SUPPORT_ENABLED=1
-    run_tests "hip"
+    #run_tests "hip"
     #run_tests "thread"
     run_tests "mpi"
     unset MPICH_GPU_SUPPORT_ENABLED
