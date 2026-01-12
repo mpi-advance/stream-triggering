@@ -24,7 +24,6 @@ const MPIS_Request MPIS_REQUEST_NULL = 0;
 enum MPIS_Queue_type
 {
     THREAD            = 0,
-    THREAD_SERIALIZED = 1,
     GPU_MEM_OPS       = 3,
     CXI               = 4
 };

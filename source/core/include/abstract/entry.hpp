@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "progress.hpp"
 #include "request.hpp"
 
 using namespace Communication;
@@ -29,6 +30,12 @@ public:
                                         req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::BARRIER:
+                check_mpi(MPI_Barrier_init(req->comm, req->info, &mpi_request));
+                break;
+            case Communication::Operation::ALLREDUCE:
+                // check_mpi(MPI_Allreduce_init(req->sendbuf, req->recvbuf, req->count,
+                //                             req->datatype, req->op, req->comm, req->info,
+                //                             &mpi_request));
                 break;
             default:
                 throw std::runtime_error("Invalid Request");
@@ -70,34 +77,50 @@ public:
         return *this;
     }
 
-    virtual void start_host()
+    operator std::shared_ptr<Progress::StartEntry>()
     {
-        if (original_request->operation == Communication::Operation::BARRIER)
-        {
-            check_mpi(MPI_Ibarrier(original_request->comm, &mpi_request));
-        }
-        else
-        {
-            check_mpi(MPI_Start(&mpi_request));
-        }
-        Print::out("Base Host done!");
+        return start_lambda;
+    }
+
+    operator std::shared_ptr<Progress::WaitEntry>()
+    {
+        return wait_lambda;
+    }
+
+    virtual void initialize_lambdas()
+    {
+        start_lambda = std::make_shared<Progress::StartEntry>(
+            [this]() { return MPI_Start(&mpi_request); }, start_location);
+        wait_lambda = std::make_shared<Progress::WaitEntry>(
+            [this]() { return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); },
+            wait_location);
+    }
+
+    virtual int64_t increment()
+    {
+        return (threshold++);
     }
 
     virtual void start_gpu(void* stream)
     {
         // Does nothing in base class.
+        throw std::runtime_error("Function not supported: QueueEntry::start_gpu");
     }
 
     virtual void wait_gpu(void* stream)
     {
         // Does nothing in base class.
+        throw std::runtime_error("Function not supported: QueueEntry::wait_gpu");
     }
 
-    virtual bool done()
+    Progress::CounterType* get_start_location()
     {
-        int value = 0;
-        check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
-        return value;
+        return start_location;
+    }
+
+    Progress::CounterType* get_wait_location()
+    {
+        return wait_location;
     }
 
 protected:
@@ -105,6 +128,11 @@ protected:
 
     MPI_Request              mpi_request      = MPI_REQUEST_NULL;
     std::shared_ptr<Request> original_request = nullptr;
+
+    std::shared_ptr<Progress::StartEntry> start_lambda;
+    Progress::CounterType*                start_location;
+    std::shared_ptr<Progress::WaitEntry>  wait_lambda;
+    Progress::CounterType*                wait_location;
 };
 
 #endif

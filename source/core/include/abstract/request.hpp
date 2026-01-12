@@ -16,7 +16,8 @@ enum Operation : int
     SEND,
     RSEND,
     RECV,
-    BARRIER
+    BARRIER,
+    ALLREDUCE
 };
 
 enum GPUMemoryType
@@ -36,9 +37,10 @@ public:
     int          tag;
     MPI_Comm     comm;
     MPI_Info     info;
+    MPI_Op       op;
 
     Request(Operation _operation, void* _buffer, MPI_Count _count, MPI_Datatype _datatype,
-            int _peer, int _tag, MPI_Comm _comm, MPI_Info _info)
+            int _peer, int _tag, MPI_Comm _comm, MPI_Info _info, MPI_Op _op = MPI_OP_NULL)
         : operation(_operation),
           buffer(_buffer),
           count(_count),
@@ -47,6 +49,7 @@ public:
           tag(_tag),
           comm(_comm),
           info(_info),
+          op(_op),
           myID(assignID()),
           matched(false)
     {

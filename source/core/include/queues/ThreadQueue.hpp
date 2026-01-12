@@ -1,113 +1,44 @@
 #ifndef ST_THREAD_QUEUE
 #define ST_THREAD_QUEUE
 
-#include <atomic>
-#include <map>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <tuple>
+#include <memory>
 
-#include "abstract/bundle.hpp"
 #include "abstract/entry.hpp"
-#include "abstract/match.hpp"
 #include "abstract/queue.hpp"
 
-template <bool isSerialized>
 class ThreadQueue : public Queue
 {
 public:
-    using InternalRequest = QueueEntry;
-    using UserRequest     = std::shared_ptr<Request>;
-
-    ThreadQueue() : thr(&ThreadQueue::progress, this)
+    ThreadQueue()
     {
         Print::out("Thread Queue init-ed");
     }
-    ~ThreadQueue()
-    {
-        shutdown = true;
-        thr.join();
-    }
+    ~ThreadQueue() = default;
 
-    void enqueue_operation(UserRequest request) override
+    void enqueue_operation(std::shared_ptr<Request> request) override
     {
         size_t request_id = request->getID();
         if (!request_cache.contains(request_id))
         {
             // Also converts to InternalRequest
             request_cache.emplace(request_id, request);
+            request_cache.at(request_id).initialize_lambdas();
         }
-        entries.add_to_bundle(request_cache.at(request_id));
-    }
+        QueueEntry& req = request_cache.at(request_id);
+        progress_engine.enqueued_start(req, req.increment());
+        entries.push_back(req);
 
-    void enqueue_startall(std::vector<UserRequest> requests) override
-    {
-        for (auto& req : requests)
-        {
-            enqueue_operation(req);
-        }
+        /* Basic thread implementation can instantly start request. */
+        *(req.get_start_location()) = 1;
     }
 
     void enqueue_waitall() override
     {
-        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        // Move Bundle (entries) to the queue of work
-        pending.push(std::move(entries));
-        // Add one to busy counter
-        busy += 1;
-        // Remake entries
-        entries = Bundle();
-    }
-
-    void host_wait() override
-    {
-        while (busy.load())
+        for (QueueEntry& entry : entries)
         {
-            // Do nothing.
+            progress_engine.enqueued_wait(entry);
         }
-    }
-
-protected:
-    // Thread control variables
-    std::atomic<int> busy;
-    std::thread      thr;
-    bool             shutdown = false;
-    std::mutex       queue_guard;
-
-    // Bundle variables
-    using BundleIterator = std::vector<Bundle>::iterator;
-    Bundle                            entries;
-    std::queue<Bundle>                pending;
-    std::map<size_t, InternalRequest> request_cache;
-
-    void progress()
-    {
-        while (!shutdown)
-        {
-            if (busy > 0)
-            {
-                Bundle the_bundle = std::move(pending.front());
-                {  // Scope of the lock
-                    std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-                    pending.pop();
-                }
-
-                if constexpr (isSerialized)
-                {
-                    the_bundle.progress_serial();
-                }
-                else
-                {
-                    the_bundle.progress_all();
-                }
-                busy--;
-            }
-            else
-            {
-                std::this_thread::yield();
-            }
-        }
+        entries.clear();
     }
 };
 
