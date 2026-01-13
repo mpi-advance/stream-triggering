@@ -7,7 +7,6 @@
 
 #include "abstract/entry.hpp"
 #include "abstract/queue.hpp"
-#include "abstract/progress.hpp"
 
 class HIPQueueEntry : public QueueEntry
 {

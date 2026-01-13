@@ -71,7 +71,7 @@ public:
 class Engine
 {
 public:
-    Engine() : running(false) {}
+    Engine() : running(false), item_counter(0) {}
 
     ~Engine()
     {

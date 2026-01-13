@@ -13,7 +13,7 @@ class QueueEntry
 {
 public:
     explicit QueueEntry(std::shared_ptr<Request> req)
-        : original_request(req), threshold(0)
+        : threshold(0), original_request(req)
     {
         switch (req->operation)
         {
@@ -34,8 +34,8 @@ public:
                 break;
             case Communication::Operation::ALLREDUCE:
                 // check_mpi(MPI_Allreduce_init(req->sendbuf, req->recvbuf, req->count,
-                //                             req->datatype, req->op, req->comm, req->info,
-                //                             &mpi_request));
+                //                             req->datatype, req->op, req->comm,
+                //                             req->info, &mpi_request));
                 break;
             default:
                 throw std::runtime_error("Invalid Request");
@@ -45,8 +45,7 @@ public:
 
     virtual ~QueueEntry()
     {
-        if (MPI_REQUEST_NULL != mpi_request && original_request &&
-            original_request->operation != Communication::Operation::BARRIER)
+        if (MPI_REQUEST_NULL != mpi_request && original_request)
         {
             check_mpi(MPI_Request_free(&mpi_request));
         }
@@ -56,23 +55,50 @@ public:
     QueueEntry(const QueueEntry& other)            = delete;
     QueueEntry& operator=(const QueueEntry& other) = delete;
 
-    // Only Moving
+    // Only moving
     QueueEntry(QueueEntry&& other) noexcept
-        : mpi_request(other.mpi_request), original_request(other.original_request)
+        : threshold(other.threshold),
+          mpi_request(other.mpi_request),
+          original_request(other.original_request),
+          start_lambda(other.start_lambda),
+          start_location(other.start_location),
+          wait_lambda(other.wait_lambda),
+          wait_location(other.wait_location)
     {
         // clear other structs
+        other.threshold   = 0;
         other.mpi_request = MPI_REQUEST_NULL;
         other.original_request.reset();
+        other.start_lambda.reset();
+        other.start_location = nullptr;
+        other.wait_lambda.reset();
+        other.wait_location = nullptr;
+
+        // Reestablish lambdas
+        initialize_lambdas();
     }
     QueueEntry& operator=(QueueEntry&& other) noexcept
     {
         if (this != &other)
         {
+            threshold        = other.threshold;
             mpi_request      = other.mpi_request;
             original_request = other.original_request;
+            start_lambda     = other.start_lambda;
+            start_location   = other.start_location;
+            wait_lambda      = other.wait_lambda;
+            wait_location    = other.wait_location;
             // clear other
+            other.threshold   = 0;
             other.mpi_request = MPI_REQUEST_NULL;
             other.original_request.reset();
+            other.start_lambda.reset();
+            other.start_location = nullptr;
+            other.wait_lambda.reset();
+            other.wait_location = nullptr;
+
+            // Reestablish lambdas
+            initialize_lambdas();
         }
         return *this;
     }
@@ -96,7 +122,7 @@ public:
             wait_location);
     }
 
-    virtual int64_t increment()
+    virtual Progress::CounterType increment()
     {
         return (threshold++);
     }
@@ -124,7 +150,7 @@ public:
     }
 
 protected:
-    int64_t threshold = 0;
+    Progress::CounterType threshold = 0;
 
     MPI_Request              mpi_request      = MPI_REQUEST_NULL;
     std::shared_ptr<Request> original_request = nullptr;

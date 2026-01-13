@@ -44,7 +44,7 @@ protected:
     Progress::Engine progress_engine;
 
     std::vector<std::reference_wrapper<QueueEntry>> entries;
-    std::map<size_t, QueueEntry> request_cache;
+    std::map<size_t, std::unique_ptr<QueueEntry>> request_cache;
 };
 
 #endif

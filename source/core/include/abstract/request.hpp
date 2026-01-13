@@ -53,23 +53,20 @@ public:
           myID(assignID()),
           matched(false)
     {
-        int size = -1;
-        check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out(_operation,
-                   "Request made with address, size, count, tag, and ID:", _buffer, size,
+        Print::out(_operation, "Request made with address, count, tag, and ID:", _buffer,
                    _count, tag, myID);
 
         constexpr int string_size = 100;
         char          info_key[]  = "mpi_memory_alloc_kinds";
-        char          value[string_size];
+        std::vector<char> value(string_size,0);
         int           flag = 0;
         // Pre MPI-4.0
         if (MPI_INFO_NULL != _info)
         {
-            force_mpi(MPI_Info_get(_info, info_key, string_size, value, &flag));
+            force_mpi(MPI_Info_get(_info, info_key, string_size, value.data(), &flag));
         }
 
-        if (0 == strcmp(value, "rocm:device:fine"))
+        if (0 == strcmp(value.data(), "rocm:device:fine"))
         {
             Print::out("Using fine-grained memory!");
             memory_type = GPUMemoryType::FINE;
