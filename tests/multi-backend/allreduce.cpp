@@ -1,13 +1,30 @@
 #include "../common/common.hpp"
 #include "stream-triggering.h"
 
+__global__ void verify(volatile int* buffer, int buffer_len, int rank, int size)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    int expected = ((size*(size-1))/2)*100 + (size*index);
+
+    if (buffer[index] != expected)
+    {
+        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
+               index, buffer[index], expected);
+    }
+}
+
 int main(int argc, char* argv[])
 {
     int mode;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
 
     int rank;
+    int size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Input parameters
     int BUFFER_SIZE = 64;
@@ -67,22 +84,7 @@ int main(int argc, char* argv[])
 
     double start = MPI_Wtime();
     MPIS_Enqueue_start(my_queue, &my_req);
-    sleep(4);
     MPIS_Enqueue_waitall(my_queue);
-
-#ifdef THREAD_BACKEND
-    MPIS_Queue_wait(my_queue);
-#endif
-    print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
-                                                            rank);
-
-    pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)send_buf, (int*)recv_buf,
-                                                           BUFFER_SIZE);
-
-#ifdef THREAD_BACKEND
-    device_sync();
-#endif
-
     MPIS_Queue_wait(my_queue);
     double end = MPI_Wtime();
 
@@ -91,9 +93,8 @@ int main(int argc, char* argv[])
 
     // Final check
     device_sync();
-    dummy_kernel<<<1, 1, 0, my_stream>>>(rank, 2);
-    print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
-                                                            rank);
+    verify<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
+                                                            rank, size);
     device_sync();
 
     // Cleanup

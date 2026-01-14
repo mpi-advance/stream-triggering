@@ -45,7 +45,7 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
     size_t request_id = request->getID();
     if (!request_cache.contains(request_id))
     {
-        request_cache.emplace(request_id, std::make_unique<HipQueueEntry>(request));
+        request_cache.emplace(request_id, std::make_unique<HIPQueueEntry>(request));
     }
 
     QueueEntry& cqe = *request_cache.at(request_id);
