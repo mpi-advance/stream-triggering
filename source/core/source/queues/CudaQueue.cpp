@@ -10,7 +10,8 @@ void CudaQueue::enqueue_operation(std::shared_ptr<Request> request)
     }
 
     QueueEntry& cqe = *request_cache.at(request_id);
-    progress_engine.enqueued_start(cqe, cqe.increment());
+    cqe.increment();
+    progress_engine.enqueued_start(cqe);
     cqe.start_gpu(my_stream);
     entries.push_back(cqe);
 }

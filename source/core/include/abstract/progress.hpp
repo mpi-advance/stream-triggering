@@ -79,10 +79,8 @@ public:
         progress_thread.join();
     }
 
-    void enqueued_start(std::shared_ptr<StartEntry> request, CounterType iteration)
+    void enqueued_start(std::shared_ptr<StartEntry> request)
     {
-        request->set_iteration(iteration);
-
         if (!running)
         {
             running         = true;

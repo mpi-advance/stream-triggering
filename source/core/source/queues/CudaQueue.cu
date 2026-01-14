@@ -25,16 +25,15 @@ CudaQueueEntry::~CudaQueueEntry()
 
 void CudaQueueEntry::start_gpu(void* the_stream)
 {
-    threshold++;
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
-    Print::out("Starting asking GPU to write:", threshold);
+    Print::out("<E> Starting asking GPU to write:", threshold, start_location);
     force_gpu(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
 }
 
 void CudaQueueEntry::wait_gpu(void* the_stream)
 {
-    Print::out("Asked GPU to wait for: ", threshold);
+    Print::out("<E> Asked GPU to wait for: ", threshold);
     cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
     CUstream      real_stream = *cuda_stream;
     force_gpu(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));

@@ -44,13 +44,13 @@ public:
                                   std::make_unique<ThreadQueueEntry>(request));
         }
 
-        QueueEntry&           req       = *request_cache.at(request_id);
-        Progress::CounterType threshold = req.increment();
-        progress_engine.enqueued_start(req, threshold);
+        QueueEntry& req = *request_cache.at(request_id);
+        req.increment();
+        progress_engine.enqueued_start(req);
         entries.push_back(req);
 
         /* Basic thread implementation can instantly start request. */
-        *(req.get_start_location()) = threshold;
+        *(req.get_start_location()) = req.get_threshold();
     }
 
     void enqueue_waitall() override

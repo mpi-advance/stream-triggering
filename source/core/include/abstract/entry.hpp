@@ -105,26 +105,24 @@ public:
 
     operator std::shared_ptr<Progress::StartEntry>()
     {
+        start_lambda->set_iteration(threshold);
         return start_lambda;
     }
 
     operator std::shared_ptr<Progress::WaitEntry>()
     {
+        wait_lambda->set_iteration(threshold);
         return wait_lambda;
     }
 
-    virtual void initialize_lambdas()
+    virtual void increment()
     {
-        start_lambda = std::make_shared<Progress::StartEntry>(
-            [this]() { return MPI_Start(&mpi_request); }, start_location);
-        wait_lambda = std::make_shared<Progress::WaitEntry>(
-            [this]() { return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); },
-            wait_location);
+        threshold++;
     }
 
-    virtual Progress::CounterType increment()
+    virtual Progress::CounterType get_threshold()
     {
-        return (threshold++);
+        return threshold;
     }
 
     virtual void start_gpu(void* stream)
@@ -150,6 +148,15 @@ public:
     }
 
 protected:
+    virtual void initialize_lambdas()
+    {
+        start_lambda = std::make_shared<Progress::StartEntry>(
+            [this]() { return MPI_Start(&mpi_request); }, start_location);
+        wait_lambda = std::make_shared<Progress::WaitEntry>(
+            [this]() { return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); },
+            wait_location);
+    }
+
     Progress::CounterType threshold = 0;
 
     MPI_Request              mpi_request      = MPI_REQUEST_NULL;

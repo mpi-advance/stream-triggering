@@ -24,7 +24,6 @@ HIPQueueEntry::~HIPQueueEntry()
 
 void HIPQueueEntry::start_gpu(void* the_stream)
 {
-    threshold++;
     Print::out("Starting asking GPU to write:", threshold);
     force_gpu(
         hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev, threshold, 0));
@@ -50,7 +49,8 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
     }
 
     QueueEntry& cqe = *request_cache.at(request_id);
-    progress_engine.enqueued_start(cqe, cqe.increment());
+    cqe.increment();
+    progress_engine.enqueued_start(cqe);
     cqe.start_gpu(my_stream);
     entries.push_back(cqe);
 }
