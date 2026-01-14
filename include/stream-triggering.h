@@ -23,9 +23,9 @@ const MPIS_Request MPIS_REQUEST_NULL = 0;
 
 enum MPIS_Queue_type
 {
-    THREAD            = 0,
-    GPU_MEM_OPS       = 3,
-    CXI               = 4
+    THREAD      = 0,
+    GPU_MEM_OPS = 3,
+    CXI         = 4
 };
 typedef enum MPIS_Queue_type MPS_Queue_type;
 
@@ -65,6 +65,8 @@ int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI
                    MPIS_Request*);
 int MPIS_Rsend_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
                     MPIS_Request*);
+int MPIS_Allreduce_init(const void*, void*, int, MPI_Datatype, MPI_Op, MPI_Comm, MPI_Info,
+                        MPIS_Request*);
 
 /* New GPU Memory Allocation functions */
 int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);

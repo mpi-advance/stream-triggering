@@ -18,24 +18,24 @@ public:
         switch (req->operation)
         {
             case Communication::Operation::SEND:
-                check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype, req->peer,
-                                        req->tag, req->comm, &mpi_request));
+                check_mpi(MPI_Send_init(req->send_buffer, req->count, req->datatype,
+                                        req->peer, req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::RSEND:
-                check_mpi(MPI_Rsend_init(req->buffer, req->count, req->datatype,
+                check_mpi(MPI_Rsend_init(req->send_buffer, req->count, req->datatype,
                                          req->peer, req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::RECV:
-                check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype, req->peer,
-                                        req->tag, req->comm, &mpi_request));
+                check_mpi(MPI_Recv_init(req->recv_buffer, req->count, req->datatype,
+                                        req->peer, req->tag, req->comm, &mpi_request));
                 break;
             case Communication::Operation::BARRIER:
                 check_mpi(MPI_Barrier_init(req->comm, req->info, &mpi_request));
                 break;
             case Communication::Operation::ALLREDUCE:
-                // check_mpi(MPI_Allreduce_init(req->sendbuf, req->recvbuf, req->count,
-                //                             req->datatype, req->op, req->comm,
-                //                             req->info, &mpi_request));
+                check_mpi(MPI_Allreduce_init(req->send_buffer, req->recv_buffer,
+                                             req->count, req->datatype, req->op,
+                                             req->comm, req->info, &mpi_request));
                 break;
             default:
                 throw std::runtime_error("Invalid Request");

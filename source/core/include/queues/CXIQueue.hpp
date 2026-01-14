@@ -664,7 +664,7 @@ public:
              LibfabricInstance& _libfab, fi_addr_t self)
         : CXIRequest(user_request, buffers),
           work_entry(_libfab.ep,
-                     {user_request.buffer,
+                     {user_request.send_buffer,
                       static_cast<size_t>(get_size_of_buffer(user_request))},
                      _libfab.get_peer(user_request.resolve_comm_world())),
           local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr()),
@@ -791,7 +791,7 @@ public:
           local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr())
     {
         my_mr = _libfab.create_mr_with_counter(
-            user_request.buffer, get_size_of_buffer(user_request), FI_REMOTE_WRITE,
+            user_request.recv_buffer, get_size_of_buffer(user_request), FI_REMOTE_WRITE,
             FI_MR_ALLOCATED, completion_b, FI_REMOTE_WRITE);
 
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};

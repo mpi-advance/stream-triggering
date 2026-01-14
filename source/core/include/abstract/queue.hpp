@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "entry.hpp"
+#include "match.hpp"
 #include "progress.hpp"
 #include "request.hpp"
 
@@ -33,7 +34,15 @@ public:
         progress_engine.wait_until_empty();
     }
 
-    virtual void match(std::shared_ptr<Request> request);
+    virtual void match(std::shared_ptr<Request> request)
+    {
+        if (Operation::BARRIER > request->operation)
+        {
+            // Normal matching
+            MPI_Request* mpi_request = request->get_match_requests(1);
+            Communication::BlankMatch::match(request->peer, request->tag, mpi_request);
+        }
+    }
 
     operator uintptr_t() const
     {
@@ -44,7 +53,7 @@ protected:
     Progress::Engine progress_engine;
 
     std::vector<std::reference_wrapper<QueueEntry>> entries;
-    std::map<size_t, std::unique_ptr<QueueEntry>> request_cache;
+    std::map<size_t, std::unique_ptr<QueueEntry>>   request_cache;
 };
 
 #endif
