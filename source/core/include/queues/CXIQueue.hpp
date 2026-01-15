@@ -16,8 +16,8 @@
 #include <vector>
 
 #include "abstract/match.hpp"
-#include "abstract/queue.hpp"
 #include "misc/print.hpp"
+#include "queues/HIPQueue.hpp"
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 #include "safety/mpi.hpp"
@@ -568,95 +568,6 @@ protected:
     size_t num_times_started;
 };
 
-class FakeBarrier : public CXIRequest
-{
-public:
-    FakeBarrier(Request& req, LibfabricInstance& _libfab)
-        : CXIRequest(req), finished(true), progress_engine(_libfab)
-    {
-        // Setup GPU memory locations
-        force_gpu(hipHostMalloc((void**)&host_start_location, sizeof(int64_t),
-                                hipHostMallocDefault));
-        *host_start_location = 0;
-        force_gpu(hipHostGetDevicePointer(&gpu_start_location, host_start_location, 0));
-        force_gpu(hipHostMalloc((void**)&host_wait_location, sizeof(int64_t),
-                                hipHostMallocDefault));
-        *host_wait_location = 0;
-        force_gpu(hipHostGetDevicePointer(&gpu_wait_location, host_wait_location, 0));
-    }
-
-    ~FakeBarrier()
-    {
-        thr.join();
-        check_gpu(hipHostFree(host_start_location));
-        check_gpu(hipHostFree(host_wait_location));
-    }
-
-    void wait_gpu(hipStream_t* the_stream) override
-    {
-        force_gpu(
-            hipStreamWaitValue64(*the_stream, gpu_wait_location, num_times_started, 0));
-    }
-
-    void match(MPI_Comm comm_a, MPI_Comm comm_b) override {}
-
-protected:
-    TriggerStatus start_derived(hipStream_t* the_stream,
-                                CXICounter&  trigger_cntr) override
-    {
-        /* If previously launched, make do progress in case it's stuck */
-        while (!finished)
-        {
-            /* Do progress (fi_cntr_read) */
-            progress_engine.progress_dwq();
-        }
-
-        /* And normal thread joining check */
-        if (thr.joinable())
-        {
-            thr.join();
-        }
-        /* Launch thread */
-        finished = false;
-        thr      = std::thread(&FakeBarrier::thread_function, this, num_times_started);
-
-        force_gpu(
-            hipStreamWriteValue64(*the_stream, gpu_start_location, num_times_started, 0));
-        return TriggerStatus::NOT_NEEDED;
-    }
-
-private:
-    void thread_function(size_t thread_threshold)
-    {
-        /* Wait for signal from GPU */
-        while (__atomic_load_n(host_start_location, __ATOMIC_ACQUIRE) < thread_threshold)
-        {
-            // Do nothing
-        }
-
-        /* Execute MPI Call */
-        MPI_Barrier(base_req.comm);
-
-        /* Mark completion location */
-        (*host_wait_location) = num_times_started;
-        /* End thread */
-        finished = true;
-    }
-
-    // Memory locations
-    size_t* host_start_location;
-    size_t* host_wait_location;
-
-    void* gpu_start_location;
-    void* gpu_wait_location;
-
-    // Thread
-    std::thread thr;
-    bool        finished = true;
-    // Progress
-    LibfabricInstance& progress_engine;
-};
-
 class CXIRSend : public CXIRequest
 {
 public:
@@ -728,8 +639,7 @@ class CXISend : public CXIRSend
 public:
     CXISend(Request& user_request, CompletionBufferFactory& buffers,
             LibfabricInstance& _libfab, fi_addr_t self)
-        : CXIRSend(user_request, buffers, _libfab, self),
-          triggered(_libfab)
+        : CXIRSend(user_request, buffers, _libfab, self), triggered(_libfab)
     {
         work_entry.set_trigger_counter(triggered);
 
@@ -862,13 +772,12 @@ private:
     AtomicEntry      local_completion;
 };
 
-class CXIQueue : public Queue
+class CXIQueue : public HIPQueue
 {
 public:
     using CXIObjects = std::unique_ptr<CXIRequest>;
 
-    CXIQueue(hipStream_t* stream_addr)
-        : comm_base(MPI_COMM_WORLD), the_stream(stream_addr)
+    CXIQueue(hipStream_t* stream_addr) : HIPQueue(stream_addr), comm_base(MPI_COMM_WORLD)
     {
         Print::out("CXI Queue init-ed");
         force_mpi(MPI_Comm_rank(comm_base, &my_rank));
@@ -915,24 +824,31 @@ public:
         bool should_bump = false;
         for (auto& req : requests)
         {
-            CXIObjects& cxi_req = request_map.at(req->getID());
-            /* Start Request */
-            Print::out("Staring request:", req->getID());
-            TriggerStatus actions = cxi_req->start(the_stream, *the_gpu_counter);
-            Print::out("Request request:", actions);
-
-            /* Add request to be waited on. */
-            active_requests.push_back(req->getID());
-
-            /* Enqueue global counter bump, if needed */
-            if (!should_bump && TriggerStatus::GLOBAL_BUMP == actions)
+            if (Communication::Operation::BARRIER <= req->operation)
             {
-                should_bump = true;
+                HIPQueue::enqueue_operation(req);
+            }
+            else
+            {
+                CXIObjects& cxi_req = request_map.at(req->getID());
+                /* Start Request */
+                Print::out("Staring request:", req->getID());
+                TriggerStatus actions = cxi_req->start(my_stream, *the_gpu_counter);
+                Print::out("Request request:", actions);
+
+                /* Add request to be waited on. */
+                active_requests.push_back(req->getID());
+
+                /* Enqueue global counter bump, if needed */
+                if (!should_bump && TriggerStatus::GLOBAL_BUMP == actions)
+                {
+                    should_bump = true;
+                }
             }
         }
         if (should_bump)
         {
-            the_gpu_counter->enqueue_trigger(the_stream);
+            the_gpu_counter->enqueue_trigger(my_stream);
         }
         Print::out("Done staring all requests.");
     }
@@ -941,17 +857,16 @@ public:
 
     void host_wait() override
     {
+        Queue::host_wait();
         Print::out("Waiting on device!");
-        force_gpu(hipStreamSynchronize(*the_stream));
+        force_gpu(hipStreamSynchronize(*my_stream));
     }
 
     void match(std::shared_ptr<Request> qe) override
     {
-        if (Communication::Operation::BARRIER == qe->operation)
+        if (Communication::Operation::BARRIER <= qe->operation)
         {
-            /* Add request to map */
-            request_map.insert(
-                std::make_pair(qe->getID(), std::make_unique<FakeBarrier>(*qe, libfab)));
+            HIPQueue::match(qe);
         }
         else
         {
@@ -981,8 +896,6 @@ private:
     // Completion buffers
     static CompletionBufferFactory my_buffer;
 
-    // Hip Stream
-    hipStream_t* the_stream;
     // GPU Triggerable Counter
     std::unique_ptr<CXICounter> the_gpu_counter;
 };

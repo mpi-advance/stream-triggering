@@ -216,15 +216,20 @@ void CXIQueue::enqueue_waitall()
     for (auto req : active_requests)
     {
         Print::out("Waiting on request:", req);
-        request_map.at(req)->wait_gpu(the_stream);
+        request_map.at(req)->wait_gpu(my_stream);
     }
     active_requests.clear();
+    // If there are any requests offloaded to CPU
+    if(entries.size() > 0)
+    {
+        HIPQueue::enqueue_waitall();
+    }
 }
 
 void CXIQueue::flush_memory()
 {
     Print::out("<E> Enqueuing buffer_wbl2 kernel");
-    flush_buffer<<<1, 1, 0, *the_stream>>>();
+    flush_buffer<<<1, 1, 0, *my_stream>>>();
 }
 
 void CXICounter::enqueue_trigger(hipStream_t* the_stream)
