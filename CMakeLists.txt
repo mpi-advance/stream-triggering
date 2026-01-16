@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
 # Version
-set(CURR_VERSION 0.5.0)
+set(CURR_VERSION 0.6.0)
 
 # Backend settings
 option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
