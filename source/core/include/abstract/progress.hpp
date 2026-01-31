@@ -8,6 +8,7 @@
 #include <queue>
 #include <thread>
 
+#include "misc/print.hpp"
 #include "safety/mpi.hpp"
 
 namespace Progress
@@ -19,17 +20,12 @@ using ProgressLambda = std::function<MPIError()>;
 class Entry
 {
 public:
-    Entry(ProgressLambda _action, CounterType* _mem)
-        : action(std::move(_action)), mem_signal(_mem)
+    Entry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
+        : action(std::move(_action)), mem_signal(_mem), iteration(_iteration)
     {
     }
 
     virtual void enqueued_action() = 0;
-
-    virtual void set_iteration(CounterType _iteration)
-    {
-        iteration = _iteration;
-    }
 
 protected:
     ProgressLambda action;
@@ -40,8 +36,8 @@ protected:
 class StartEntry : public Entry
 {
 public:
-    StartEntry(ProgressLambda _action, CounterType* _mem)
-        : Entry(std::move(_action), _mem)
+    StartEntry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
+        : Entry(std::move(_action), _mem, _iteration)
     {
     }
     void enqueued_action() override
@@ -49,6 +45,11 @@ public:
         while ((*mem_signal) != iteration)
         {
             std::this_thread::yield();
+            if ((*mem_signal) > iteration)
+            {
+                Print::out("Oh no");
+                break;
+            }
         }
         force_mpi(action());
     }
@@ -57,7 +58,8 @@ public:
 class WaitEntry : public Entry
 {
 public:
-    WaitEntry(ProgressLambda _action, CounterType* _mem) : Entry(std::move(_action), _mem)
+    WaitEntry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
+        : Entry(std::move(_action), _mem, _iteration)
     {
     }
 
@@ -122,6 +124,7 @@ private:
                 }
 
                 item->enqueued_action();
+                Print::always("Done.");
                 item_counter--;
             }
 

@@ -1,21 +1,6 @@
 #include "../common/common.hpp"
 #include "stream-triggering.h"
 
-__global__ void verify(volatile int* buffer, int buffer_len, int rank, int size)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    int expected = ((size*(size-1))/2)*100 + (size*index);
-
-    if (buffer[index] != expected)
-    {
-        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
-               index, buffer[index], expected);
-    }
-}
-
 int main(int argc, char* argv[])
 {
     int mode;

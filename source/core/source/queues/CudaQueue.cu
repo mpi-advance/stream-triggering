@@ -13,8 +13,6 @@ CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
                             CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
     *wait_location = 0;
     force_gpu(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
-
-    initialize_lambdas();
 }
 
 CudaQueueEntry::~CudaQueueEntry()

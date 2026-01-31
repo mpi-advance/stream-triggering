@@ -15,7 +15,6 @@ public:
         *start_location = 0;
         wait_location   = new Progress::CounterType();
         *wait_location  = 0;
-        initialize_lambdas();
     }
 
     ~ThreadQueueEntry()

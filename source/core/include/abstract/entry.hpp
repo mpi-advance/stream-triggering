@@ -15,6 +15,7 @@ public:
     explicit QueueEntry(std::shared_ptr<Request> req)
         : threshold(0), original_request(req)
     {
+        Print::out("QQQ MPI Request born:", mpi_request, &mpi_request);
         switch (req->operation)
         {
             case Communication::Operation::SEND:
@@ -41,6 +42,7 @@ public:
                 throw std::runtime_error("Invalid Request");
                 break;
         }
+        Print::always("Request made:", req->peer, &mpi_request);
     }
 
     virtual ~QueueEntry()
@@ -60,59 +62,56 @@ public:
         : threshold(other.threshold),
           mpi_request(other.mpi_request),
           original_request(other.original_request),
-          start_lambda(other.start_lambda),
           start_location(other.start_location),
-          wait_lambda(other.wait_lambda),
           wait_location(other.wait_location)
     {
+        Print::out("MovedC:", other.mpi_request);
         // clear other structs
         other.threshold   = 0;
         other.mpi_request = MPI_REQUEST_NULL;
         other.original_request.reset();
-        other.start_lambda.reset();
         other.start_location = nullptr;
-        other.wait_lambda.reset();
-        other.wait_location = nullptr;
-
-        // Reestablish lambdas
-        initialize_lambdas();
+        other.wait_location  = nullptr;
     }
     QueueEntry& operator=(QueueEntry&& other) noexcept
     {
         if (this != &other)
         {
+            Print::out("MovedO:", other.mpi_request);
             threshold        = other.threshold;
             mpi_request      = other.mpi_request;
             original_request = other.original_request;
-            start_lambda     = other.start_lambda;
             start_location   = other.start_location;
-            wait_lambda      = other.wait_lambda;
             wait_location    = other.wait_location;
             // clear other
             other.threshold   = 0;
             other.mpi_request = MPI_REQUEST_NULL;
             other.original_request.reset();
-            other.start_lambda.reset();
             other.start_location = nullptr;
-            other.wait_lambda.reset();
-            other.wait_location = nullptr;
-
-            // Reestablish lambdas
-            initialize_lambdas();
+            other.wait_location  = nullptr;
         }
         return *this;
     }
 
     operator std::shared_ptr<Progress::StartEntry>()
     {
-        start_lambda->set_iteration(threshold);
-        return start_lambda;
+        Print::out("QQQ MPI Request to be used:", mpi_request, &mpi_request);
+        return std::make_shared<Progress::StartEntry>(
+            [this]() {
+                //Print::out("QQX MPI Request to be used:", mpi_request, &mpi_request);
+                Print::always("Start Initiated", &mpi_request);
+                return MPI_Start(&mpi_request);
+            },
+            start_location, threshold);
     }
 
     operator std::shared_ptr<Progress::WaitEntry>()
     {
-        wait_lambda->set_iteration(threshold);
-        return wait_lambda;
+        Print::out("QQQ MPI Request to be wwww:", mpi_request, &mpi_request);
+        return std::make_shared<Progress::WaitEntry>(
+            [this]() {Print::always("Wait Initiated", &mpi_request);
+                 return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); }, wait_location,
+            threshold);
     }
 
     virtual void increment()
@@ -137,7 +136,7 @@ public:
         throw std::runtime_error("Function not supported: QueueEntry::wait_gpu");
     }
 
-    Progress::CounterType* get_start_location()
+    volatile Progress::CounterType* get_start_location()
     {
         return start_location;
     }
@@ -147,25 +146,19 @@ public:
         return wait_location;
     }
 
-protected:
-    virtual void initialize_lambdas()
+    MPI_Request get_mpi_request()
     {
-        start_lambda = std::make_shared<Progress::StartEntry>(
-            [this]() { return MPI_Start(&mpi_request); }, start_location);
-        wait_lambda = std::make_shared<Progress::WaitEntry>(
-            [this]() { return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); },
-            wait_location);
+        return mpi_request;
     }
 
+protected:
     Progress::CounterType threshold = 0;
 
     MPI_Request              mpi_request      = MPI_REQUEST_NULL;
     std::shared_ptr<Request> original_request = nullptr;
 
-    std::shared_ptr<Progress::StartEntry> start_lambda;
-    Progress::CounterType*                start_location;
-    std::shared_ptr<Progress::WaitEntry>  wait_lambda;
-    Progress::CounterType*                wait_location;
+    Progress::CounterType* start_location;
+    Progress::CounterType* wait_location;
 };
 
 #endif

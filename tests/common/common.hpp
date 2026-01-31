@@ -193,6 +193,21 @@ __global__ void dummy_kernel(int rank, int value)
     printf("<GPU %d> Dummy kernel %d\n", rank, value);
 }
 
+__global__ void verify(volatile int* buffer, int buffer_len, int rank, int size)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    int expected = ((size*(size-1))/2)*100 + (size*index);
+
+    if (buffer[index] != expected)
+    {
+        printf("<GPU %d> V Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
+               index, buffer[index], expected);
+    }
+}
+
 static void inline check_param_size(int* argc, int num_params, std::string usage)
 {
     if ((*argc) != (1 + num_params))

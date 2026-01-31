@@ -6,14 +6,12 @@
 
 HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
 {
-    force_gpu(hipHostMalloc((void**)&start_location, sizeof(int64_t), 0));
+    force_gpu(hipHostMalloc((void**)&start_location, sizeof(int64_t), hipHostMallocNumaUser));
     *start_location = 0;
     force_gpu(hipHostGetDevicePointer(&start_dev, start_location, 0));
-    force_gpu(hipHostMalloc((void**)&wait_location, sizeof(int64_t), 0));
+    force_gpu(hipHostMalloc((void**)&wait_location, sizeof(int64_t), hipHostMallocNumaUser));
     *wait_location = 0;
     force_gpu(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
-
-    initialize_lambdas();
 }
 
 HIPQueueEntry::~HIPQueueEntry()
@@ -24,14 +22,14 @@ HIPQueueEntry::~HIPQueueEntry()
 
 void HIPQueueEntry::start_gpu(void* the_stream)
 {
-    Print::out("Starting asking GPU to write:", threshold);
+    // Print::out("Starting asking GPU to write:", threshold);
     force_gpu(
         hipStreamWriteValue64(*((hipStream_t*)the_stream), start_dev, threshold, 0));
 }
 
 void HIPQueueEntry::wait_gpu(void* the_stream)
 {
-    Print::out("Asked GPU to wait for: ", threshold);
+    // Print::out("Asked GPU to wait for: ", threshold);
     force_gpu(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev, threshold, 0));
 }
 
@@ -57,10 +55,21 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
 
 void HIPQueue::enqueue_waitall()
 {
+    //std::vector<MPI_Request> reqs;
     for (QueueEntry& entry : entries)
     {
+        //reqs.push_back(entry.get_mpi_request());
         progress_engine.enqueued_wait(entry);
         entry.wait_gpu(my_stream);
     }
+
+    // auto action_fxn = [=]() mutable {
+    //     return MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
+    // };
+    // QueueEntry& temp  = entries.at(0);
+    // auto        speal = std::make_shared<Progress::WaitEntry>(
+    //     action_fxn, temp.get_wait_location(), temp.get_threshold());
+    // progress_engine.enqueued_wait(speal);
+    // temp.wait_gpu(my_stream);
     entries.clear();
 }

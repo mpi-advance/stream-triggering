@@ -39,8 +39,7 @@ public:
         if (Operation::BARRIER > request->operation)
         {
             // Normal matching
-            MPI_Request* mpi_request = request->get_match_requests(1);
-            Communication::BlankMatch::match(request->peer, request->tag, mpi_request);
+            Communication::BlankMatch::match(*request);
         }
     }
 
