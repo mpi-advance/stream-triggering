@@ -2,6 +2,11 @@ build/
 
 **/.vscode/
 
+**/derek/
+**/barrier-plot/
+**/rocm643/
+**/stat_results/
+
 # Files from testing
 /tests/test
 /tests/flux-*

@@ -13,43 +13,43 @@ class QueueEntry
 {
 public:
     explicit QueueEntry(std::shared_ptr<Request> req)
-        : threshold(0), original_request(req)
+        : threshold(0), mpi_request(std::make_shared<MPI_Request>(MPI_REQUEST_NULL)), original_request(req)
     {
-        Print::out("QQQ MPI Request born:", mpi_request, &mpi_request);
+        MPI_Request* req_addr = mpi_request.get();
         switch (req->operation)
         {
             case Communication::Operation::SEND:
                 check_mpi(MPI_Send_init(req->send_buffer, req->count, req->datatype,
-                                        req->peer, req->tag, req->comm, &mpi_request));
+                                        req->peer, req->tag, req->comm, req_addr));
                 break;
             case Communication::Operation::RSEND:
                 check_mpi(MPI_Rsend_init(req->send_buffer, req->count, req->datatype,
-                                         req->peer, req->tag, req->comm, &mpi_request));
+                                         req->peer, req->tag, req->comm, req_addr));
                 break;
             case Communication::Operation::RECV:
                 check_mpi(MPI_Recv_init(req->recv_buffer, req->count, req->datatype,
-                                        req->peer, req->tag, req->comm, &mpi_request));
+                                        req->peer, req->tag, req->comm, req_addr));
                 break;
             case Communication::Operation::BARRIER:
-                check_mpi(MPI_Barrier_init(req->comm, req->info, &mpi_request));
+                check_mpi(MPI_Barrier_init(req->comm, req->info, req_addr));
                 break;
             case Communication::Operation::ALLREDUCE:
                 check_mpi(MPI_Allreduce_init(req->send_buffer, req->recv_buffer,
                                              req->count, req->datatype, req->op,
-                                             req->comm, req->info, &mpi_request));
+                                             req->comm, req->info, req_addr));
                 break;
             default:
                 throw std::runtime_error("Invalid Request");
                 break;
         }
-        Print::always("Request made:", req->peer, &mpi_request);
+        Print::always("Request made:", req->peer, req_addr);
     }
 
     virtual ~QueueEntry()
     {
-        if (MPI_REQUEST_NULL != mpi_request && original_request)
+        if (mpi_request)
         {
-            check_mpi(MPI_Request_free(&mpi_request));
+            check_mpi(MPI_Request_free(mpi_request.get()));
         }
     }
 
@@ -68,7 +68,7 @@ public:
         Print::out("MovedC:", other.mpi_request);
         // clear other structs
         other.threshold   = 0;
-        other.mpi_request = MPI_REQUEST_NULL;
+        other.mpi_request.reset();
         other.original_request.reset();
         other.start_location = nullptr;
         other.wait_location  = nullptr;
@@ -85,7 +85,7 @@ public:
             wait_location    = other.wait_location;
             // clear other
             other.threshold   = 0;
-            other.mpi_request = MPI_REQUEST_NULL;
+            other.mpi_request.reset();
             other.original_request.reset();
             other.start_location = nullptr;
             other.wait_location  = nullptr;
@@ -95,23 +95,14 @@ public:
 
     operator std::shared_ptr<Progress::StartEntry>()
     {
-        Print::out("QQQ MPI Request to be used:", mpi_request, &mpi_request);
-        return std::make_shared<Progress::StartEntry>(
-            [this]() {
-                //Print::out("QQX MPI Request to be used:", mpi_request, &mpi_request);
-                Print::always("Start Initiated", &mpi_request);
-                return MPI_Start(&mpi_request);
-            },
-            start_location, threshold);
+        return std::make_shared<Progress::StartEntry>(mpi_request, start_location,
+                                                      threshold);
     }
 
     operator std::shared_ptr<Progress::WaitEntry>()
     {
-        Print::out("QQQ MPI Request to be wwww:", mpi_request, &mpi_request);
-        return std::make_shared<Progress::WaitEntry>(
-            [this]() {Print::always("Wait Initiated", &mpi_request);
-                 return MPI_Wait(&mpi_request, MPI_STATUS_IGNORE); }, wait_location,
-            threshold);
+        return std::make_shared<Progress::WaitEntry>(mpi_request, wait_location,
+                                                     threshold);
     }
 
     virtual void increment()
@@ -148,13 +139,13 @@ public:
 
     MPI_Request get_mpi_request()
     {
-        return mpi_request;
+        return *mpi_request;
     }
 
 protected:
     Progress::CounterType threshold = 0;
 
-    MPI_Request              mpi_request      = MPI_REQUEST_NULL;
+    std::shared_ptr<MPI_Request> mpi_request  = nullptr;
     std::shared_ptr<Request> original_request = nullptr;
 
     Progress::CounterType* start_location;

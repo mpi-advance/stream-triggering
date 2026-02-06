@@ -2,7 +2,6 @@
 #define ST_ABSTRACT_PROGRESS
 
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -13,31 +12,30 @@
 
 namespace Progress
 {
-using MPIError       = int;
-using CounterType    = int64_t;
-using ProgressLambda = std::function<MPIError()>;
+using RequestType = std::shared_ptr<MPI_Request>;
+using MPIError    = int;
+using CounterType = int64_t;
 
 class Entry
 {
 public:
-    Entry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
-        : action(std::move(_action)), mem_signal(_mem), iteration(_iteration)
+    Entry(CounterType* _mem, CounterType _iteration)
+        : mem_signal(_mem), iteration(_iteration)
     {
     }
 
     virtual void enqueued_action() = 0;
 
 protected:
-    ProgressLambda action;
-    CounterType*   mem_signal;
-    CounterType    iteration;
+    CounterType* mem_signal;
+    CounterType  iteration;
 };
 
 class StartEntry : public Entry
 {
 public:
-    StartEntry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
-        : Entry(std::move(_action), _mem, _iteration)
+    StartEntry(RequestType _request, CounterType* _mem, CounterType _iteration)
+        : Entry(_mem, _iteration), request(_request)
     {
     }
     void enqueued_action() override
@@ -47,27 +45,32 @@ public:
             std::this_thread::yield();
             if ((*mem_signal) > iteration)
             {
-                Print::out("Oh no");
                 break;
             }
         }
-        force_mpi(action());
+        force_mpi(MPI_Start(request.get()));
     }
+
+private:
+    RequestType request;
 };
 
 class WaitEntry : public Entry
 {
 public:
-    WaitEntry(ProgressLambda _action, CounterType* _mem, CounterType _iteration)
-        : Entry(std::move(_action), _mem, _iteration)
+    WaitEntry(RequestType _request, CounterType* _mem, CounterType _iteration)
+        : Entry(_mem, _iteration), request(_request)
     {
     }
 
     void enqueued_action() override
     {
-        force_mpi(action());
+        force_mpi(MPI_Wait(request.get(), MPI_STATUS_IGNORE));
         (*mem_signal) = iteration;
     }
+
+    private:
+    RequestType request;
 };
 
 class Engine

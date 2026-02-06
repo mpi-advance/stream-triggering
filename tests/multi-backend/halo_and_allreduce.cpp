@@ -61,9 +61,9 @@ __global__ void print_halos(int* top_r, int* bottom_r, int* left_r, int* right_r
 
 int main(int argc, char* argv[])
 {
-    MPI_Init(&argc, &argv);
-    // int thread_mode;
-    // MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &thread_mode);
+    //MPI_Init(&argc, &argv);
+    int thread_mode;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &thread_mode);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

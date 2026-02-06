@@ -1,7 +1,7 @@
 #!/bin/bash
-#flux: --nodes=16
-#flux: --nslots=64
-#flux: --time-limit=5m
+#flux: --nodes=4
+#flux: --nslots=16
+#flux: --time-limit=7m
 #flux: --queue=pdebug
 #flux: --exclusive
 #flux: --output=../scratch/flux/{{jobid}}.out
@@ -46,12 +46,11 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=halo
-#TEST_NAME=rsend
-TIME=2m
-NUM_ITERS=50
-BUFF_SIZE=50
-NODES=16
+TEST_NAME=halo_and_allreduce
+TIME=3m
+NUM_ITERS=4
+BUFF_SIZE=10
+NODES=4
 PPN=4
 
 cd scratch/tmp/
@@ -67,15 +66,17 @@ srun --output=$HOSTNAMES_FILE hostname
 run_test()(
     RUN_FILE="$1.tmp"
     STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    flux run --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    flux run --setopt=exit-timeout=none --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
+    #flux run --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE rocprofv3 --sys-trace --output-format pftrace -- "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
     sed -i "1i$STRING" $RUN_FILE
 )
 
-run_test "cxi-coarse"
-run_test "cxi-fine"
-
 export MPICH_GPU_SUPPORT_ENABLED=1
-#run_test "hip"
+export AMD_LOG_LEVEL=2
+#run_test "cxi-coarse"
+#run_test "cxi-fine"
+
+run_test "hip"
 #run_test "thread"
 unset MPICH_GPU_SUPPORT_ENABLED
 
