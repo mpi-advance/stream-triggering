@@ -48,7 +48,7 @@ else
 fi
 
 echo -e "Running ${CYAN}$SYSTEM${RESET} version"
-module load rocm "craype-accel-amd-${GPU_ARCH}"
+module load rocm "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
 module list
 
 if [ -z $BUILD_MODE ]; then
@@ -75,6 +75,6 @@ cmake -DUSE_HIP_BACKEND=ON -DUSE_CXI_BACKEND=ON -DLIBFABRIC_PREFIX=${LIBFABRIC} 
       -DCMAKE_HIP_ARCHITECTURES=${GPU_ARCH} -DCMAKE_INSTALL_PREFIX=${HOME}/apps/stream_trigger \
       -DCMAKE_BUILD_TYPE=$MODE ..
 
-make -j8
+make VERBOSE=1 -j8
 make install
 

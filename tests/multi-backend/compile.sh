@@ -85,7 +85,7 @@ if [ "$VERSION" -eq 0 ]; then
     DEVICE+="TIOGA"
 elif [ "$VERSION" -eq 1 ]; then
     echo " -> Running for TUOLUMNE"
-    module load craype-accel-amd-gfx942
+    module load craype-accel-amd-gfx942 libfabric/2.1
     DEVICE+="TUOLUMNE"
 elif [ "$VERSION" -eq 2 ]; then
     echo " -> Running for FRONTIER"

@@ -272,7 +272,7 @@ public:
 class CompletionBufferFactory
 {
 public:
-    CompletionBufferFactory() : my_mr(nullptr)
+    CompletionBufferFactory() : my_mr(nullptr), current_index(0)
     {
         force_gpu(hipHostMalloc(&buffer, DEFAULT_SIZE, hipHostMallocDefault));
         Print::out("Default Completion Buffer location:", buffer);
@@ -331,14 +331,15 @@ public:
         return CompletionBuffer(x, DEFAULT_ITEM_SIZE, 1, fi_mr_key(my_mr), offset_value);
     }
 
-    struct fid_mr* my_mr;
-    void*          buffer;
-    size_t         current_index;
-
     using COMPLETION_TYPE                     = size_t;
     static constexpr size_t DEFAULT_ITEMS     = 1000;
     static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(COMPLETION_TYPE);
     static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+
+    private:
+    struct fid_mr* my_mr;
+    void*          buffer;
+    size_t         current_index;
 };
 
 class DeferredWorkQueueEntry
@@ -894,7 +895,8 @@ private:
     std::vector<size_t>          active_requests;
 
     // Completion buffers
-    static CompletionBufferFactory my_buffer;
+    //static CompletionBufferFactory my_buffer;
+    CompletionBufferFactory my_buffer;
 
     // GPU Triggerable Counter
     std::unique_ptr<CXICounter> the_gpu_counter;

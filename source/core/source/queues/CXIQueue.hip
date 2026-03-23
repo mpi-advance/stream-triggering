@@ -2,7 +2,7 @@
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
-CompletionBufferFactory CXIQueue::my_buffer;
+//CompletionBufferFactory CXIQueue::my_buffer;
 
 void LibfabricInstance::initialize_libfabric()
 {

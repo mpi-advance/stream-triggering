@@ -19,7 +19,7 @@ if [ $# -eq 0 ]; then
     SYSTEM="TIOGA"
 else
     echo "Running for the MI300A"
-    module load craype-accel-amd-gfx942
+    module load craype-accel-amd-gfx942 libfabric/2.1
     SYSTEM="TUOLUMNE"
 fi
 
@@ -73,7 +73,7 @@ run_test()(
 
 export MPICH_GPU_SUPPORT_ENABLED=1
 export AMD_LOG_LEVEL=2
-#run_test "cxi-coarse"
+run_test "cxi-coarse"
 #run_test "cxi-fine"
 
 run_test "hip"

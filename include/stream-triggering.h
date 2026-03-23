@@ -13,13 +13,16 @@ typedef uintptr_t                   MPIS_Queue;
 typedef struct MPIS_Request_struct* MPIS_Request;
 
 /* Errors */
-const int MPIS_SUCCESS               = 0;
-const int MPIS_NOT_READY             = -1;
-const int MPIS_INVALID_REQUEST_STATE = -2;
-const int MPIS_UNSUPPORTED_BEHAVIOR  = -3;
+enum
+{
+    MPIS_SUCCESS               = 0,
+    MPIS_NOT_READY             = -1,
+    MPIS_INVALID_REQUEST_STATE = -2,
+    MPIS_UNSUPPORTED_BEHAVIOR  = -3,
+};
 
-const uintptr_t    MPIS_QUEUE_NULL   = 0;
-const MPIS_Request MPIS_REQUEST_NULL = 0;
+extern const uintptr_t    MPIS_QUEUE_NULL;
+extern const MPIS_Request MPIS_REQUEST_NULL;
 
 enum MPIS_Queue_type
 {

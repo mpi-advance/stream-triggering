@@ -69,8 +69,33 @@ public:
         (*mem_signal) = iteration;
     }
 
-    private:
+private:
     RequestType request;
+};
+
+class WaitallEntry : public WaitEntry
+{
+public:
+    WaitallEntry(std::vector<RequestType> _requests, CounterType* _mem,
+                 CounterType _iteration)
+        : WaitEntry(_requests.at(0), _mem, _iteration), requests(_requests)
+    {
+        for (auto& x : requests)
+        {
+            true_requests.push_back(*x);
+        }
+    }
+
+    void enqueued_action() override
+    {
+        force_mpi(
+            MPI_Waitall(true_requests.size(), true_requests.data(), MPI_STATUSES_IGNORE));
+        (*mem_signal) = iteration;
+    }
+
+private:
+    std::vector<MPI_Request> true_requests;
+    std::vector<RequestType> requests;
 };
 
 class Engine
@@ -81,7 +106,10 @@ public:
     ~Engine()
     {
         running = false;
-        progress_thread.join();
+        if(progress_thread.joinable())
+        {
+            progress_thread.join();
+        }
     }
 
     void enqueued_start(std::shared_ptr<StartEntry> request)
@@ -127,7 +155,6 @@ private:
                 }
 
                 item->enqueued_action();
-                Print::always("Done.");
                 item_counter--;
             }
 

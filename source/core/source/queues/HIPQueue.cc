@@ -4,20 +4,17 @@
 #include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
-HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
+HIPQueueEntry::HIPQueueEntry(std::shared_ptr<Request> req, Progress::CounterType* start,
+                             Progress::CounterType* wait)
+    : QueueEntry(req, start, wait)
 {
-    force_gpu(hipHostMalloc((void**)&start_location, sizeof(int64_t), hipHostMallocNumaUser));
-    *start_location = 0;
-    force_gpu(hipHostGetDevicePointer(&start_dev, start_location, 0));
-    force_gpu(hipHostMalloc((void**)&wait_location, sizeof(int64_t), hipHostMallocNumaUser));
-    *wait_location = 0;
-    force_gpu(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
+    initialize_device_ptrs();
 }
 
-HIPQueueEntry::~HIPQueueEntry()
+void HIPQueueEntry::initialize_device_ptrs()
 {
-    check_gpu(hipHostFree(start_location));
-    check_gpu(hipHostFree(wait_location));
+    force_gpu(hipHostGetDevicePointer(&start_dev, start_location, 0));
+    force_gpu(hipHostGetDevicePointer(&wait_dev, wait_location, 0));
 }
 
 void HIPQueueEntry::start_gpu(void* the_stream)
@@ -33,7 +30,8 @@ void HIPQueueEntry::wait_gpu(void* the_stream)
     force_gpu(hipStreamWaitValue64(*((hipStream_t*)the_stream), wait_dev, threshold, 0));
 }
 
-HIPQueue::HIPQueue(hipStream_t* stream) : my_stream(stream)
+HIPQueue::HIPQueue(hipStream_t* stream)
+    : my_stream(stream), completion_pool(get_raw_allocator())
 {
     // force_gpu(hipSetDevice(0));
 }
@@ -43,7 +41,9 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
     size_t request_id = request->getID();
     if (!request_cache.contains(request_id))
     {
-        request_cache.emplace(request_id, std::make_unique<HIPQueueEntry>(request));
+        request_cache.emplace(
+            request_id, std::make_unique<HIPQueueEntry>(request, alloc_counter_buffer(),
+                                                        alloc_counter_buffer()));
     }
 
     QueueEntry& cqe = *request_cache.at(request_id);
@@ -55,21 +55,38 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
 
 void HIPQueue::enqueue_waitall()
 {
-    //std::vector<MPI_Request> reqs;
-    for (QueueEntry& entry : entries)
+    // Make sure there's at least one thing to wait on
+    if(0 == entries.size())
     {
-        //reqs.push_back(entry.get_mpi_request());
-        progress_engine.enqueued_wait(entry);
-        entry.wait_gpu(my_stream);
+        Print::out("No Requests have been started!");
+        return;
     }
 
-    // auto action_fxn = [=]() mutable {
-    //     return MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
-    // };
-    // QueueEntry& temp  = entries.at(0);
-    // auto        speal = std::make_shared<Progress::WaitEntry>(
-    //     action_fxn, temp.get_wait_location(), temp.get_threshold());
-    // progress_engine.enqueued_wait(speal);
-    // temp.wait_gpu(my_stream);
+    // Use the first queue entry to try to re-use completion buffers
+    QueueEntry& first = entries.at(0);
+    // If there's only one entry, we can just use a "WaitEntry"
+    if(1 == entries.size())
+    {
+        progress_engine.enqueued_wait(first);
+        first.wait_gpu(my_stream);
+        entries.clear();
+        return;
+    }
+
+    // Otherwise let us collect all the MPI_Requests for a WaitallEntry
+    std::vector<Progress::RequestType> reqs;
+    for (QueueEntry& entry : entries)
+    {
+        reqs.push_back(entry.get_mpi_request());
+    }
+
+    progress_engine.enqueued_wait(first.convert_to_waitall(reqs));
+    first.wait_gpu(my_stream);
     entries.clear();
+}
+
+Progress::CounterType* HIPQueue::alloc_counter_buffer()
+{
+    return (Progress::CounterType*)completion_pool.allocate(
+        sizeof(Progress::CounterType));
 }
