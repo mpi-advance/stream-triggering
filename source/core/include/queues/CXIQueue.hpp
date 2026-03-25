@@ -249,11 +249,14 @@ public:
         Print::out("Value: ", value);
     }
 
-    void enqueue_trigger(hipStream_t*);
-
     size_t get_next_value()
     {
         return use_count + 1;
+    }
+
+    void up_use_count()
+    {
+        use_count++;
     }
 
     // Libfabric Structs
@@ -331,15 +334,35 @@ public:
         return CompletionBuffer(x, DEFAULT_ITEM_SIZE, 1, fi_mr_key(my_mr), offset_value);
     }
 
-    using COMPLETION_TYPE                     = size_t;
-    static constexpr size_t DEFAULT_ITEMS     = 1000;
-    static constexpr size_t DEFAULT_ITEM_SIZE = sizeof(COMPLETION_TYPE);
-    static constexpr size_t DEFAULT_SIZE      = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+    using COMPLETION_TYPE                       = size_t;
+    static constexpr size_t DEFAULT_ITEMS       = 1000;
+    static constexpr size_t DEFAULT_ITEM_SIZE   = sizeof(COMPLETION_TYPE);
+    static constexpr size_t DEFAULT_SIZE        = DEFAULT_ITEMS * DEFAULT_ITEM_SIZE;
+    static constexpr size_t MAX_GPU_COMPLETIONS = 100;
 
-    private:
+private:
     struct fid_mr* my_mr;
     void*          buffer;
     size_t         current_index;
+};
+
+struct GPUCompletionDescription
+{
+    volatile CompletionBufferFactory::COMPLETION_TYPE* comp_addr;
+    size_t                                             goal_value;
+};
+
+struct GPUCompletions
+{
+    GPUCompletionDescription buffer[CompletionBufferFactory::MAX_GPU_COMPLETIONS];
+    size_t                   actual_size;
+};
+
+using GPUTriggerDescription = uint64_t*;
+struct GPUTriggers
+{
+    GPUTriggerDescription buffer[CompletionBufferFactory::MAX_GPU_COMPLETIONS];
+    size_t                actual_size;
 };
 
 class DeferredWorkQueueEntry
@@ -528,7 +551,8 @@ protected:
 enum TriggerStatus
 {
     NOT_NEEDED  = 0,
-    GLOBAL_BUMP = 1
+    GLOBAL_BUMP = 1,
+    EXTRA_BUMP  = 2
 };
 
 class CXIRequest
@@ -543,10 +567,10 @@ public:
     CXIRequest(Request& req) : base_req(req), num_times_started(0) {}
 
     virtual ~CXIRequest() = default;
-    virtual TriggerStatus start(hipStream_t* the_stream, CXICounter& trigger_cntr)
+    virtual TriggerStatus start_cpu(CXICounter& trigger_cntr)
     {
         num_times_started++;
-        return start_derived(the_stream, trigger_cntr);
+        return start_derived(trigger_cntr);
     }
 
     virtual void wait_gpu(hipStream_t* the_stream);
@@ -558,9 +582,18 @@ public:
 
     virtual void match(MPI_Comm phase_a, MPI_Comm phase_b) = 0;
 
+    GPUCompletionDescription get_gpu_completion()
+    {
+        return {(size_t*)completion_buffer.address, num_times_started};
+    }
+
+    virtual GPUTriggerDescription get_gpu_trigger()
+    {
+        throw std::runtime_error("Request was unable to offer trigger description");
+    }
+
 protected:
-    virtual TriggerStatus start_derived(hipStream_t* the_stream,
-                                        CXICounter&  trigger_cntr) = 0;
+    virtual TriggerStatus start_derived(CXICounter& trigger_cntr) = 0;
 
     Request&         base_req;
     CompletionBuffer completion_buffer;
@@ -604,8 +637,7 @@ public:
                                              comm_a, comm_b);
     }
 
-    TriggerStatus start_derived(hipStream_t* the_stream,
-                                CXICounter&  trigger_cntr) override
+    TriggerStatus start_derived(CXICounter& trigger_cntr) override
     {
         // Update threshold of chained things
         work_entry.set_threshold(trigger_cntr.get_next_value());
@@ -664,8 +696,7 @@ public:
         check_libfabric(fi_close(&(cts_mr)->fid));
     }
 
-    TriggerStatus start_derived(hipStream_t* the_stream,
-                                CXICounter&  trigger_cntr) override
+    TriggerStatus start_derived(CXICounter& trigger_cntr) override
     {
         // Update threshold of chained things
         work_entry.set_threshold(triggered.get_next_value() * 2);
@@ -678,8 +709,14 @@ public:
         local_completion.bump_threshold();
         libfab.queue_work(local_completion.get_dwqe());
 
-        triggered.enqueue_trigger(the_stream);
-        return TriggerStatus::GLOBAL_BUMP;
+        // triggered.enqueue_trigger(the_stream);
+        return TriggerStatus::EXTRA_BUMP;
+    }
+
+    GPUTriggerDescription get_gpu_trigger() override
+    {
+        triggered.up_use_count();
+        return (uint64_t*)(triggered.gpu_mmio_addr);
     }
 
 private:
@@ -730,8 +767,7 @@ public:
                                                comm_a, comm_b);
     }
 
-    TriggerStatus start_derived(hipStream_t* the_stream,
-                                CXICounter&  trigger_cntr) override
+    TriggerStatus start_derived(CXICounter& trigger_cntr) override
     {
         TriggerStatus rc = TriggerStatus::NOT_NEEDED;
         if (Operation::RSEND != peer_op)
@@ -808,51 +844,7 @@ public:
         enqueue_startall({request});
     }
 
-    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
-    {
-#if defined(USE_TIOGA)
-        /* If any kernel needs a flush, go ahead and do it first */
-        for (auto& req : requests)
-        {
-            if (req->needs_gpu_flush())
-            {
-                flush_memory();
-                break;
-            }
-        }
-#endif
-
-        bool should_bump = false;
-        for (auto& req : requests)
-        {
-            if (Communication::Operation::BARRIER <= req->operation)
-            {
-                HIPQueue::enqueue_operation(req);
-            }
-            else
-            {
-                CXIObjects& cxi_req = request_map.at(req->getID());
-                /* Start Request */
-                Print::out("Staring request:", req->getID());
-                TriggerStatus actions = cxi_req->start(my_stream, *the_gpu_counter);
-                Print::out("Request request:", actions);
-
-                /* Add request to be waited on. */
-                active_requests.push_back(req->getID());
-
-                /* Enqueue global counter bump, if needed */
-                if (!should_bump && TriggerStatus::GLOBAL_BUMP == actions)
-                {
-                    should_bump = true;
-                }
-            }
-        }
-        if (should_bump)
-        {
-            the_gpu_counter->enqueue_trigger(my_stream);
-        }
-        Print::out("Done staring all requests.");
-    }
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override;
 
     void enqueue_waitall() override;
 
@@ -895,7 +887,6 @@ private:
     std::vector<size_t>          active_requests;
 
     // Completion buffers
-    //static CompletionBufferFactory my_buffer;
     CompletionBufferFactory my_buffer;
 
     // GPU Triggerable Counter

@@ -37,6 +37,16 @@ void check_gpu_error(const hipError_t err, const char* filename, const int line)
         }
     }
 }
+
+inline void check_kernel()
+{
+    check_gpu(hipGetLastError());
+}
+
+inline void force_kernel()
+{
+    force_gpu(hipGetLastError());
+}
 #endif
 
 #ifdef CUDA_GPUS
@@ -73,6 +83,17 @@ void check_gpu_error(const CUresult code, const char* filename, const int line)
         }
     }
 }
+
+inline void check_kernel()
+{
+    check_gpu(cudaGetLastError());
+}
+
+inline void force_kernel()
+{
+    force_gpu(cudaGetLastError());
+}
+
 #endif
 
 #endif

@@ -1,7 +1,7 @@
 #!/bin/bash
 #flux: --nodes=4
 #flux: --nslots=16
-#flux: --time-limit=7m
+#flux: --time-limit=5m
 #flux: --queue=pdebug
 #flux: --exclusive
 #flux: --output=../scratch/flux/{{jobid}}.out
@@ -46,9 +46,9 @@ export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
-TEST_NAME=halo_and_allreduce
+TEST_NAME=halo
 TIME=3m
-NUM_ITERS=4
+NUM_ITERS=50
 BUFF_SIZE=10
 NODES=4
 PPN=4
@@ -72,11 +72,11 @@ run_test()(
 )
 
 export MPICH_GPU_SUPPORT_ENABLED=1
-export AMD_LOG_LEVEL=2
+#export AMD_LOG_LEVEL=2
 run_test "cxi-coarse"
 #run_test "cxi-fine"
 
-run_test "hip"
+#run_test "hip"
 #run_test "thread"
 unset MPICH_GPU_SUPPORT_ENABLED
 

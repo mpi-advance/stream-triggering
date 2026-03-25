@@ -1,4 +1,5 @@
-#include "common.hpp"
+#include "../common/common.hpp"
+#include "stream-triggering.h"
 
 int main(int argc, char* argv[])
 {
