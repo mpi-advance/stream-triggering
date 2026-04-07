@@ -48,7 +48,8 @@ else
 fi
 
 echo -e "Running ${CYAN}$SYSTEM${RESET} version"
-module load rocm "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
+#module load rocm "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
+module load rocm/6.4.3 "craype-accel-amd-${GPU_ARCH}"
 module list
 
 if [ -z $BUILD_MODE ]; then

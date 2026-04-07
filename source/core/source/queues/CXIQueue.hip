@@ -68,7 +68,7 @@ void LibfabricInstance::initialize_libfabric()
     check_libfabric(fi_enable(ep));
 
     progress_ctr = alloc_counter(false);
-    check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV));
+    check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV | FI_WRITE));
 }
 
 void LibfabricInstance::select_fi_nic(fi_info*& info)
