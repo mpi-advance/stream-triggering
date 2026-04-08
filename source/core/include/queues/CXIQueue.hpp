@@ -147,8 +147,12 @@ public:
 
     void queue_work(struct fi_deferred_work* work_entry)
     {
-        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr,
-                   work_entry->completion_cntr);
+        Print::always("<H> Threshold:",
+                      work_entry->threshold,
+                      work_entry->triggering_cntr,
+                      fi_cntr_read(work_entry->triggering_cntr),
+                      work_entry->completion_cntr,
+                      fi_cntr_read(work_entry->completion_cntr));
 
         while (dwq_slots_used == MAX_DWQ_SLOTS)
         {
@@ -681,7 +685,7 @@ public:
                                 hipHostMallocDefault));
         cts_mr = _libfab.create_mr_with_counter(
             cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE, FI_REMOTE_WRITE,
-            FI_MR_ALLOCATED, triggered.counter, FI_REMOTE_WRITE);
+            FI_MR_ALLOCATED | FI_RMA_EVENT, triggered.counter, FI_REMOTE_WRITE);
 
         /* Set Protocol Buffer */
         protocol_buffer =
@@ -740,7 +744,7 @@ public:
     {
         my_mr = _libfab.create_mr_with_counter(
             user_request.recv_buffer, get_size_of_buffer(user_request), FI_REMOTE_WRITE,
-            FI_MR_ALLOCATED, completion_b, FI_REMOTE_WRITE);
+            FI_MR_ALLOCATED | FI_RMA_EVENT, completion_b, FI_REMOTE_WRITE);
 
         user_buffer_rma_iov = {0, get_size_of_buffer(user_request), fi_mr_key(my_mr)};
 
