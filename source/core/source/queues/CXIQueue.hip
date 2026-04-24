@@ -141,12 +141,6 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     /* New request that prepares the user's request to be enqueued later*/
     std::unique_ptr<CXIRequest> converted_request = nullptr;
 
-    /* Data to be exchanged (receiver sends this, sender receives this)
-     * 1. MR key for receive buffer
-     * 2. Remote completion buffer mr key
-     * 3. Remote completion buffer offset
-     * TODO: UPDATE FOR NEW LISTS OF 5 ITEMS
-     */
     if (Communication::Operation::RECV == req.operation)
     {
         converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
@@ -167,6 +161,12 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
         throw std::runtime_error("Operation not supported");
     }
 
+    /*    Data to be exchanged          | Who sends
+     * 1. MR key for receive buffer     | Receiver
+     * 2. Receive completion MR/Offset  | Receiver
+     * 3. Operation (Rsend/Send)        | Sender
+     * 4. CTS Buffer MR/Offset          | Sender
+     */
     converted_request->match(match_phase_a, match_phase_b);
 
     request_map.insert(std::make_pair(req.getID(), std::move(converted_request)));
