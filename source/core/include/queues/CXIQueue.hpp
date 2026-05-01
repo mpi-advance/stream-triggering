@@ -147,12 +147,9 @@ public:
 
     void queue_work(struct fi_deferred_work* work_entry)
     {
-        Print::always("<H> Threshold:",
-                      work_entry->threshold,
-                      work_entry->triggering_cntr,
-                      fi_cntr_read(work_entry->triggering_cntr),
-                      work_entry->completion_cntr,
-                      fi_cntr_read(work_entry->completion_cntr));
+        Print::out("<H> Threshold:", work_entry->threshold, work_entry->triggering_cntr,
+                   fi_cntr_read(work_entry->triggering_cntr), work_entry->completion_cntr,
+                   fi_cntr_read(work_entry->completion_cntr));
 
         while (dwq_slots_used == MAX_DWQ_SLOTS)
         {
