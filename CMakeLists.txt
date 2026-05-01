@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
 # Version
-set(CURR_VERSION 0.5.0)
+set(CURR_VERSION 0.7.0)
 
 # Set CMake Build Type
  if(NOT CMAKE_BUILD_TYPE)
