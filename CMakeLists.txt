@@ -1,7 +1,13 @@
 cmake_minimum_required (VERSION 3.24 FATAL_ERROR)
 
 # Version
-set(CURR_VERSION 0.6.0)
+set(CURR_VERSION 0.7.0)
+
+# Set CMake Build Type
+ if(NOT CMAKE_BUILD_TYPE)
+        message(STATUS "No CMAKE_BUILD_TYPE specified, setting build type to RELEASE.")
+        set(CMAKE_BUILD_TYPE RELEASE CACHE STRING "Build type for project." FORCE)
+ endif()
 
 # Backend settings
 option(USE_THREAD_BACKEND "Enable the THREAD backend for the queue objects" ON)
@@ -35,14 +41,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Find MPI:
 find_package(MPI REQUIRED)
-target_link_libraries(stream-triggering MPI::MPI_CXX)
+target_link_libraries(stream-triggering PUBLIC MPI::MPI_CXX)
 
 # Link with NVIDIA stuff
 function(add_cuda target_name)
     message(STATUS "Linking with CUDA")
     find_package(CUDAToolkit)
-    target_link_libraries(${target_name} CUDA::cudart)
-    target_link_libraries(${target_name} CUDA::cuda_driver)
+    target_link_libraries(${target_name} PRIVATE CUDA::cudart)
+    target_link_libraries(${target_name} PRIVATE CUDA::cuda_driver)
     add_definitions( -DCUDA_GPUS )
 endfunction()
 
@@ -50,7 +56,7 @@ endfunction()
 function(add_hip target_name)
     message(STATUS "Linking with HIP")
     find_package(hip REQUIRED)
-    target_link_libraries(${target_name} hip::host)
+    target_link_libraries(${target_name} PRIVATE hip::host)
     add_definitions( -DHIP_GPUS )
 endfunction()
 ###
@@ -82,7 +88,7 @@ if(USE_CXI_BACKEND)
     add_definitions( -DUSE_CXI )
     find_package(LibFabric REQUIRED)
     target_include_directories(stream-triggering PUBLIC ${LIBFABRIC_INCLUDE_DIR})
-    target_link_libraries(stream-triggering ${LIBFABRIC_LIBRARY})
+    target_link_libraries(stream-triggering PRIVATE ${LIBFABRIC_LIBRARY})
     if("${CMAKE_HIP_ARCHITECTURES}" STREQUAL "gfx90a")
         message(STATUS "Adding custom code for the gfx90a")
         add_definitions(-DUSE_TIOGA)

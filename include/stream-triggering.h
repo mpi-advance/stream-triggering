@@ -13,20 +13,22 @@ typedef uintptr_t                   MPIS_Queue;
 typedef struct MPIS_Request_struct* MPIS_Request;
 
 /* Errors */
-const int MPIS_SUCCESS               = 0;
-const int MPIS_NOT_READY             = -1;
-const int MPIS_INVALID_REQUEST_STATE = -2;
-const int MPIS_UNSUPPORTED_BEHAVIOR  = -3;
+enum
+{
+    MPIS_SUCCESS               = 0,
+    MPIS_NOT_READY             = -1,
+    MPIS_INVALID_REQUEST_STATE = -2,
+    MPIS_UNSUPPORTED_BEHAVIOR  = -3,
+};
 
-const uintptr_t    MPIS_QUEUE_NULL   = 0;
-const MPIS_Request MPIS_REQUEST_NULL = 0;
+extern const uintptr_t    MPIS_QUEUE_NULL;
+extern const MPIS_Request MPIS_REQUEST_NULL;
 
 enum MPIS_Queue_type
 {
-    THREAD            = 0,
-    THREAD_SERIALIZED = 1,
-    GPU_MEM_OPS       = 3,
-    CXI               = 4
+    THREAD      = 0,
+    GPU_MEM_OPS = 3,
+    CXI         = 4
 };
 typedef enum MPIS_Queue_type MPS_Queue_type;
 
@@ -66,6 +68,8 @@ int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI
                    MPIS_Request*);
 int MPIS_Rsend_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
                     MPIS_Request*);
+int MPIS_Allreduce_init(const void*, void*, int, MPI_Datatype, MPI_Op, MPI_Comm, MPI_Info,
+                        MPIS_Request*);
 
 /* New GPU Memory Allocation functions */
 int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);

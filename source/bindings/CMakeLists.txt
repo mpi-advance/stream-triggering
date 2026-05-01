@@ -3,6 +3,7 @@ target_sources(stream-triggering
 		"${CMAKE_CURRENT_SOURCE_DIR}/constants.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPI_Overrides.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Alloc_mem.cc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Allreduce_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Barrier_init.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_start.cc"
 		"${CMAKE_CURRENT_SOURCE_DIR}/MPIX_Enqueue_startall.cc"

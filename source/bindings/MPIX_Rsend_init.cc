@@ -7,7 +7,7 @@ int MPIS_Rsend_init(const void* buffer, MPI_Count count, MPI_Datatype datatype, 
 {
     using namespace Communication;
     std::shared_ptr<Request>* internal_request = new std::shared_ptr<Request>(
-        new Request(Operation::RSEND, const_cast<void*>(buffer), count, datatype, dest,
+        new Request(Operation::RSEND, const_cast<void*>(buffer), nullptr, count, datatype, dest,
                     tag, comm, info));
 
     *request =

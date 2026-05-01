@@ -2,8 +2,6 @@
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
-CompletionBufferFactory CXIQueue::my_buffer;
-
 void LibfabricInstance::initialize_libfabric()
 {
     // Hints will be freed by helper call below
@@ -11,7 +9,8 @@ void LibfabricInstance::initialize_libfabric()
     hints = fi_allocinfo();
 
     // set our requirements for the providers
-    hints->caps = FI_RMA | FI_RMA_EVENT | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM | FI_TRIGGER;
+    hints->caps = FI_RMA | FI_RMA_EVENT | FI_REMOTE_WRITE | FI_MSG | FI_WRITE | FI_HMEM |
+                  FI_TRIGGER;
     hints->addr_format   = FI_ADDR_CXI;
     hints->ep_attr->type = FI_EP_RDM;  // Must use for connection-less
     hints->tx_attr->caps = FI_RMA | FI_WRITE | FI_MSG | FI_HMEM | FI_TRIGGER;
@@ -69,7 +68,7 @@ void LibfabricInstance::initialize_libfabric()
     check_libfabric(fi_enable(ep));
 
     progress_ctr = alloc_counter(false);
-    check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV));
+    check_libfabric(fi_ep_bind(ep, &(progress_ctr)->fid, FI_RECV | FI_WRITE));
 }
 
 void LibfabricInstance::select_fi_nic(fi_info*& info)
@@ -189,12 +188,33 @@ __global__ void add_to_counter(uint64_t* cntr, size_t value)
     *cntr = value;
 }
 
+__global__ void add_to_counters(GPUTriggers triggers)
+{
+    for (int x = 0; x < triggers.actual_size; x++)
+    {
+        // Only support increasing by one for now
+        *(triggers.buffer[x]) = 1;
+    }
+}
+
 __global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value)
 {
     size_t curr_value = *comp_addr;
     while (curr_value < goal_value)
     {
         curr_value = *comp_addr;
+    }
+}
+
+__global__ void wait_on_completions(GPUCompletions completions)
+{
+    for (int x = 0; x < completions.actual_size; x++)
+    {
+        size_t curr_value = *(completions.buffer[x].comp_addr);
+        while (curr_value < (completions.buffer[x].goal_value))
+        {
+            curr_value = *(completions.buffer[x].comp_addr);
+        }
     }
 }
 
@@ -211,26 +231,107 @@ void CXIRequest::wait_gpu(hipStream_t* the_stream)
                                                  num_times_started);
 }
 
+void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
+{
+#if defined(USE_TIOGA)
+    /* If any kernel needs a flush, go ahead and do it first */
+    for (auto& req : requests)
+    {
+        if (req->needs_gpu_flush())
+        {
+            flush_memory();
+            break;
+        }
+    }
+#endif
+
+    GPUTriggers all_in_one;
+    size_t      num_reqs    = 0;
+    bool        should_bump = false;
+    for (auto& req : requests)
+    {
+        if (Communication::Operation::BARRIER <= req->operation)
+        {
+            HIPQueue::enqueue_operation(req);
+        }
+        else
+        {
+            CXIObjects& cxi_req = request_map.at(req->getID());
+            /* Start Request */
+            Print::out("Staring request:", req->getID());
+            TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter);
+            Print::out("Request request:", actions);
+
+            /* Add request to be waited on. */
+            active_requests.push_back(req->getID());
+
+            /* Enqueue global counter bump, if needed */
+            if (!should_bump && (TriggerStatus::GLOBAL_BUMP == actions))
+            {
+                should_bump                 = true;
+                all_in_one.buffer[num_reqs] = (uint64_t*)(the_gpu_counter->gpu_mmio_addr);
+                num_reqs++;
+            }
+            if (TriggerStatus::EXTRA_BUMP == actions)
+            {
+                all_in_one.buffer[num_reqs] = cxi_req->get_gpu_trigger();
+                num_reqs++;
+            }
+
+            if (TriggerStatus::NOT_NEEDED != actions &&
+                (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS)))
+            {
+                all_in_one.actual_size = num_reqs;
+                add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
+                force_kernel();
+                num_reqs = 0;
+            }
+        }
+    }
+
+    if(should_bump)
+    {
+        /* If we used the global counter, increase its use_count */
+        the_gpu_counter->up_use_count();
+    }
+
+    all_in_one.actual_size = num_reqs;
+    add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
+    force_kernel();
+    Print::out("Done staring all requests.");
+}
+
 void CXIQueue::enqueue_waitall()
 {
+    GPUCompletions all_in_one;
+    size_t         num_reqs = 0;
     for (auto req : active_requests)
     {
-        Print::out("Waiting on request:", req);
-        request_map.at(req)->wait_gpu(the_stream);
+        all_in_one.buffer[num_reqs] = request_map.at(req)->get_gpu_completion();
+        Print::out("Waiting on request:", req, all_in_one.buffer[num_reqs].comp_addr,
+                   all_in_one.buffer[num_reqs].goal_value);
+        num_reqs++;
+        if (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS))
+        {
+            all_in_one.actual_size = num_reqs;
+            wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
+            force_kernel();
+            num_reqs = 0;
+        }
     }
+    all_in_one.actual_size = num_reqs;
+    wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
+    force_kernel();
     active_requests.clear();
+    // If there are any requests offloaded to CPU
+    if (entries.size() > 0)
+    {
+        HIPQueue::enqueue_waitall();
+    }
 }
 
 void CXIQueue::flush_memory()
 {
     Print::out("<E> Enqueuing buffer_wbl2 kernel");
-    flush_buffer<<<1, 1, 0, *the_stream>>>();
-}
-
-void CXICounter::enqueue_trigger(hipStream_t* the_stream)
-{
-    Print::out("<E> Bump counter by 1");
-    add_to_counter<<<1, 1, 0, *the_stream>>>((uint64_t*)(gpu_mmio_addr), 1);
-    /* Increment number of times used. */
-    use_count++;
+    flush_buffer<<<1, 1, 0, *my_stream>>>();
 }

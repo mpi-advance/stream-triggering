@@ -32,10 +32,7 @@ int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address
     {
 #ifdef USE_THREADS
         case THREAD:
-            the_queue = new ThreadQueue<false>();
-            break;
-        case THREAD_SERIALIZED:
-            the_queue = new ThreadQueue<true>();
+            the_queue = new ThreadQueue();
             break;
 #endif
 #ifdef USE_MEM_OPS

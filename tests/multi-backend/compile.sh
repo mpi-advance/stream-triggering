@@ -85,15 +85,15 @@ if [ "$VERSION" -eq 0 ]; then
     DEVICE+="TIOGA"
 elif [ "$VERSION" -eq 1 ]; then
     echo " -> Running for TUOLUMNE"
-    module load craype-accel-amd-gfx942
+    module load craype-accel-amd-gfx942 libfabric/2.1
     DEVICE+="TUOLUMNE"
 elif [ "$VERSION" -eq 2 ]; then
     echo " -> Running for FRONTIER"
-    module load craype-accel-amd-gfx90a
+    module load cce/20.0.0 craype-accel-amd-gfx90a
     DEVICE+="FRONTIER"
 fi
 
-module load rocm
+module load rocm/6.4.2
 
 ### Prepare output directories
 
@@ -169,9 +169,4 @@ if [ ! -v SKIP_THREAD ]; then
     DEFINES="-DTHREAD_BACKEND $DEVICE_DEFINE"
     compile_test $PROGRAM $OUTPUT "$DEFINES"
 fi
-
-#PROGRAM=./pingpong_mpi.cpp
-#OUTPUT=mpi-test
-#DEFINES="-DNEED_HIP"
-#compile_test $PROGRAM $OUTPUT "$DEFINES"
 

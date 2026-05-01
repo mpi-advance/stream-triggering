@@ -15,17 +15,8 @@
 cd ..
 
 # Switch between Tioga and Tuo modules
-if [ $# -eq 0 ]; then
-    echo "Running for the MI250X"
-    module load craype-accel-amd-gfx90a
-    SYSTEM="TIOGA"
-else
-    echo "Running for the MI300A"
-    module load craype-accel-amd-gfx942
-    SYSTEM="TUOLUMNE"
-fi
-
-module load rocm
+module load cce/20.0.0 craype-accel-amd-gfx90a rocm/6.4.2
+SYSTEM="FRONTIER"
 
 #Control output
 USER_BASE="$HOME/git/stream-triggering/tests/scratch"
@@ -44,14 +35,14 @@ echo $TARGET
 # Any extra environment variables we need
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 #export HSA_USE_SVM=0
-#export HSA_XNACK=1
+export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 
 # Settings related to individual tests
 TEST_NAME=halo
 TIME=00:02:00
 NUM_ITERS=50
-BUFF_SIZE=4
+BUFF_SIZE=10
 NODES=$SLURM_JOB_NUM_NODES
 PPN=8
 

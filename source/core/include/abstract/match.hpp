@@ -17,11 +17,11 @@ namespace Communication
 class BlankMatch
 {
 public:
-    static void match(int peer_rank, int tag, MPI_Request* request,
-                      MPI_Comm comm = MPI_COMM_WORLD)
+    static void match(Request& req)
     {
-        check_mpi(MPI_Irecv(nullptr, 0, MPI_BYTE, peer_rank, tag, comm, request));
-        check_mpi(MPI_Send(nullptr, 0, MPI_BYTE, peer_rank, tag, comm));
+        MPI_Request* mpi_requests = req.get_match_requests(1);
+        check_mpi(MPI_Irecv(nullptr, 0, MPI_BYTE, req.peer, req.tag, req.comm, mpi_requests));
+        check_mpi(MPI_Send(nullptr, 0, MPI_BYTE, req.peer, req.tag, req.comm));
     }
 };
 

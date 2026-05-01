@@ -16,7 +16,8 @@ enum Operation : int
     SEND,
     RSEND,
     RECV,
-    BARRIER
+    BARRIER,
+    ALLREDUCE
 };
 
 enum GPUMemoryType
@@ -29,44 +30,45 @@ class Request
 {
 public:
     Operation    operation;
-    void*        buffer;
+    void*        send_buffer;
+    void*        recv_buffer;
     MPI_Count    count;
     MPI_Datatype datatype;
     int          peer;
     int          tag;
     MPI_Comm     comm;
     MPI_Info     info;
+    MPI_Op       op;
 
-    Request(Operation _operation, void* _buffer, MPI_Count _count, MPI_Datatype _datatype,
-            int _peer, int _tag, MPI_Comm _comm, MPI_Info _info)
+    Request(Operation _operation, void* _send_buffer, void* _recv_buffer,
+            MPI_Count _count, MPI_Datatype _datatype, int _peer, int _tag, MPI_Comm _comm,
+            MPI_Info _info, MPI_Op _op = MPI_OP_NULL)
         : operation(_operation),
-          buffer(_buffer),
+          send_buffer(_send_buffer),
+          recv_buffer(_recv_buffer),
           count(_count),
           datatype(_datatype),
           peer(_peer),
           tag(_tag),
           comm(_comm),
           info(_info),
+          op(_op),
           myID(assignID()),
           matched(false)
     {
-        int size = -1;
-        check_mpi(MPI_Type_size(_datatype, &size));
-        Print::out(_operation,
-                   "Request made with address, size, count, tag, and ID:", _buffer, size,
-                   _count, tag, myID);
+        print();
 
-        constexpr int string_size = 100;
-        char          info_key[]  = "mpi_memory_alloc_kinds";
-        char          value[string_size];
-        int           flag = 0;
+        constexpr int     string_size = 100;
+        char              info_key[]  = "mpi_memory_alloc_kinds";
+        std::vector<char> value(string_size, 0);
+        int               flag = 0;
         // Pre MPI-4.0
         if (MPI_INFO_NULL != _info)
         {
-            force_mpi(MPI_Info_get(_info, info_key, string_size, value, &flag));
+            force_mpi(MPI_Info_get(_info, info_key, string_size, value.data(), &flag));
         }
 
-        if (0 == strcmp(value, "rocm:device:fine"))
+        if (0 == strcmp(value.data(), "rocm:device:fine"))
         {
             Print::out("Using fine-grained memory!");
             memory_type = GPUMemoryType::FINE;
@@ -146,6 +148,14 @@ protected:
     {
         static size_t ID = 1;
         return ID++;
+    }
+
+private:
+    void print()
+    {
+        Print::out("Request", myID, operation, " - attributes:\n\tBuffers:", send_buffer,
+                   recv_buffer, "\n\tCount", count, "\n\tType:", datatype,
+                   "\n\tPeer:", peer, "\n\tTag:", tag, "\n\tComm:", comm, "\n\tOp:", op);
     }
 };
 

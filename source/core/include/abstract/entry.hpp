@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "progress.hpp"
 #include "request.hpp"
 
 using namespace Communication;
@@ -11,37 +12,23 @@ using namespace Communication;
 class QueueEntry
 {
 public:
-    explicit QueueEntry(std::shared_ptr<Request> req)
-        : original_request(req), threshold(0)
+    explicit QueueEntry(std::shared_ptr<Request> req,
+                        Progress::CounterType*   start = nullptr,
+                        Progress::CounterType*   wait  = nullptr)
+        : threshold(0),
+          mpi_request(std::make_shared<MPI_Request>(MPI_REQUEST_NULL)),
+          original_request(req),
+          start_location(start),
+          wait_location(wait)
     {
-        switch (req->operation)
-        {
-            case Communication::Operation::SEND:
-                check_mpi(MPI_Send_init(req->buffer, req->count, req->datatype, req->peer,
-                                        req->tag, req->comm, &mpi_request));
-                break;
-            case Communication::Operation::RSEND:
-                check_mpi(MPI_Rsend_init(req->buffer, req->count, req->datatype,
-                                         req->peer, req->tag, req->comm, &mpi_request));
-                break;
-            case Communication::Operation::RECV:
-                check_mpi(MPI_Recv_init(req->buffer, req->count, req->datatype, req->peer,
-                                        req->tag, req->comm, &mpi_request));
-                break;
-            case Communication::Operation::BARRIER:
-                break;
-            default:
-                throw std::runtime_error("Invalid Request");
-                break;
-        }
+        initialize_mpi_request(*req, mpi_request.get());
     }
 
     virtual ~QueueEntry()
     {
-        if (MPI_REQUEST_NULL != mpi_request && original_request &&
-            original_request->operation != Communication::Operation::BARRIER)
+        if (mpi_request && (MPI_REQUEST_NULL != *mpi_request))
         {
-            check_mpi(MPI_Request_free(&mpi_request));
+            check_mpi(MPI_Request_free(mpi_request.get()));
         }
     }
 
@@ -49,62 +36,135 @@ public:
     QueueEntry(const QueueEntry& other)            = delete;
     QueueEntry& operator=(const QueueEntry& other) = delete;
 
-    // Only Moving
+    // Only moving
     QueueEntry(QueueEntry&& other) noexcept
-        : mpi_request(other.mpi_request), original_request(other.original_request)
+        : threshold(other.threshold),
+          mpi_request(other.mpi_request),
+          original_request(other.original_request),
+          start_location(other.start_location),
+          wait_location(other.wait_location)
     {
         // clear other structs
-        other.mpi_request = MPI_REQUEST_NULL;
+        other.threshold = 0;
+        other.mpi_request.reset();
         other.original_request.reset();
+        other.start_location = nullptr;
+        other.wait_location  = nullptr;
     }
+
     QueueEntry& operator=(QueueEntry&& other) noexcept
     {
         if (this != &other)
         {
+            threshold        = other.threshold;
             mpi_request      = other.mpi_request;
             original_request = other.original_request;
+            start_location   = other.start_location;
+            wait_location    = other.wait_location;
             // clear other
-            other.mpi_request = MPI_REQUEST_NULL;
+            other.threshold = 0;
+            other.mpi_request.reset();
             other.original_request.reset();
+            other.start_location = nullptr;
+            other.wait_location  = nullptr;
         }
         return *this;
     }
 
-    virtual void start_host()
+    operator std::shared_ptr<Progress::StartEntry>()
     {
-        if (original_request->operation == Communication::Operation::BARRIER)
-        {
-            check_mpi(MPI_Ibarrier(original_request->comm, &mpi_request));
-        }
-        else
-        {
-            check_mpi(MPI_Start(&mpi_request));
-        }
-        Print::out("Base Host done!");
+        return std::make_shared<Progress::StartEntry>(mpi_request, start_location,
+                                                      threshold);
+    }
+
+    operator std::shared_ptr<Progress::WaitEntry>()
+    {
+        return std::make_shared<Progress::WaitEntry>(mpi_request, wait_location,
+                                                     threshold);
+    }
+
+    std::shared_ptr<Progress::WaitallEntry> convert_to_waitall(
+        std::vector<Progress::RequestType> other_reqs)
+    {
+        return std::make_shared<Progress::WaitallEntry>(other_reqs, wait_location,
+                                                        threshold);
+    }
+
+    virtual void increment()
+    {
+        threshold++;
+    }
+
+    virtual Progress::CounterType get_threshold()
+    {
+        return threshold;
     }
 
     virtual void start_gpu(void* stream)
     {
         // Does nothing in base class.
+        throw std::runtime_error("Function not supported: QueueEntry::start_gpu");
     }
 
     virtual void wait_gpu(void* stream)
     {
         // Does nothing in base class.
+        throw std::runtime_error("Function not supported: QueueEntry::wait_gpu");
     }
 
-    virtual bool done()
+    volatile Progress::CounterType* get_start_location()
     {
-        int value = 0;
-        check_mpi(MPI_Test(&mpi_request, &value, MPI_STATUS_IGNORE));
-        return value;
+        return start_location;
+    }
+
+    Progress::CounterType* get_wait_location()
+    {
+        return wait_location;
+    }
+
+    std::shared_ptr<MPI_Request> get_mpi_request()
+    {
+        return mpi_request;
     }
 
 protected:
-    int64_t threshold = 0;
+    Progress::CounterType threshold = 0;
 
-    MPI_Request              mpi_request      = MPI_REQUEST_NULL;
-    std::shared_ptr<Request> original_request = nullptr;
+    std::shared_ptr<MPI_Request> mpi_request      = nullptr;
+    std::shared_ptr<Request>     original_request = nullptr;
+
+    Progress::CounterType* start_location;
+    Progress::CounterType* wait_location;
+
+    void initialize_mpi_request(Request& req, MPI_Request* req_addr)
+    {
+        switch (req.operation)
+        {
+            case Communication::Operation::SEND:
+                check_mpi(MPI_Send_init(req.send_buffer, req.count, req.datatype,
+                                        req.peer, req.tag, req.comm, req_addr));
+                break;
+            case Communication::Operation::RSEND:
+                check_mpi(MPI_Rsend_init(req.send_buffer, req.count, req.datatype,
+                                         req.peer, req.tag, req.comm, req_addr));
+                break;
+            case Communication::Operation::RECV:
+                check_mpi(MPI_Recv_init(req.recv_buffer, req.count, req.datatype,
+                                        req.peer, req.tag, req.comm, req_addr));
+                break;
+            case Communication::Operation::BARRIER:
+                check_mpi(MPI_Barrier_init(req.comm, req.info, req_addr));
+                break;
+            case Communication::Operation::ALLREDUCE:
+                check_mpi(MPI_Allreduce_init(req.send_buffer, req.recv_buffer, req.count,
+                                             req.datatype, req.op, req.comm, req.info,
+                                             req_addr));
+                break;
+            default:
+                throw std::runtime_error("Invalid Request");
+                break;
+        }
+    }
 };
 
 #endif
