@@ -34,22 +34,27 @@ if [ "$VERSION" -eq 0 ]; then
     SYSTEM=tioga
     GPU_ARCH=gfx90a
     LIBFABRIC=/opt/cray/libfabric/2.1/
+    module load rocm "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
 elif [ "$VERSION" -eq 1 ]; then
     SYSTEM=tuolumne
     GPU_ARCH=gfx942
     LIBFABRIC=/opt/cray/libfabric/2.1/
+    module load rocmi/6.4.3 "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
 elif [ "$VERSION" -eq 2 ]; then
     SYSTEM=frontier
     GPU_ARCH=gfx90a
     LIBFABRIC=/opt/cray/libfabric/1.22.0/
+    module load cce/20.0.0 rocm/6.4.2 "craype-accel-amd-${GPU_ARCH}"
+    echo $LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=${CRAY_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
+    CMAKE_EXTRAS=( "-DCMAKE_EXE_LINKER_FLAGS=${PE_MPICH_GTL_DIR_amd_gfx90a} ${PE_MPICH_GTL_LIBS_amd_gfx90a}" )
+    echo $LD_LIBRARY_PATH
 else
     echo "Invalid system specified, stopping."
     exit 1
 fi
 
 echo -e "Running ${CYAN}$SYSTEM${RESET} version"
-#module load rocm "craype-accel-amd-${GPU_ARCH}" libfabric/2.1
-module load rocm/6.4.3 "craype-accel-amd-${GPU_ARCH}"
 module list
 
 if [ -z $BUILD_MODE ]; then
@@ -74,7 +79,7 @@ mkdir $DIR_TO_BUILD && cd $DIR_TO_BUILD
 
 cmake -DUSE_HIP_BACKEND=ON -DUSE_CXI_BACKEND=ON -DLIBFABRIC_PREFIX=${LIBFABRIC} \
       -DCMAKE_HIP_ARCHITECTURES=${GPU_ARCH} -DCMAKE_INSTALL_PREFIX=${HOME}/apps/stream_trigger \
-      -DCMAKE_BUILD_TYPE=$MODE ..
+      "${CMAKE_EXTRAS[@]}" -DCMAKE_BUILD_TYPE=$MODE ..
 
 make -j8
 make install
