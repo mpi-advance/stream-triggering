@@ -78,10 +78,10 @@ fi
 module load ${EXTRA_MODULES} "craype-accel-amd-${GPU_ARCH}" "${ROCM_VERSION}" ${LIBFABRIC_MODULE}
 module list
 
-# Extra setup for Frontier
+# Extra setup for Frontier, TDB if needed for TUO.
 if [ "$VERSION" -eq 2 ]; then
     export LD_LIBRARY_PATH=${CRAY_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
-    CMAKE_EXTRAS=( "-DCMAKE_EXE_LINKER_FLAGS=${PE_MPICH_GTL_DIR_amd_gfx90a} ${PE_MPICH_GTL_LIBS_amd_gfx90a}" )
+    CMAKE_EXTRAS=( "-DCMAKE_SHARED_LINKER_FLAGS=${PE_MPICH_GTL_DIR_amd_gfx90a} ${PE_MPICH_GTL_LIBS_amd_gfx90a}" )
 fi
 
 if [ -z $BUILD_MODE ]; then
