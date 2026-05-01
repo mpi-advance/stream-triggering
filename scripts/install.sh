@@ -7,7 +7,7 @@ usage() {
     echo "Usage: $0 [-T value] [-B value]"
     echo " -T Integer that specifies build system: 0 (Tioga, default), 1 (Tuoloumne), 2 (Frontier)"
     echo " -B Build mode: 0 (Debug, default), 1 (Release), 2 (RelWithDebInfo)"
-    echo " -R String for rocm module (default is system specific)"
+    echo " -R String for full rocm module name (default is \"rocm\")"
     echo " -L String for libfabric version number (Possible values: 1.22.0, 2.1, SYSTEM)"
 }
 
@@ -51,7 +51,7 @@ elif [ "$VERSION" -eq 2 ]; then
     SYSTEM=frontier
     GPU_ARCH=gfx90a
     LIBFABRIC_DEFAULT=1.22.0
-
+    EXTRA_MODULES=cce/20.0.0
 else
     echo "Invalid system specified, stopping."
     exit 1
@@ -75,7 +75,7 @@ else
 fi
 
 # Load Modules
-module load "craype-accel-amd-${GPU_ARCH}" "${ROCM_VERSION}" ${LIBFABRIC_MODULE}
+module load ${EXTRA_MODULES} "craype-accel-amd-${GPU_ARCH}" "${ROCM_VERSION}" ${LIBFABRIC_MODULE}
 module list
 
 # Extra setup for Frontier
