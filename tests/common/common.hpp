@@ -16,16 +16,16 @@
 
 #if NEED_HIP
 #define check_gpu(function)                       \
-    {                                             \
+    do {                                          \
         auto err = function;                      \
         check_hip_error(err, __FILE__, __LINE__); \
-    }
+    } while(0)
 
 #define force_gpu(function)                             \
-    {                                                   \
+    do {                                                \
         auto err = function;                            \
         check_hip_error<true>(err, __FILE__, __LINE__); \
-    }
+    } while(0)
 
 template <bool shouldThrow = false>
 void check_hip_error(const hipError_t err, const char* filename, const int line)
@@ -53,16 +53,16 @@ void device_sync()
 
 #elif NEED_CUDA
 #define check_gpu(function)                        \
-    {                                              \
+    do {                                           \
         auto err = function;                       \
         check_cuda_error(err, __FILE__, __LINE__); \
-    }
+    } while(0)
 
 #define force_gpu(function)                              \
-    {                                                    \
+    do {                                                 \
         auto err = function;                             \
         check_cuda_error<true>(err, __FILE__, __LINE__); \
-    }
+    } while(0)
 
 template <bool shouldThrow = false>
 void check_cuda_error(const cudaError_t err, const char* filename, const int line)

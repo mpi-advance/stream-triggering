@@ -1,124 +1,74 @@
-#include "../common/common.hpp"
-#include "../common/timers.hpp"
-
-void allocate_gpu_memory(void** location, size_t size)
-{
-#ifndef FINE_GRAINED_TEST
-    force_gpu(hipMalloc(location, size));
-#else
-    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
-#endif
-}
+#include "benchmark.hpp"
 
 int main(int argc, char* argv[])
 {
-    int mode;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+    Benchmark::init_benchmark<true, true>(&argc, &argv);
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    // I want "two params"
-    check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
-
-    // Input parameters
-    int num_warmups = 10;
-    int num_iters   = 0;
-    int BUFFER_SIZE = 0;
-    read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
-    Timing::init_timers(num_iters);
-
-    // Make Buffers
-    int BLOCK_SIZE = 128;
-    int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
-    void* send_buf = nullptr;
-    void* recv_buf = nullptr;
-    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE * 2);
-    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE * 2);
-
-    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
-                                             BUFFER_SIZE * 2);
-    device_sync();
-
-#if defined(NEED_HIP)
-    hipStream_t my_stream;
-    check_gpu(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
-#elif defined(NEED_CUDA)
-    cudaStream_t my_stream;
-    check_gpu(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
-#endif
-
-#define SEND_REQ (rank ^ 1)
-#define RECV_REQ (rank & 1)
-
+#define SEND_REQ (Benchmark::rank ^ 1)
+#define RECV_REQ (Benchmark::rank & 1)
     // Make requests
     MPI_Request my_reqs[2];
     MPI_Request my_other_reqs[2];
-    int         offset = sizeof(int) * BUFFER_SIZE;
-    if (0 == rank % 2)
+    int         offset = sizeof(int) * Benchmark::BUFFER_SIZE;
+    if (0 == Benchmark::rank)
     {
-        MPI_Rsend_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                       &my_reqs[SEND_REQ]);
-        MPI_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD,
-                      &my_reqs[RECV_REQ]);
-        MPI_Rsend_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, &my_other_reqs[SEND_REQ]);
-        MPI_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                      MPI_COMM_WORLD, &my_other_reqs[RECV_REQ]);
+        MPI_Rsend_init(Benchmark::send_buffer, Benchmark::BUFFER_SIZE, MPI_INT, 1, 0,
+                       MPI_COMM_WORLD, &my_reqs[SEND_REQ]);
+        MPI_Recv_init(Benchmark::recv_buffer, Benchmark::BUFFER_SIZE, MPI_INT, 1, 0,
+                      MPI_COMM_WORLD, &my_reqs[RECV_REQ]);
+        MPI_Rsend_init((char*)Benchmark::send_buffer + offset, Benchmark::BUFFER_SIZE,
+                       MPI_INT, 1, 0, MPI_COMM_WORLD, &my_other_reqs[SEND_REQ]);
+        MPI_Recv_init((char*)Benchmark::recv_buffer + offset, Benchmark::BUFFER_SIZE,
+                      MPI_INT, 1, 0, MPI_COMM_WORLD, &my_other_reqs[RECV_REQ]);
     }
     else
     {
-        MPI_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                      &my_reqs[RECV_REQ]);
-        MPI_Rsend_init(send_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD,
-                       &my_reqs[SEND_REQ]);
-        MPI_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                      MPI_COMM_WORLD, &my_other_reqs[RECV_REQ]);
-        MPI_Rsend_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, &my_other_reqs[SEND_REQ]);
+        MPI_Recv_init(Benchmark::recv_buffer, Benchmark::BUFFER_SIZE, MPI_INT, 0, 0,
+                      MPI_COMM_WORLD, &my_reqs[RECV_REQ]);
+        MPI_Rsend_init(Benchmark::send_buffer, Benchmark::BUFFER_SIZE, MPI_INT, 0, 0,
+                       MPI_COMM_WORLD, &my_reqs[SEND_REQ]);
+        MPI_Recv_init((char*)Benchmark::recv_buffer + offset, Benchmark::BUFFER_SIZE,
+                      MPI_INT, 0, 0, MPI_COMM_WORLD, &my_other_reqs[RECV_REQ]);
+        MPI_Rsend_init((char*)Benchmark::send_buffer + offset, Benchmark::BUFFER_SIZE,
+                       MPI_INT, 0, 0, MPI_COMM_WORLD, &my_other_reqs[SEND_REQ]);
     }
 
-    void* active_send_buffer = send_buf;
-    void* active_recv_buffer = recv_buf;
+    auto do_cycles = [&](int num_cycles) {
+        using namespace Benchmark;
+        void* active_send_buffer = Benchmark::send_buffer;
+        void* active_recv_buffer = Benchmark::recv_buffer;
 
-    void* inactive_send_buffer = (char*)send_buf + offset;
-    void* inactive_recv_buffer = (char*)recv_buf + offset;
+        void* inactive_send_buffer = (char*)Benchmark::send_buffer + offset;
+        void* inactive_recv_buffer = (char*)Benchmark::recv_buffer + offset;
 
-    MPI_Request* active_request_ptr   = my_reqs;
-    MPI_Request* inactive_request_ptr = my_other_reqs;
+        MPI_Request* active_request_ptr   = my_reqs;
+        MPI_Request* inactive_request_ptr = my_other_reqs;
 
-    auto do_cycles = [&]<bool TIMERS>(int num_cycles) {
         for (int i = 0; i < num_cycles; i++)
         {
             if (0 == rank)
             {
                 // Ping side
-                pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)active_send_buffer, BUFFER_SIZE, i);
 
-                stream_sync(my_stream);
+                stream_sync(bench_stream);
                 MPI_Startall(2, active_request_ptr);
                 MPI_Waitall(2, active_request_ptr, MPI_STATUSES_IGNORE);
-                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                 //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
                 MPI_Start(&active_request_ptr[RECV_REQ]);
                 MPI_Wait(&active_request_ptr[RECV_REQ], MPI_STATUS_IGNORE);
-                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                 //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
-                pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)active_send_buffer, (int*)active_recv_buffer, BUFFER_SIZE);
-                stream_sync(my_stream);
+                stream_sync(bench_stream);
                 MPI_Start(&active_request_ptr[SEND_REQ]);
                 MPI_Wait(&active_request_ptr[SEND_REQ], MPI_STATUS_IGNORE);
-            }
-
-            if constexpr (TIMERS)
-            {
-                Timing::add_timer(i);
             }
 
             void* temp_send      = active_send_buffer;
@@ -134,31 +84,15 @@ int main(int argc, char* argv[])
             inactive_request_ptr   = temp_reqs;
         }
     };
-
-    do_cycles.template operator()<false>(num_warmups);
-    MPI_Barrier(MPI_COMM_WORLD);
-    Timing::set_base_timer();
-    double             start = MPI_Wtime();
-    do_cycles.template operator()<false>(num_iters);
-    double             end = MPI_Wtime();
-
-    // Final check
-    device_sync();
-    print_buffer<<<1, BLOCK_SIZE, 0, my_stream>>>((int*)inactive_recv_buffer, BUFFER_SIZE,
-                                                  num_iters - 1, rank);
-    device_sync();
+    Benchmark::run_experiment(do_cycles, true);
 
     // Cleanup
     MPI_Request_free(&my_reqs[SEND_REQ]);
     MPI_Request_free(&my_reqs[RECV_REQ]);
     MPI_Request_free(&my_other_reqs[SEND_REQ]);
     MPI_Request_free(&my_other_reqs[RECV_REQ]);
-
-    std::cout << rank << " is done: " << end - start << std::endl;
-    //Timing::print_timers(rank);
-    Timing::free_timers();
-
     MPI_Finalize();
 
+    Benchmark::cleanup();
     return 0;
 }
