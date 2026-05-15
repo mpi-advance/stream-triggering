@@ -1,13 +1,13 @@
 #!/bin/bash
-#flux: --nodes=2
+#flux: --nodes=1
 #flux: --nslots=2
-#flux: --time=1h
+#flux: --time=10m
 #flux: --queue=pdebug
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
 #flux: --env=NODES={{nnodes}}
-PPN=1
+PPN=2
 
 # Debugging options
 #set -e
@@ -15,18 +15,10 @@ PPN=1
 ## Go up on directory to tests folder
 cd ..
 
-# Switch between Tioga and Tuo modules
-if [ $# -eq 0 ]; then
-    echo "Running for the MI250X"
-    module load craype-accel-amd-gfx90a
-    SYSTEM="TIOGA"
-else
-    echo "Running for the MI300A"
-    module load craype-accel-amd-gfx942
-    SYSTEM="TUOLUMNE"
-fi
-
-module load rocm
+## Get the modules for the system
+SYSTEM="${LCSCHEDCLUSTER}"
+MOD_FILE="module_sets/${SYSTEM}"
+module load $(cat "$MOD_FILE")
 
 #Control output
 USER_BASE="$HOME/git/stream-triggering/tests/scratch"
@@ -47,42 +39,48 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
+export MPICH_GPU_SUPPORT_ENABLED=1
 
 # Settings related to individual tests
-TEST_NAME=pingpong_st
+TEST_NAME=pingpong
 TIME=3m
 START_EXP=3
 END_EXP=3
 NUM_ITERS=100000
 
-cd scratch/tmp/
-
-# Print out variables in run file just for tracking
-HOSTNAMES_FILE="a-hostnames.tmp"
-VAR_MOD_FILE="a-var-mod.tmp"
-echo "$START_EXP,$END_EXP,$SYSTEM" >> $VAR_MOD_FILE
+# Add hostnames to file
+srun --nodes=$NODES --ntasks-per-node=1 --output=$TARGET hostname
+# Save modules
+VAR_MOD_FILE=$TARGET
 module list >> $VAR_MOD_FILE 2>&1
-srun --output=$HOSTNAMES_FILE hostname
 
 # Function for running test
 run_test()(
-    RUN_FILE="$1.tmp"
-    STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    flux run -N$NODES --tasks-per-node=$PPN --output="$RUN_FILE" --time-limit=$TIME "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
-    sed -i "1i$STRING" $RUN_FILE
+    EXEC="./scratch/execs/${TEST_NAME}_${1}_${SYSTEM}"
+    if [ -n "$2" ]; then
+        EXEC="${EXEC}_$2"
+    fi
+    echo "Test: ${1} $NUM_ITERS $BUFF_SIZE" >> $TARGET
+    flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
+            --output="$TARGET" -o output.mode=append           \
+             "${EXEC}" $NUM_ITERS $BUFF_SIZE
 )
 
 run_db_test()(
-    RUN_FILE="${1}_db.tmp"
-    STRING="Test: ${1}_db $NUM_ITERS $BUFF_SIZE"
-    flux run -N$NODES --tasks-per-node=$PPN --output="$RUN_FILE" --time-limit=$TIME "../execs/${TEST_NAME}_db_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
-    sed -i "1i$STRING" $RUN_FILE
+    EXEC="./scratch/execs/${TEST_NAME}_${1}_db_${SYSTEM}"
+    if [ -n "$2" ]; then
+        EXEC="${EXEC}_$2"
+    fi
+    echo "Test: ${1} $NUM_ITERS $BUFF_SIZE" >> $TARGET
+    flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
+            --output="$TARGET" -o output.mode=append           \
+             "${EXEC}" $NUM_ITERS $BUFF_SIZE
 )
 
 run_tests()
 (
-    run_test $1
-    run_db_test $1
+    run_test "$@"
+    run_db_test "$@"
 )
 
 for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
@@ -96,17 +94,12 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
 
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
-    run_tests "cxi-coarse"
-    run_tests "cxi-fine"
+    run_tests "st" "cxi-coarse"
+    run_tests "st" "cxi-fine"
 
-    export MPICH_GPU_SUPPORT_ENABLED=1
     #run_tests "hip"
     #run_tests "thread"
     run_tests "mpi"
-    unset MPICH_GPU_SUPPORT_ENABLED
+    run_test "ipc"
 
-    # While slurm has append to file, flux does not. So we have to 
-    # manage temporary output files.
-    cat *.tmp >> $TARGET
-    rm -f *.tmp
 done
