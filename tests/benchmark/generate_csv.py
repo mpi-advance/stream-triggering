@@ -12,6 +12,8 @@ blue  = "\033[94m"
 default_input="../scratch/output"
 default_output_dir="../scratch/csv/"
 
+valid_dates=['05-19']
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
@@ -56,9 +58,16 @@ def main():
     for entry in dir_to_search.iterdir():
         if entry.is_file():
             print(f"{blue}Found: {reset}{entry}")
-            if "TIOGA" in entry.name or "FRONTIER" in entry.name:
+            values = entry.name.split("-")
+            curr_date =  "-".join(values[1:3])
+            if curr_date not in valid_dates:
+                print(f"Skipping due to date restrictions")
+                continue
+
+            file_name = entry.name.upper()
+            if "TIOGA" in file_name or "FRONTIER" in file_name:
                 device = "MI250"
-            elif "TUO" in entry.name:
+            elif "TUO" in file_name:
                 device = "MI300"
             else:
                 device = "?"

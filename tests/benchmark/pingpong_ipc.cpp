@@ -7,10 +7,13 @@ __global__ void set_buffer(int* buffer, int value)
     *buffer = value;
 }
 
-__global__ void set_buffers(int* read_buff, int* compl_buff, int compl_value)
+__global__ void set_ready_values(int* buffer, int buffer_len)
 {
-    *read_buff  = 0;
-    *compl_buff = compl_value;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    buffer[index] = index + 1;
 }
 
 __global__ void wait_for_value(volatile int* location, int value)
@@ -27,12 +30,20 @@ int main(int argc, char* argv[])
     Benchmark::init_benchmark<false, false>(&argc, &argv);
 
     // > Buffers for completion notifications
-    void* ready_buffer       = nullptr;
-    void* ready_value_buffer = nullptr;
+    void*  ready_buffer       = nullptr;
+    int*   ready_value_buffer = nullptr;
+    size_t buffer_value_size  = std::max(Benchmark::num_warmups, Benchmark::num_iters);
     Benchmark::allocate_gpu_memory(&ready_buffer, sizeof(int));
-    Benchmark::allocate_gpu_memory(&ready_value_buffer, sizeof(int));
+    Benchmark::allocate_gpu_memory((void**)&ready_value_buffer,
+                                   sizeof(int) * buffer_value_size);
 
-    set_buffers<<<1, 1>>>((int*)ready_buffer, (int*)ready_value_buffer, 1);
+    // Make sure ready_buffer is 0
+    set_buffer<<<1, 1>>>((int*)ready_buffer, 0);
+    // Prepare all "ready" values
+    int _num_blocks =
+        (buffer_value_size + Benchmark::BLOCK_SIZE - 1) / Benchmark::BLOCK_SIZE;
+    set_ready_values<<<_num_blocks, Benchmark::BLOCK_SIZE>>>(ready_value_buffer,
+                                                             buffer_value_size);
     device_sync();
 
     // Exchange HipIPC information
@@ -62,16 +73,13 @@ int main(int argc, char* argv[])
         using namespace Benchmark;
         for (int i = 0; i < num_cycles; i++)
         {
-            // Prepare the "ready" value, both sides can do this first.
-            set_buffer<<<1, 1, 0, bench_stream>>>((int*)ready_value_buffer, i + 1);
-
             if (0 == rank)  // Ping side
             {
                 // > Pack data to send
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)send_buffer, BUFFER_SIZE, i);
-                // > Move the ready buffer to peer
-                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, ready_value_buffer,
+                // > Move the ready value to peer
+                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, &ready_value_buffer[i],
                                              sizeof(int), bench_stream));
                 // > Wait for peer to finish packing
                 wait_for_value<<<1, 1, 0, bench_stream>>>((int*)ready_buffer, i + 1);
@@ -96,7 +104,7 @@ int main(int argc, char* argv[])
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
                 // > Tell the other side we are ready
-                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, ready_value_buffer,
+                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, &ready_value_buffer[i],
                                              sizeof(int), bench_stream));
             }
         }

@@ -86,8 +86,8 @@ void init_benchmark(int* argc, char*** argv)
 #else
     MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
 #endif
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buffer);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buffer);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * scaling_factor, mem_info, &send_buffer);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * scaling_factor, mem_info, &recv_buffer);
 #else
     allocate_gpu_memory(&send_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);
     allocate_gpu_memory(&recv_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);

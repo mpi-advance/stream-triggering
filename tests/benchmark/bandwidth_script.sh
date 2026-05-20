@@ -1,8 +1,8 @@
 #!/bin/bash
 #flux: --nodes=1
 #flux: --nslots=2
-#flux: --time=10m
-#flux: --queue=pdebug
+#flux: --time=1h
+#flux: --queue=pbatch
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
@@ -45,7 +45,7 @@ export MPICH_GPU_SUPPORT_ENABLED=1
 TEST_NAME=pingpong
 TIME=3m
 START_EXP=3
-END_EXP=3
+END_EXP=28
 NUM_ITERS=100000
 
 # Add hostnames to file
@@ -57,10 +57,12 @@ module list >> $VAR_MOD_FILE 2>&1
 # Function for running test
 run_test()(
     EXEC="./scratch/execs/${TEST_NAME}_${1}_${SYSTEM}"
+    TEST="$1"
     if [ -n "$2" ]; then
         EXEC="${EXEC}_$2"
+        TEST="${TEST}-$2"
     fi
-    echo "Test: ${1} $NUM_ITERS $BUFF_SIZE" >> $TARGET
+    echo "Test: ${TEST} $NUM_ITERS $BUFF_SIZE" >> $TARGET
     flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
             --output="$TARGET" -o output.mode=append           \
              "${EXEC}" $NUM_ITERS $BUFF_SIZE
@@ -68,10 +70,13 @@ run_test()(
 
 run_db_test()(
     EXEC="./scratch/execs/${TEST_NAME}_${1}_db_${SYSTEM}"
+    TEST="${1}"
     if [ -n "$2" ]; then
         EXEC="${EXEC}_$2"
+        TEST="${TEST}-${2}"
     fi
-    echo "Test: ${1} $NUM_ITERS $BUFF_SIZE" >> $TARGET
+    TEST="${TEST}_db"
+    echo "Test: ${TEST} $NUM_ITERS $BUFF_SIZE" >> $TARGET
     flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
             --output="$TARGET" -o output.mode=append           \
              "${EXEC}" $NUM_ITERS $BUFF_SIZE
@@ -95,11 +100,14 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
     run_tests "st" "cxi-coarse"
-    run_tests "st" "cxi-fine"
+    #run_tests "st" "cxi-fine"
 
     #run_tests "hip"
     #run_tests "thread"
     run_tests "mpi"
     run_test "ipc"
+    export HSA_ENABLE_SDMA=0
+    run_test "ipc"
+    export HSA_ENABLE_SDMA=1
 
 done
