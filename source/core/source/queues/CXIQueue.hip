@@ -2,6 +2,23 @@
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
+__global__ void set_to_zero(CompletionBufferFactory::COMPLETION_TYPE* buffer, size_t buffer_len)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= buffer_len)
+        return;
+
+    buffer[index] = 0;
+}
+
+void CompletionBufferFactory::initialize_main_buffer()
+{
+        int BLOCK_SIZE = 128;
+        int NUM_BLOCKS = (DEFAULT_ITEMS + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        set_to_zero<<<NUM_BLOCKS,BLOCK_SIZE>>>((COMPLETION_TYPE*)buffer, DEFAULT_ITEMS);
+        force_gpu(hipDeviceSynchronize());
+}
+
 void LibfabricInstance::initialize_libfabric()
 {
     // Hints will be freed by helper call below
@@ -259,7 +276,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
             CXIObjects& cxi_req = request_map.at(req->getID());
             /* Start Request */
             Print::out("Staring request:", req->getID());
-            TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter);
+            TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter, my_stream);
             Print::out("Request request:", actions);
 
             /* Add request to be waited on. */
@@ -295,10 +312,13 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
         the_gpu_counter->up_use_count();
     }
 
-    all_in_one.actual_size = num_reqs;
-    add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
-    force_kernel();
-    Print::out("Done staring all requests.");
+    if(num_reqs > 0)
+    {
+        all_in_one.actual_size = num_reqs;
+        add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
+        force_kernel();
+        Print::out("Done enqueing the starts for", num_reqs, "requests.");
+    }
 }
 
 void CXIQueue::enqueue_waitall()

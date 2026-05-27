@@ -278,9 +278,10 @@ class CompletionBufferFactory
 public:
     CompletionBufferFactory() : my_mr(nullptr), current_index(0)
     {
-        force_gpu(hipHostMalloc(&buffer, DEFAULT_SIZE, hipHostMallocDefault));
+        force_gpu(hipMalloc(&buffer, DEFAULT_SIZE));
         Print::out("Default Completion Buffer location:", buffer);
-        memset(buffer, 0, DEFAULT_SIZE);
+        initialize_main_buffer();
+        force_gpu(hipIpcGetMemHandle(&ipc_handle, buffer));
     }
 
     ~CompletionBufferFactory()
@@ -289,7 +290,7 @@ public:
         {
             force_libfabric(fi_close(&(my_mr)->fid));
         }
-        check_gpu(hipHostFree(buffer));
+        check_gpu(hipFree(buffer));
     }
 
     CompletionBufferFactory(const CompletionBufferFactory& other) = delete;
@@ -309,6 +310,11 @@ public:
         other.buffer = nullptr;
         other.my_mr  = nullptr;
         return *this;
+    }
+
+    hipIpcMemHandle_t get_ipc_handle()
+    {
+        return ipc_handle;
     }
 
     void register_mr(LibfabricInstance& libfab)
@@ -342,9 +348,12 @@ public:
     static constexpr size_t MAX_GPU_COMPLETIONS = 100;
 
 private:
-    struct fid_mr* my_mr;
-    void*          buffer;
-    size_t         current_index;
+    struct fid_mr*    my_mr;
+    void*             buffer;
+    size_t            current_index;
+    hipIpcMemHandle_t ipc_handle;
+
+    void initialize_main_buffer();
 };
 
 struct GPUCompletionDescription
@@ -568,10 +577,10 @@ public:
     CXIRequest(Request& req) : base_req(req), num_times_started(0) {}
 
     virtual ~CXIRequest() = default;
-    virtual TriggerStatus start_cpu(CXICounter& trigger_cntr)
+    virtual TriggerStatus start_cpu(CXICounter& trigger_cntr, hipStream_t* the_stream)
     {
         num_times_started++;
-        return start_derived(trigger_cntr);
+        return start_derived(trigger_cntr, the_stream);
     }
 
     virtual void wait_gpu(hipStream_t* the_stream);
@@ -594,7 +603,8 @@ public:
     }
 
 protected:
-    virtual TriggerStatus start_derived(CXICounter& trigger_cntr) = 0;
+    virtual TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                        hipStream_t* the_stream) = 0;
 
     Request&         base_req;
     CompletionBuffer completion_buffer;
@@ -638,7 +648,8 @@ public:
                                              comm_a, comm_b);
     }
 
-    TriggerStatus start_derived(CXICounter& trigger_cntr) override
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
     {
         // Update threshold of chained things
         work_entry.set_threshold(trigger_cntr.get_next_value());
@@ -697,7 +708,8 @@ public:
         check_libfabric(fi_close(&(cts_mr)->fid));
     }
 
-    TriggerStatus start_derived(CXICounter& trigger_cntr) override
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
     {
         // Update threshold of chained things
         work_entry.set_threshold(triggered.get_next_value() * 2);
@@ -724,6 +736,59 @@ private:
     CXICounter triggered;
     void*      cts_buffer;
     fid_mr*    cts_mr;
+};
+
+class CXIRSendShared : public CXIRequest
+{
+public:
+    CXIRSendShared(Request& user_request, CompletionBufferFactory& buffers,
+                   void* peer_completion)
+        : CXIRequest(user_request, buffers),
+          peer_base_completion_buffer_ptr(peer_completion),
+          peer_buffer_ptr(nullptr),
+          first_time(true)
+    {
+    }
+
+    ~CXIRSendShared()
+    {
+        check_gpu(hipIpcCloseMemHandle(peer_buffer_ptr));
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::sender_hip_ipc(
+            &peer_mem_handle, &peer_completion_offset, base_req, comm_a);
+    }
+
+protected:
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        if (first_time)
+        {
+            force_gpu(hipIpcOpenMemHandle(&peer_buffer_ptr, peer_mem_handle,
+                                          hipIpcMemLazyEnablePeerAccess));
+            first_time = false;
+        }
+        force_gpu(hipMemcpyDtoDAsync(peer_buffer_ptr, base_req.send_buffer,
+                                     get_size_of_buffer(base_req), *the_stream));
+        void* peer_completion_location =
+            (char*)peer_base_completion_buffer_ptr + peer_completion_offset;
+        force_gpu(hipMemcpyDtoDAsync(peer_completion_location, &num_times_started,
+                                     sizeof(num_times_started), *the_stream));
+
+        return TriggerStatus::NOT_NEEDED;
+    }
+
+private:
+    void*             peer_base_completion_buffer_ptr;
+    hipIpcMemHandle_t peer_mem_handle;
+    uint64_t          peer_completion_offset;
+
+    void* peer_buffer_ptr;
+    bool  first_time;
 };
 
 class CXIRecvOneSided : public CXIRequest
@@ -768,7 +833,8 @@ public:
                                                comm_a, comm_b);
     }
 
-    TriggerStatus start_derived(CXICounter& trigger_cntr) override
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
     {
         TriggerStatus rc = TriggerStatus::NOT_NEEDED;
         if (Operation::RSEND != peer_op)
@@ -810,6 +876,36 @@ private:
     AtomicEntry      local_completion;
 };
 
+class CXIRecvShared : public CXIRequest
+{
+public:
+    CXIRecvShared(Request& user_request, CompletionBufferFactory& buffers)
+        : CXIRequest(user_request, buffers)
+    {
+        force_gpu(hipIpcGetMemHandle(&recv_buffer_handle, user_request.recv_buffer));
+        completion_offset = completion_buffer.iov_description.addr;
+        Print::always("Offset for IPC:", completion_offset);
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::receiver_hip_ipc(
+            &recv_buffer_handle, &completion_offset, base_req, comm_a);
+    }
+
+protected:
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        return TriggerStatus::NOT_NEEDED;
+    }
+
+private:
+    hipIpcMemHandle_t recv_buffer_handle;
+    uint64_t          completion_offset;
+};
+
 class CXIQueue : public HIPQueue
 {
 public:
@@ -824,6 +920,10 @@ public:
         force_mpi(MPI_Comm_dup(comm_base, &match_phase_b));
         Print::out("Starting Allreduce to get CXI address data");
         libfab.initialize(match_phase_a);
+        Print::out("Starting Allreduce to get HIP IPC data");
+        initialize_ipc_handles();
+
+        // Global counter for when requests can share a triggering counter
         the_gpu_counter = std::make_unique<CXICounter>(libfab);
 
         // Register MR
@@ -835,9 +935,14 @@ public:
         MPI_Barrier(comm_base);
         MPI_Comm_free(&match_phase_a);
         MPI_Comm_free(&match_phase_b);
+        MPI_Comm_free(&on_node_peers);
         the_gpu_counter.reset();
         request_map.clear();
         my_buffer.free_mr();
+        for (auto& ipc_handle : ipc_mem_prts)
+        {
+            check_gpu(hipIpcCloseMemHandle(std::get<1>(ipc_handle)));
+        }
     }
 
     void enqueue_operation(std::shared_ptr<Request> request) override
@@ -882,6 +987,7 @@ private:
     int      my_rank;
     MPI_Comm match_phase_a;
     MPI_Comm match_phase_b;
+    MPI_Comm on_node_peers;
 
     // Map of Request ID to CXIObject (counters, mr)
     std::map<size_t, CXIObjects> request_map;
@@ -892,6 +998,40 @@ private:
 
     // GPU Triggerable Counter
     std::unique_ptr<CXICounter> the_gpu_counter;
+
+    // IPC memory handles (if any) of on node peers. Uses global ID.
+    std::map<int, void*> ipc_mem_prts;
+
+    void initialize_ipc_handles()
+    {
+        force_mpi(MPI_Comm_split_type(comm_base, MPI_COMM_TYPE_SHARED, my_rank,
+                                      MPI_INFO_NULL, &on_node_peers));
+        int on_node_size = 0;
+        force_mpi(MPI_Comm_size(on_node_peers, &on_node_size));
+        Print::out("Number of peers on node:", on_node_size);
+        if (on_node_size > 1)
+        {
+            hipIpcMemHandle_t              my_handle = my_buffer.get_ipc_handle();
+            std::vector<hipIpcMemHandle_t> peer_handles(on_node_size);
+            force_mpi(MPI_Allgather(&my_handle, sizeof(hipIpcMemHandle_t), MPI_BYTE,
+                                    peer_handles.data(), sizeof(hipIpcMemHandle_t),
+                                    MPI_BYTE, on_node_peers));
+
+            for (int rank = 0; rank < on_node_size; rank++)
+            {
+                int global_rank =
+                    Request::rankLookup(rank, on_node_peers, MPI_COMM_WORLD);
+                Print::out("On node rank:", rank, "Global rank:", global_rank);
+                if (global_rank != my_rank)
+                {
+                    void* d_peer_ptr;
+                    force_gpu(hipIpcOpenMemHandle(&d_peer_ptr, peer_handles[rank],
+                                                  hipIpcMemLazyEnablePeerAccess));
+                    ipc_mem_prts[global_rank] = d_peer_ptr;
+                }
+            }
+        }
+    }
 };
 
 #endif
