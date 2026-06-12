@@ -159,9 +159,11 @@ void cleanup()
 #if defined(NEED_HIP)
     check_gpu(hipFree(send_buffer));
     check_gpu(hipFree(recv_buffer));
+    check_gpu(hipStreamDestroy(bench_stream));
 #elif defined(NEED_CUDA)
     check_gpu(cudaFree(send_buffer));
     check_gpu(cudaFree(recv_buffer));
+    check_gpu(cudaStreamDestroy(bench_stream));
 #endif
 #endif
 }

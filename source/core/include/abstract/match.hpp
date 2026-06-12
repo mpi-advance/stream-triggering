@@ -72,30 +72,32 @@ static void sender(struct fi_rma_iov* recv_buffer_details, struct fi_rma_ioc* ct
                         phase_b, &mpi_requests[2]));
 }
 
-static constexpr size_t HIP_IPC_REQUESTS_TO_USE = 2;
+static constexpr size_t HIP_IPC_REQUESTS_TO_USE = 1;
 
-static void receiver_hip_ipc(hipIpcMemHandle_t* handle, uint64_t* offset, Request& req,
+struct IPCBundle
+{
+    hipIpcMemHandle_t handle;
+    uint64_t          offset;
+};
+
+static void receiver_hip_ipc(std::array<IPCBundle, 2>& ipc_data, Request& req,
                              MPI_Comm comm)
 {
     // Currently EAGER only
     int          real_rank    = req.resolve_comm_world();
     MPI_Request* mpi_requests = req.get_match_requests(HIP_IPC_REQUESTS_TO_USE);
-    check_mpi(MPI_Isend(handle, sizeof(hipIpcMemHandle_t), MPI_BYTE, real_rank, req.tag,
-                        comm, &mpi_requests[0]));
-    check_mpi(
-        MPI_Isend(offset, 1, MPI_UINT64_T, real_rank, req.tag, comm, &mpi_requests[1]));
+    check_mpi(MPI_Isend(ipc_data.data(), sizeof(IPCBundle) * 2, MPI_BYTE, real_rank,
+                        req.tag, comm, &mpi_requests[0]));
 }
 
-static void sender_hip_ipc(hipIpcMemHandle_t* handle, uint64_t* offset, Request& req,
+static void sender_hip_ipc(std::array<IPCBundle, 2>& ipc_data, Request& req,
                            MPI_Comm comm)
 {
     // Currently EAGER only
     int          real_rank    = req.resolve_comm_world();
     MPI_Request* mpi_requests = req.get_match_requests(HIP_IPC_REQUESTS_TO_USE);
-    check_mpi(MPI_Irecv(handle, sizeof(hipIpcMemHandle_t), MPI_BYTE, real_rank, req.tag,
-                        comm, &mpi_requests[0]));
-    check_mpi(
-        MPI_Irecv(offset, 1, MPI_UINT64_T, real_rank, req.tag, comm, &mpi_requests[1]));
+    check_mpi(MPI_Irecv(ipc_data.data(), sizeof(IPCBundle) * 2, MPI_BYTE, real_rank,
+                        req.tag, comm, &mpi_requests[0]));
 }
 
 #endif

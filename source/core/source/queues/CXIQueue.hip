@@ -2,23 +2,6 @@
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
-__global__ void set_to_zero(CompletionBufferFactory::COMPLETION_TYPE* buffer, size_t buffer_len)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    buffer[index] = 0;
-}
-
-void CompletionBufferFactory::initialize_main_buffer()
-{
-        int BLOCK_SIZE = 128;
-        int NUM_BLOCKS = (DEFAULT_ITEMS + BLOCK_SIZE - 1) / BLOCK_SIZE;
-        set_to_zero<<<NUM_BLOCKS,BLOCK_SIZE>>>((COMPLETION_TYPE*)buffer, DEFAULT_ITEMS);
-        force_gpu(hipDeviceSynchronize());
-}
-
 void LibfabricInstance::initialize_libfabric()
 {
     // Hints will be freed by helper call below
@@ -153,10 +136,37 @@ void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm)
     free(all_names);
 }
 
+void CXIQueue::exchange_protocol(Request& req)
+{
+    bool same_node = (MPI_UNDEFINED != Communication::Request::rankLookup(
+                                           req.peer, req.comm, on_node_peers));
+    Print::out("On node: ", req.getID(), same_node);
+    if ((Communication::Operation::RSEND == req.operation) && same_node)
+    {
+        req.protocol = Communication::Protocol::IPC;
+    }
+    else if ((Communication::Operation::RECV != req.operation))
+    {
+        req.protocol = Communication::Protocol::RNDV;
+    }
+    else
+    {
+        // Not technically needed since it is defaulted to none
+        req.protocol = Communication::Protocol::NONE;
+    }
+
+    // When matching, recv requests call MPI_Recv on B, so using that here too should
+    // avoid conflicts with other protocol/matching exchanges.
+    req.start_protocol_exchange(match_phase_b);
+}
+
 void CXIQueue::prepare_cxi_mr_key(Request& req)
 {
-    /* New request that prepares the user's request to be enqueued later*/
-    std::unique_ptr<CXIRequest> converted_request = nullptr;
+    /* Make sure request has the protocol exchange done */
+    req.wait_on_protcol();
+
+    /* New request that prepares the user's request to be enqueued later */
+    std::unique_ptr<CXIRequest> cxi_request = nullptr;
 
     /* Data to be exchanged (receiver sends this, sender receives this)
      * 1. MR key for receive buffer
@@ -166,17 +176,31 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
      */
     if (Communication::Operation::RECV == req.operation)
     {
-        converted_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
-                                                              libfab.get_peer(my_rank));
+        if (Communication::Protocol::IPC == req.protocol)
+        {
+            cxi_request = std::make_unique<CXIRecvShared>(req, my_buffer);
+        }
+        else
+        {
+            cxi_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
+                                                            libfab.get_peer(my_rank));
+        }
     }
     else if (Communication::Operation::RSEND == req.operation)
     {
-        converted_request =
-            std::make_unique<CXIRSend>(req, my_buffer, libfab, libfab.get_peer(my_rank));
+        if (Communication::Protocol::IPC == req.protocol)
+        {
+            cxi_request = std::make_unique<CXIRSendShared>(req, my_buffer);
+        }
+        else
+        {
+            cxi_request = std::make_unique<CXIRSend>(req, my_buffer, libfab,
+                                                     libfab.get_peer(my_rank));
+        }
     }
     else if (Communication::Operation::SEND == req.operation)
     {
-        converted_request =
+        cxi_request =
             std::make_unique<CXISend>(req, my_buffer, libfab, libfab.get_peer(my_rank));
     }
     else
@@ -184,9 +208,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
         throw std::runtime_error("Operation not supported");
     }
 
-    converted_request->match(match_phase_a, match_phase_b);
+    cxi_request->match(match_phase_a, match_phase_b);
 
-    request_map.insert(std::make_pair(req.getID(), std::move(converted_request)));
+    request_map.insert(std::make_pair(req.getID(), std::move(cxi_request)));
 }
 
 LibfabricInstance::~LibfabricInstance()
@@ -277,7 +301,13 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
             /* Start Request */
             Print::out("Staring request:", req->getID());
             TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter, my_stream);
-            Print::out("Request request:", actions);
+            Print::out("Request action:", actions);
+
+            /* If request does not need to be waited on, continue */
+            if (TriggerStatus::DONE == actions)
+            {
+                continue;
+            }
 
             /* Add request to be waited on. */
             active_requests.push_back(req->getID());
@@ -299,6 +329,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
                 (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS)))
             {
                 all_in_one.actual_size = num_reqs;
+                Print::out("<E> Launching add_to_counters for", num_reqs, "requests.");
                 add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
                 force_kernel();
                 num_reqs = 0;
@@ -306,18 +337,18 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
         }
     }
 
-    if(should_bump)
+    if (should_bump)
     {
         /* If we used the global counter, increase its use_count */
         the_gpu_counter->up_use_count();
     }
 
-    if(num_reqs > 0)
+    if (num_reqs > 0)
     {
         all_in_one.actual_size = num_reqs;
+        Print::out("<E> Launching add_to_counters for", num_reqs, "requests.");
         add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
         force_kernel();
-        Print::out("Done enqueing the starts for", num_reqs, "requests.");
     }
 }
 
@@ -334,12 +365,14 @@ void CXIQueue::enqueue_waitall()
         if (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS))
         {
             all_in_one.actual_size = num_reqs;
+            Print::out("<E> Enqueuing wait_on_completions kernel A");
             wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
             force_kernel();
             num_reqs = 0;
         }
     }
     all_in_one.actual_size = num_reqs;
+    Print::out("<E> Enqueuing wait_on_completions kernel B");
     wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
     force_kernel();
     active_requests.clear();

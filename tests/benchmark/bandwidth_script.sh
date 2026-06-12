@@ -1,8 +1,8 @@
 #!/bin/bash
 #flux: --nodes=1
 #flux: --nslots=2
-#flux: --time=1h
-#flux: --queue=pbatch
+#flux: --time=5m
+#flux: --queue=pdebug
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
@@ -40,13 +40,15 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 export MPICH_GPU_SUPPORT_ENABLED=1
+export AMD_LOG_LEVEL=4
+export AMD_LOG_MASK=967
 
 # Settings related to individual tests
 TEST_NAME=pingpong
 TIME=3m
-START_EXP=3
-END_EXP=28
-NUM_ITERS=100000
+START_EXP=13
+END_EXP=13
+NUM_ITERS=10
 
 # Add hostnames to file
 srun --nodes=$NODES --ntasks-per-node=1 --output=$TARGET hostname
@@ -77,9 +79,10 @@ run_db_test()(
     fi
     TEST="${TEST}_db"
     echo "Test: ${TEST} $NUM_ITERS $BUFF_SIZE" >> $TARGET
+    #ROCPROF_EXE="rocprofv3 --sys-trace --output-format pftrace --"
     flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
             --output="$TARGET" -o output.mode=append           \
-             "${EXEC}" $NUM_ITERS $BUFF_SIZE
+             ${ROCPROF_EXE} "${EXEC}" $NUM_ITERS $BUFF_SIZE
 )
 
 run_tests()
@@ -99,15 +102,18 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
 
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
-    run_tests "st" "cxi-coarse"
+
     #run_tests "st" "cxi-fine"
 
     #run_tests "hip"
     #run_tests "thread"
-    run_tests "mpi"
-    run_test "ipc"
-    export HSA_ENABLE_SDMA=0
-    run_test "ipc"
-    export HSA_ENABLE_SDMA=1
+    #run_tests "mpi"
+    #run_test "ipc"
+    #export HSA_ENABLE_SDMA=0
+    #run_tests "st" "cxi-coarse"
+    #run_test "ipc"
+    #export HSA_ENABLE_SDMA=1
+    export HSA_ENABLE_PEER_SDMA=0
+    run_tests "st" "cxi-coarse"
 
 done
