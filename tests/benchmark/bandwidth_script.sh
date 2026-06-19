@@ -1,5 +1,5 @@
 #!/bin/bash
-#flux: --nodes=1
+#flux: --nodes=2
 #flux: --nslots=2
 #flux: --time=5m
 #flux: --queue=pdebug
@@ -7,11 +7,11 @@
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
 #flux: --env=NODES={{nnodes}}
-PPN=2
+PPN=1
 
 # Debugging options
 #set -e
-#ulimit -c unlimited
+ulimit -c unlimited
 ## Go up on directory to tests folder
 cd ..
 
@@ -40,15 +40,13 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 export MPICH_GPU_SUPPORT_ENABLED=1
-export AMD_LOG_LEVEL=4
-export AMD_LOG_MASK=967
 
 # Settings related to individual tests
 TEST_NAME=pingpong
 TIME=3m
-START_EXP=13
-END_EXP=13
-NUM_ITERS=10
+START_EXP=0
+END_EXP=0
+NUM_ITERS=10000
 
 # Add hostnames to file
 srun --nodes=$NODES --ntasks-per-node=1 --output=$TARGET hostname
@@ -110,10 +108,10 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     #run_tests "mpi"
     #run_test "ipc"
     #export HSA_ENABLE_SDMA=0
-    #run_tests "st" "cxi-coarse"
+    run_tests "st" "cxi-coarse"
     #run_test "ipc"
     #export HSA_ENABLE_SDMA=1
-    export HSA_ENABLE_PEER_SDMA=0
-    run_tests "st" "cxi-coarse"
+    #export HSA_ENABLE_PEER_SDMA=0
+    #run_tests "st" "cxi-coarse"
 
 done

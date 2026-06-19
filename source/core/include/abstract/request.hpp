@@ -25,8 +25,12 @@ enum Protocol : int
     NONE = 0,
     IPC,
     EAGER,
+    CREDIT,
     RNDV,
 };
+
+constexpr size_t MAX_CREDIT_SLACK   = 5;
+constexpr size_t CREDIT_SIZE_CUTOFF = 32768;
 
 enum GPUMemoryType
 {

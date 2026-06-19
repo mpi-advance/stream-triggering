@@ -237,11 +237,33 @@ public:
         force_gpu(hipHostGetDevicePointer(&gpu_mmio_addr, mmio_addr, 0));
     }
 
+    CXICounter(CXICounter&& other) noexcept
+        : counter(other.counter),
+          counter_ops(other.counter_ops),
+          mmio_addr(other.mmio_addr),
+          mmio_addr_len(other.mmio_addr_len),
+          gpu_mmio_addr(other.gpu_mmio_addr),
+          use_count(other.use_count)
+    {
+        other.counter       = nullptr;
+        other.counter_ops   = nullptr;
+        other.mmio_addr     = nullptr;
+        other.mmio_addr_len = 0;
+        other.gpu_mmio_addr = nullptr;
+        other.use_count     = 0;
+    }
+
     ~CXICounter()
     {
         // Free counter
-        force_libfabric(fi_close(&counter->fid));
-        force_gpu(hipHostUnregister(mmio_addr));
+        if (nullptr != counter)
+        {
+            force_libfabric(fi_close(&counter->fid));
+        }
+        if (nullptr != mmio_addr)
+        {
+            force_gpu(hipHostUnregister(mmio_addr));
+        }
     }
 
     void print()
@@ -478,14 +500,14 @@ public:
         msg_iov = new_iovec;
     }
 
-    void set_rma_iov(struct fi_rma_iov new_rma_iov)
-    {
-        msg_rma_iov = new_rma_iov;
-    }
-
     void set_flags(uint64_t flags)
     {
         rma_work.flags = flags;
+    }
+
+    void set_rma_iov(fi_rma_iov new_iov)
+    {
+        msg_rma_iov = new_iov;
     }
 
     void print() override
@@ -537,9 +559,9 @@ public:
         return (&msg_rma_ioc);
     }
 
-    void set_rma_iov(struct fi_rma_iov new_rma_iov)
+    void set_rma_ioc(struct fi_rma_ioc new_rma_ioc)
     {
-        msg_rma_ioc = {new_rma_iov.addr, 1, new_rma_iov.key};
+        msg_rma_ioc = new_rma_ioc;
     }
 
     void set_flags(uint64_t flags)
@@ -562,12 +584,18 @@ protected:
     struct fi_rma_ioc   msg_rma_ioc;
 };
 
-enum TriggerStatus
+enum class TriggerStatus
 {
     NOT_NEEDED  = 0,
     GLOBAL_BUMP = 1,
     EXTRA_BUMP  = 2,
-    DONE        = 3,
+    DONE        = 3,  // No wait
+};
+
+enum class WaitStatus
+{
+    NOT_NEEDED    = 0,
+    GLOBAL_KERNEL = 1,
 };
 
 class CXIRequest
@@ -588,7 +616,7 @@ public:
         return start_derived(trigger_cntr, the_stream);
     }
 
-    virtual void wait_gpu(hipStream_t* the_stream);
+    virtual WaitStatus wait_gpu(hipStream_t* the_stream);
 
     virtual GPUMemoryType get_gpu_memory_type()
     {
@@ -648,9 +676,9 @@ public:
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::sender(work_entry.get_rma_iov_addr(),
-                                             protocol_buffer.get_rma_ioc_addr(), base_req,
-                                             comm_a, comm_b);
+        Communication::ProtocolMatch::sender_rndv(work_entry.get_rma_iov_addr(),
+                                                  protocol_buffer.get_rma_ioc_addr(),
+                                                  base_req, comm_a, comm_b);
     }
 
     TriggerStatus start_derived(CXICounter&  trigger_cntr,
@@ -805,6 +833,98 @@ private:
     std::array<ProtocolMatch::IPCBundle, 2> ipc_data;
 };
 
+class CXISendCredit : public CXIRSend
+{
+public:
+    CXISendCredit(Request& user_request, CompletionBufferFactory& buffers,
+                  LibfabricInstance& _libfab, fi_addr_t self)
+        : CXIRSend(user_request, buffers, _libfab, self)
+    {
+        credit_slots.reserve(Communication::MAX_CREDIT_SLACK);
+        for (size_t index = 0; index < Communication::MAX_CREDIT_SLACK; index++)
+        {
+            CXICounter temp_credit_counter(_libfab);
+            void*      temp_credit_buffer;
+            force_gpu(hipHostMalloc(&temp_credit_buffer,
+                                    CompletionBufferFactory::DEFAULT_ITEM_SIZE,
+                                    hipHostMallocDefault));
+            fid_mr* temp_credit_mr = _libfab.create_mr_with_counter(
+                temp_credit_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE,
+                FI_REMOTE_WRITE, FI_MR_ALLOCATED | FI_RMA_EVENT,
+                temp_credit_counter.counter, FI_REMOTE_WRITE);
+            credit_slots.emplace_back(std::move(temp_credit_counter), temp_credit_buffer,
+                                      temp_credit_mr);
+            Print::out("CREDIT MR SLOT:", temp_credit_buffer,
+                       temp_credit_counter.gpu_mmio_addr, temp_credit_mr);
+            credit_buffers[index] = {0, 1, fi_mr_key(temp_credit_mr)};
+        }
+    }
+
+    ~CXISendCredit()
+    {
+        for (auto& slot : credit_slots)
+        {
+            force_gpu(hipHostFree(std::get<1>(slot)));
+            check_libfabric(fi_close(&(std::get<2>(slot))->fid));
+        }
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::sender_credit(
+            &credit_buffer_details, credit_buffers, base_req, comm_a, comm_b);
+    }
+
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        size_t mr_counter_index =
+            (num_times_started - 1) % Communication::MAX_CREDIT_SLACK;
+        size_t threshold =
+            ((num_times_started - 1) / Communication::MAX_CREDIT_SLACK) * 2 + 1;
+
+        /* Update work entry to the correct remote buffer data */
+        auto     user_buffer_size  = get_size_of_buffer(base_req);
+        uint64_t offset            = mr_counter_index * user_buffer_size;
+        credit_buffer_details.addr = offset;
+        credit_buffer_details.len  = user_buffer_size;
+        Print::out("Using:", credit_buffer_details.addr, credit_buffer_details.len,
+                   credit_buffer_details.key);
+        work_entry.set_rma_iov(credit_buffer_details);
+        /* Update work entry to use current credit threshold */
+        work_entry.set_threshold(threshold);
+        /* Adjust the triggering counter to use the credit counter */
+        work_entry.set_trigger_counter(std::get<0>(credit_slots.at(mr_counter_index)));
+
+        // Queue up send of user data
+        // work_entry.print();
+        libfab.queue_work(work_entry.get_dwqe());
+
+        // Queue up completion DWQ
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
+
+        return TriggerStatus::EXTRA_BUMP;
+    }
+
+    GPUTriggerDescription get_gpu_trigger() override
+    {
+        size_t mr_counter_index =
+            (num_times_started - 1) % Communication::MAX_CREDIT_SLACK;
+        auto& triggered = std::get<0>(credit_slots.at(mr_counter_index));
+        triggered.up_use_count();
+        return (uint64_t*)(triggered.gpu_mmio_addr);
+    }
+
+private:
+    std::vector<std::tuple<CXICounter, void*, fid_mr*>> credit_slots;
+    struct fi_rma_iov                                   credit_buffer_details;
+    std::array<ProtocolMatch::CreditBundle, Communication::MAX_CREDIT_SLACK>
+        credit_buffers;
+};
+
+template <bool USE_EAGER>
 class CXIRecvOneSided : public CXIRequest
 {
 public:
@@ -842,16 +962,15 @@ public:
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Communication::ProtocolMatch::receiver(&user_buffer_rma_iov, &peer_op,
-                                               cts_entry.get_rma_ioc_addr(), base_req,
-                                               comm_a, comm_b);
+        Communication::ProtocolMatch::receiver_rndv(
+            &user_buffer_rma_iov, cts_entry.get_rma_ioc_addr(), base_req, comm_a, comm_b);
     }
 
     TriggerStatus start_derived(CXICounter&  trigger_cntr,
                                 hipStream_t* the_stream) override
     {
         TriggerStatus rc = TriggerStatus::NOT_NEEDED;
-        if (Operation::RSEND != peer_op)
+        if constexpr (!USE_EAGER)
         {
             Print::out("Queue CTS to Libfabric!");
             // Update threshold of chained things
@@ -876,7 +995,6 @@ private:
     // CTS Preparations
     struct fid_cntr* completion_a;
     AtomicEntry      cts_entry;
-    Operation        peer_op;
 
     // Allocated Libfabric Objects
     struct fid_mr* my_mr;
@@ -928,6 +1046,104 @@ protected:
 private:
     // [0] = buffer, [1] = completion
     std::array<ProtocolMatch::IPCBundle, 2> ipc_data;
+};
+
+class CXIRecvCredit : public CXIRequest
+{
+public:
+    CXIRecvCredit(Request& user_request, CompletionBufferFactory& buffers,
+                  LibfabricInstance& _libfab, fi_addr_t self)
+
+        : CXIRequest(user_request, buffers),
+          libfab(_libfab),
+          triggered(_libfab),
+          credit_entry(_libfab.ep, _libfab.get_peer(user_request.resolve_comm_world())),
+          completion_a(_libfab.alloc_counter(true)),   // CTS DWQ completion tracker
+          completion_b(_libfab.alloc_counter(false)),  // registered with user MR
+          completion_c(_libfab.alloc_counter(true)),   // Local completion DWQ Tracker
+          local_completion(_libfab.ep, self, completion_buffer.get_rma_ioc_addr())
+    {
+        auto buffer_size =
+            get_size_of_buffer(user_request) * Communication::MAX_CREDIT_SLACK;
+        force_gpu(hipMalloc(&credit_buffers, buffer_size));
+        my_mr = _libfab.create_mr_with_counter(
+            credit_buffers, buffer_size, FI_REMOTE_WRITE, FI_MR_ALLOCATED | FI_RMA_EVENT,
+            completion_b, FI_REMOTE_WRITE);
+
+        credit_buffer_rma_iov = {0, buffer_size, fi_mr_key(my_mr)};
+
+        // Adjust the triggering counter to use
+        credit_entry.set_trigger_counter(triggered);
+        credit_entry.set_completion_counter(completion_a);
+        local_completion.set_trigger_counter(completion_b);
+        local_completion.set_completion_counter(completion_c);
+    }
+
+    ~CXIRecvCredit()
+    {
+        // Free counter
+        libfab.dealloc_counter(completion_a);
+        libfab.dealloc_counter(completion_c);
+        // Free MR
+        force_libfabric(fi_close(&(my_mr)->fid));
+        libfab.dealloc_counter(completion_b);
+        check_gpu(hipFree(credit_buffers));
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::receiver_credit(
+            &credit_buffer_rma_iov, remote_credit_buffers, base_req, comm_a, comm_b);
+    }
+
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        Print::out("Queue Credit to Libfabric!");
+        // Update which credit slot we want to write to
+        credit_entry.set_rma_ioc(remote_credit_buffers.at(
+            ((num_times_started - 1) % Communication::MAX_CREDIT_SLACK)));
+        // Update threshold of chained things
+        credit_entry.set_threshold(triggered.get_next_value());
+        // Queue up remote credit DWQ
+        libfab.queue_work(credit_entry.get_dwqe());
+
+        // Queue up local completion DWQ
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
+
+        return TriggerStatus::NOT_NEEDED;
+    }
+
+    WaitStatus wait_gpu(hipStream_t* the_stream) override;
+
+private:
+    void* credit_buffers;
+
+    // Reference to global libfabric stuff
+    LibfabricInstance& libfab;
+
+    // Counter trigger for credit counter
+    CXICounter triggered;
+    // Remote locations to send credit too
+    std::array<ProtocolMatch::CreditBundle, Communication::MAX_CREDIT_SLACK>
+        remote_credit_buffers;
+
+    // Credit DWQ Preparations
+    struct fid_cntr* completion_a;
+    AtomicEntry      credit_entry;
+
+    // Allocated Libfabric Objects
+    struct fid_mr* my_mr;
+
+    // User buffer details
+    struct fi_rma_iov credit_buffer_rma_iov;
+
+    // Local completion
+    struct fid_cntr* completion_b;
+    struct fid_cntr* completion_c;
+    AtomicEntry      local_completion;
 };
 
 class CXIQueue : public HIPQueue

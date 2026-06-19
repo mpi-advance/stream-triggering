@@ -145,13 +145,23 @@ void CXIQueue::exchange_protocol(Request& req)
     {
         req.protocol = Communication::Protocol::IPC;
     }
-    else if ((Communication::Operation::RECV != req.operation))
+    else if ((Communication::Operation::RSEND == req.operation))
+    {
+        req.protocol = Communication::Protocol::EAGER;
+    }
+    else if ((Communication::Operation::SEND == req.operation) &&
+             (Communication::CREDIT_SIZE_CUTOFF >= get_size_of_buffer(req)))
+    {
+        req.protocol = Communication::Protocol::CREDIT;
+    }
+    else if ((Communication::Operation::SEND == req.operation))
     {
         req.protocol = Communication::Protocol::RNDV;
     }
     else
     {
-        // Not technically needed since it is defaulted to none
+        /* RECV will get the protocl from the match. Not technically needed since it is
+         * defaulted to none */
         req.protocol = Communication::Protocol::NONE;
     }
 
@@ -168,44 +178,70 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
     /* New request that prepares the user's request to be enqueued later */
     std::unique_ptr<CXIRequest> cxi_request = nullptr;
 
-    /* Data to be exchanged (receiver sends this, sender receives this)
-     * 1. MR key for receive buffer
-     * 2. Remote completion buffer mr key
-     * 3. Remote completion buffer offset
-     * TODO: UPDATE FOR NEW LISTS OF 5 ITEMS
-     */
+    /* Create the object that will carry out the protocol for the operation*/
     if (Communication::Operation::RECV == req.operation)
     {
-        if (Communication::Protocol::IPC == req.protocol)
+        switch (req.protocol)
         {
-            cxi_request = std::make_unique<CXIRecvShared>(req, my_buffer);
-        }
-        else
-        {
-            cxi_request = std::make_unique<CXIRecvOneSided>(req, my_buffer, libfab,
-                                                            libfab.get_peer(my_rank));
+            case Communication::Protocol::IPC:
+                cxi_request = std::make_unique<CXIRecvShared>(req, my_buffer);
+                break;
+            case Communication::Protocol::EAGER:
+                cxi_request = std::make_unique<CXIRecvOneSided<true>>(
+                    req, my_buffer, libfab, libfab.get_peer(my_rank));
+                break;
+            case Communication::Protocol::CREDIT:
+                cxi_request = std::make_unique<CXIRecvCredit>(req, my_buffer, libfab,
+                                                              libfab.get_peer(my_rank));
+                break;
+            case Communication::Protocol::RNDV:
+                cxi_request = std::make_unique<CXIRecvOneSided<false>>(
+                    req, my_buffer, libfab, libfab.get_peer(my_rank));
+                break;
+            default:
+                cxi_request = nullptr;
+                break;
         }
     }
     else if (Communication::Operation::RSEND == req.operation)
     {
-        if (Communication::Protocol::IPC == req.protocol)
+        switch (req.protocol)
         {
-            cxi_request = std::make_unique<CXIRSendShared>(req, my_buffer);
-        }
-        else
-        {
-            cxi_request = std::make_unique<CXIRSend>(req, my_buffer, libfab,
-                                                     libfab.get_peer(my_rank));
+            case Communication::Protocol::IPC:
+                cxi_request = std::make_unique<CXIRSendShared>(req, my_buffer);
+                break;
+            case Communication::Protocol::EAGER:
+                cxi_request = std::make_unique<CXIRSend>(req, my_buffer, libfab,
+                                                         libfab.get_peer(my_rank));
+                break;
+            default:
+                cxi_request = nullptr;
+                break;
         }
     }
     else if (Communication::Operation::SEND == req.operation)
     {
-        cxi_request =
-            std::make_unique<CXISend>(req, my_buffer, libfab, libfab.get_peer(my_rank));
+        switch (req.protocol)
+        {
+            case Communication::Protocol::CREDIT:
+                cxi_request = std::make_unique<CXISendCredit>(req, my_buffer, libfab,
+                                                              libfab.get_peer(my_rank));
+                break;
+            case Communication::Protocol::RNDV:
+                cxi_request = std::make_unique<CXISend>(req, my_buffer, libfab,
+                                                        libfab.get_peer(my_rank));
+                break;
+            default:
+                cxi_request = nullptr;
+                break;
+        }
     }
-    else
+
+    if (nullptr == cxi_request)
     {
-        throw std::runtime_error("Operation not supported");
+        Print::out("No action for:", req.operation, req.protocol);
+        throw std::runtime_error(
+            "Unable to determine actions for Operation and Protocol.");
     }
 
     cxi_request->match(match_phase_a, match_phase_b);
@@ -259,17 +295,61 @@ __global__ void wait_on_completions(GPUCompletions completions)
     }
 }
 
+__global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
+                           void* temp_buffer, void* user_buffer, size_t size,
+                           uint64_t* cntr, size_t value)
+{
+    /* Wait on the data to come in*/
+    while (*comp_addr < goal_value)
+    {
+        // Do nothing
+    }
+
+    /* Unpack the data*/
+    double4* c_temp             = reinterpret_cast<double4*>(temp_buffer);
+    double4* c_user             = reinterpret_cast<double4*>(user_buffer);
+    size_t   max_complete_index = (size / sizeof(double4));
+    for (size_t index = 0; index < max_complete_index; index++)
+    {
+        c_user[index] = c_temp[index];
+    }
+    
+    char* start_temp = reinterpret_cast<char*>(&c_temp[max_complete_index]);
+    char* start_user = reinterpret_cast<char*>(&c_user[max_complete_index]);
+    for (size_t remainder = 0; remainder < (size % sizeof(double4)); remainder++)
+    {
+        start_user[remainder] = start_temp[remainder];
+    }
+
+    /* Trigger the Credit back*/
+    *cntr = value;
+}
+
 __global__ void flush_buffer()
 {
     asm volatile("buffer_wbl2");
 }
 
-void CXIRequest::wait_gpu(hipStream_t* the_stream)
+WaitStatus CXIRequest::wait_gpu(hipStream_t* the_stream)
 {
-    Print::out("<E> This request will wait for:", num_times_started, "at",
-               completion_buffer.address);
-    wait_on_completion<<<1, 1, 0, *the_stream>>>((size_t*)completion_buffer.address,
-                                                 num_times_started);
+    return WaitStatus::GLOBAL_KERNEL;
+}
+
+WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
+{
+    auto  buffer_size = get_size_of_buffer(base_req);
+    void* credit_buffer_slot =
+        (char*)credit_buffers +
+        (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size);
+    Print::out("<E> Enqueuing Credit Kernel", (size_t*)completion_buffer.address,
+               num_times_started, credit_buffer_slot, base_req.recv_buffer, buffer_size,
+               (uint64_t*)(triggered.gpu_mmio_addr));
+    eager_recv<<<1, 1, 0, *the_stream>>>(
+        (size_t*)completion_buffer.address, num_times_started, credit_buffer_slot,
+        base_req.recv_buffer, buffer_size, (uint64_t*)(triggered.gpu_mmio_addr), 1);
+    force_kernel();
+    triggered.up_use_count();
+    return WaitStatus::NOT_NEEDED;
 }
 
 void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
@@ -301,7 +381,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
             /* Start Request */
             Print::out("Staring request:", req->getID());
             TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter, my_stream);
-            Print::out("Request action:", actions);
+            Print::out("Request action:", (int)actions);
 
             /* If request does not need to be waited on, continue */
             if (TriggerStatus::DONE == actions)
@@ -358,23 +438,31 @@ void CXIQueue::enqueue_waitall()
     size_t         num_reqs = 0;
     for (auto req : active_requests)
     {
-        all_in_one.buffer[num_reqs] = request_map.at(req)->get_gpu_completion();
-        Print::out("Waiting on request:", req, all_in_one.buffer[num_reqs].comp_addr,
-                   all_in_one.buffer[num_reqs].goal_value);
-        num_reqs++;
-        if (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS))
+        if (WaitStatus::GLOBAL_KERNEL == request_map.at(req)->wait_gpu(my_stream))
         {
-            all_in_one.actual_size = num_reqs;
-            Print::out("<E> Enqueuing wait_on_completions kernel A");
-            wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
-            force_kernel();
-            num_reqs = 0;
+            all_in_one.buffer[num_reqs] = request_map.at(req)->get_gpu_completion();
+            Print::out("Waiting on request:", req, all_in_one.buffer[num_reqs].comp_addr,
+                       all_in_one.buffer[num_reqs].goal_value);
+            num_reqs++;
+            if (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS))
+            {
+                all_in_one.actual_size = num_reqs;
+                Print::out("<E> Enqueuing wait_on_completions kernel A");
+                wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
+                force_kernel();
+                num_reqs = 0;
+            }
         }
     }
-    all_in_one.actual_size = num_reqs;
-    Print::out("<E> Enqueuing wait_on_completions kernel B");
-    wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
-    force_kernel();
+
+    if (num_reqs > 0)
+    {
+        all_in_one.actual_size = num_reqs;
+        Print::out("<E> Enqueuing wait_on_completions kernel B");
+        wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
+        force_kernel();
+    }
+
     active_requests.clear();
     // If there are any requests offloaded to CPU
     if (entries.size() > 0)
