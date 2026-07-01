@@ -299,6 +299,9 @@ __global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
                            void* temp_buffer, void* user_buffer, size_t size,
                            uint64_t* cntr, size_t value)
 {
+    int index       = blockIdx.x * blockDim.x + threadIdx.x;
+    int num_threads = blockDim.x * gridDim.x;
+
     /* Wait on the data to come in*/
     while (*comp_addr < goal_value)
     {
@@ -309,20 +312,23 @@ __global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
     double4* c_temp             = reinterpret_cast<double4*>(temp_buffer);
     double4* c_user             = reinterpret_cast<double4*>(user_buffer);
     size_t   max_complete_index = (size / sizeof(double4));
-    for (size_t index = 0; index < max_complete_index; index++)
+    for (int i = index; i < max_complete_index; i += num_threads)
     {
-        c_user[index] = c_temp[index];
-    }
-    
-    char* start_temp = reinterpret_cast<char*>(&c_temp[max_complete_index]);
-    char* start_user = reinterpret_cast<char*>(&c_user[max_complete_index]);
-    for (size_t remainder = 0; remainder < (size % sizeof(double4)); remainder++)
-    {
-        start_user[remainder] = start_temp[remainder];
+        c_user[i] = c_temp[i];
     }
 
-    /* Trigger the Credit back*/
-    *cntr = value;
+    if (0 == index)
+    {
+        char* start_temp = reinterpret_cast<char*>(&c_temp[max_complete_index]);
+        char* start_user = reinterpret_cast<char*>(&c_user[max_complete_index]);
+        for (size_t remainder = 0; remainder < (size % sizeof(double4)); remainder++)
+        {
+            start_user[remainder] = start_temp[remainder];
+        }
+
+        /* Trigger the Credit back*/
+        *cntr = value;
+    }
 }
 
 __global__ void flush_buffer()
@@ -344,7 +350,7 @@ WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
     Print::out("<E> Enqueuing Credit Kernel", (size_t*)completion_buffer.address,
                num_times_started, credit_buffer_slot, base_req.recv_buffer, buffer_size,
                (uint64_t*)(triggered.gpu_mmio_addr));
-    eager_recv<<<1, 1, 0, *the_stream>>>(
+    eager_recv<<<1, 64, 0, *the_stream>>>(
         (size_t*)completion_buffer.address, num_times_started, credit_buffer_slot,
         base_req.recv_buffer, buffer_size, (uint64_t*)(triggered.gpu_mmio_addr), 1);
     force_kernel();
