@@ -32,6 +32,9 @@ enum Protocol : int
 constexpr size_t MAX_CREDIT_SLACK   = 5;
 constexpr size_t CREDIT_SIZE_CUTOFF = 32768;
 
+extern bool IPC_PROTOCOL_ENABLED;
+extern bool CREDIT_PROTOCOL_ENABLED;
+
 enum GPUMemoryType
 {
     COARSE = 1,

@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "abstract/request.hpp"
+#include "misc/initialize.hpp"
 #include "misc/print.hpp"
 #include "stream-triggering.h"
 
@@ -39,42 +40,6 @@ struct MPISException : public std::runtime_error
 
     int code;
 };
-
-static inline void print_device_info()
-{
-#ifdef HIP_GPUS
-    int device = -1;
-    int count  = -1;
-    force_gpu(hipGetDevice(&device));
-    force_gpu(hipGetDeviceCount(&count));
-    Print::out("Current Device:", device, count);
-
-    for (int i = 0; i < count; i++)
-    {
-        int pci_bus_id    = -1;
-        int pci_device_id = -1;
-        int pci_domain_id = -1;
-        force_gpu(hipDeviceGetAttribute(&pci_bus_id, hipDeviceAttributePciBusId, i));
-        force_gpu(
-            hipDeviceGetAttribute(&pci_device_id, hipDeviceAttributePciDeviceId, i));
-        force_gpu(
-            hipDeviceGetAttribute(&pci_domain_id, hipDeviceAttributePciDomainID, i));
-        Print::out("Others:", i, pci_bus_id, pci_device_id, pci_domain_id);
-    }
-#endif
-}
-
-static inline void init_debugs()
-{
-    //  Setup printing rank
-    int rank = -1;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    Print::initialize_rank(rank);
-    Print::out("Initialized");
-#ifndef NDEBUG
-    print_device_info();
-#endif
-}
 
 // Functions for extracting C++ request from C type (if it's correct request
 // type)

@@ -141,7 +141,8 @@ void CXIQueue::exchange_protocol(Request& req)
     bool same_node = (MPI_UNDEFINED != Communication::Request::rankLookup(
                                            req.peer, req.comm, on_node_peers));
     Print::out("On node: ", req.getID(), same_node);
-    if ((Communication::Operation::RSEND == req.operation) && same_node)
+    if (Communication::IPC_PROTOCOL_ENABLED &&
+        (Communication::Operation::RSEND == req.operation) && same_node)
     {
         req.protocol = Communication::Protocol::IPC;
     }
@@ -149,7 +150,8 @@ void CXIQueue::exchange_protocol(Request& req)
     {
         req.protocol = Communication::Protocol::EAGER;
     }
-    else if ((Communication::Operation::SEND == req.operation) &&
+    else if (Communication::CREDIT_PROTOCOL_ENABLED &&
+             (Communication::Operation::SEND == req.operation) &&
              (Communication::CREDIT_SIZE_CUTOFF >= get_size_of_buffer(req)))
     {
         req.protocol = Communication::Protocol::CREDIT;
