@@ -809,19 +809,15 @@ protected:
         }
         Print::out("Using Offsets for IPC:", ipc_data[0].offset, ipc_data[1].offset,
                    get_size_of_buffer(base_req), peer_buffer_ptr);
+
         void* peer_true_buffer = (char*)peer_buffer_ptr + ipc_data[0].offset;
-        Print::out("Done -1");
         force_gpu(hipMemcpyDtoDAsync(peer_true_buffer, base_req.send_buffer,
                                      get_size_of_buffer(base_req), *the_stream));
-        Print::out("Done 0");
-        force_gpu(hipStreamSynchronize(*the_stream));
-        Print::out("Done 1");
+
         void* peer_true_completion = (char*)peer_completion_ptr + ipc_data[1].offset;
         force_gpu(hipMemcpyDtoDAsync(peer_true_completion, &num_times_started,
                                      sizeof(num_times_started), *the_stream));
 
-        force_gpu(hipStreamSynchronize(*the_stream));
-        Print::out("Done 2");
         return TriggerStatus::DONE;
     }
 
