@@ -1,3 +1,4 @@
+#include "abstract/queue.hpp"
 #include "helpers.hpp"
 
 extern "C" {
@@ -19,12 +20,13 @@ int MPIS_Wait(MPIS_Request* request, MPI_Status* status)
                             "MPIS_Wait can't wait on communicaiton requests yet");
     }
 
-    std::shared_ptr<Request>* internal_request = convert_request_ptr(request);
+    Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
+
     /* TODO: Give the user a status object back*/
-    (*internal_request)->wait_on_match();
+    the_queue->finalize_match({*convert_request_ptr(request)});
 
     /* Delete allocated MPIS_Request object */
-    delete* request;
+    delete *request;
     /* Set it back to null */
     *request = MPIS_REQUEST_NULL;
 

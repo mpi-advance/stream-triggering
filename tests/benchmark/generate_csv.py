@@ -12,6 +12,8 @@ blue  = "\033[94m"
 default_input="../scratch/output"
 default_output_dir="../scratch/csv/"
 
+valid_dates=['07-07','07-08','07-09']
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
@@ -56,9 +58,16 @@ def main():
     for entry in dir_to_search.iterdir():
         if entry.is_file():
             print(f"{blue}Found: {reset}{entry}")
-            if "TIOGA" in entry.name or "FRONTIER" in entry.name:
+            values = entry.name.split("-")
+            curr_date =  "-".join(values[1:3])
+            if curr_date not in valid_dates:
+                print(f"Skipping due to date restrictions")
+                continue
+
+            file_name = entry.name.upper()
+            if "TIOGA" in file_name or "FRONTIER" in file_name:
                 device = "MI250"
-            elif "TUO" in entry.name:
+            elif "TUO" in file_name:
                 device = "MI300"
             else:
                 device = "?"
@@ -72,18 +81,14 @@ def main():
                             raise ValueError("Expceted to find time -- found another test instead")
                         
                         test_search = False
-                        _, test, num_iters, buff_size = line.strip().split(" ")
-                        if("_" in test):
-                            test, mode = test.split("_")
-                        else:
-                            mode = "sb"
+                        _, test, mode, ipc, num_iters, buff_size = line.strip().split(" ")
                     elif "0 is done:" in line:
                         if test_search:
                             raise ValueError("Expceted to find test -- found a time value instead")
                         
                         _, time = line.strip().split(":")
                             
-                        writer.writerow([device, test, mode, num_iters, buff_size, time.strip()])
+                        writer.writerow([device, test, mode, ipc, num_iters, buff_size, time.strip()])
                         test_search = True
 
 if __name__ == "__main__":

@@ -1,0 +1,3 @@
+rocm/6.4.3
+cray-mpich/9.0.1
+craype-accel-amd-gfx942

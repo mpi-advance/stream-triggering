@@ -20,6 +20,21 @@ enum Operation : int
     ALLREDUCE
 };
 
+enum Protocol : int
+{
+    NONE = 0,
+    IPC,
+    EAGER,
+    CREDIT,
+    RNDV,
+};
+
+constexpr size_t MAX_CREDIT_SLACK   = 5;
+constexpr size_t CREDIT_SIZE_CUTOFF = 32768;
+
+extern bool IPC_PROTOCOL_ENABLED;
+extern bool CREDIT_PROTOCOL_ENABLED;
+
 enum GPUMemoryType
 {
     COARSE = 1,
@@ -30,6 +45,7 @@ class Request
 {
 public:
     Operation    operation;
+    Protocol     protocol;
     void*        send_buffer;
     void*        recv_buffer;
     MPI_Count    count;
@@ -44,6 +60,7 @@ public:
             MPI_Count _count, MPI_Datatype _datatype, int _peer, int _tag, MPI_Comm _comm,
             MPI_Info _info, MPI_Op _op = MPI_OP_NULL)
         : operation(_operation),
+          protocol(Protocol::NONE),
           send_buffer(_send_buffer),
           recv_buffer(_recv_buffer),
           count(_count),
@@ -56,8 +73,6 @@ public:
           myID(assignID()),
           matched(false)
     {
-        print();
-
         constexpr int     string_size = 100;
         char              info_key[]  = "mpi_memory_alloc_kinds";
         std::vector<char> value(string_size, 0);
@@ -78,6 +93,8 @@ public:
             Print::out("Using coarse-grained memory!");
             memory_type = GPUMemoryType::COARSE;
         }
+
+        print();
     };
 
     bool is_matched()
@@ -95,6 +112,26 @@ public:
         match_requests = std::vector<MPI_Request>(num, MPI_REQUEST_NULL);
         match_statuses = std::vector<MPI_Status>(num);
         return match_requests.data();
+    }
+
+    void start_protocol_exchange(MPI_Comm channel)
+    {
+        if (Operation::RECV == operation)
+        {
+            check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, peer, tag, channel,
+                                &protocol_request));
+        }
+        else
+        {
+            check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, peer, tag, channel,
+                                &protocol_request));
+        }
+    }
+
+    void wait_on_protcol()
+    {
+        check_mpi(MPI_Wait(&protocol_request, MPI_STATUS_IGNORE));
+        Print::out("Final Protocol:", protocol);
     }
 
     void wait_on_match()
@@ -140,6 +177,7 @@ public:
 protected:
     size_t                   myID;
     GPUMemoryType            memory_type;
+    MPI_Request              protocol_request;
     std::vector<MPI_Request> match_requests;
     std::vector<MPI_Status>  match_statuses;
     bool                     matched = false;
@@ -153,9 +191,11 @@ protected:
 private:
     void print()
     {
-        Print::out("Request", myID, operation, " - attributes:\n\tBuffers:", send_buffer,
-                   recv_buffer, "\n\tCount", count, "\n\tType:", datatype,
-                   "\n\tPeer:", peer, "\n\tTag:", tag, "\n\tComm:", comm, "\n\tOp:", op);
+        Print::out("Request", myID, "Operation:", operation, protocol,
+                   "GPU Buffer Type:", memory_type,
+                   " - attributes:\n\tBuffers:", send_buffer, recv_buffer, "\n\tCount",
+                   count, "\n\tType:", datatype, "\n\tPeer:", peer, "\n\tTag:", tag,
+                   "\n\tComm:", comm, "\n\tOp:", op);
     }
 };
 

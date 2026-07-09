@@ -34,12 +34,26 @@ public:
         progress_engine.wait_until_empty();
     }
 
-    virtual void match(std::shared_ptr<Request> request)
+    virtual void initiate_match(std::vector<std::shared_ptr<Request>> requests)
     {
-        if (Operation::BARRIER > request->operation)
+        for (auto& req : requests)
         {
-            // Normal matching
-            Communication::BlankMatch::match(*request);
+            if (Operation::BARRIER > req->operation)
+            {
+                // Normal matching
+                Communication::BlankMatch::match(*req);
+            }
+        }
+    }
+
+    virtual void finalize_match(std::vector<std::shared_ptr<Request>> requests)
+    {
+        for (auto& req : requests)
+        {
+            if (Operation::BARRIER > req->operation)
+            {
+                req->wait_on_match();
+            }
         }
     }
 
