@@ -1,0 +1,6 @@
+craype/2.7.36
+rocm/7.2.1 
+cce/21.0.2
+rocmcc/7.2.1-cce-21.0.2-magic
+craype-accel-amd-gfx942
+cray-mpich/9.1.0

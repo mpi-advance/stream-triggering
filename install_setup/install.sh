@@ -3,6 +3,9 @@
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
+# Resolve the absolute path to the directory containing this script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 usage() {
     echo "Usage: $0 [-B value] [-m file]"
     echo " -B Build mode: 0 (Debug, default), 1 (Release), 2 (RelWithDebInfo)"
@@ -61,7 +64,7 @@ fi
 if [ -n "$CUSTOM_MODULE_FILE" ]; then
     MODULE_FILE="$CUSTOM_MODULE_FILE"
 else
-    MODULE_FILE="${CLUSTER_NAME}_modules.txt"
+    MODULE_FILE="${SCRIPT_DIR}/${CLUSTER_NAME}_modules.txt"
 fi
 
 if [ ! -f "$MODULE_FILE" ]; then
@@ -120,7 +123,7 @@ fi
 mkdir $DIR_TO_BUILD && cd $DIR_TO_BUILD
 
 cmake -DUSE_HIP_BACKEND=ON -DUSE_CXI_BACKEND=ON -DLIBFABRIC_PREFIX=${LIBFABRIC_DIR} \
-      -DCMAKE_HIP_ARCHITECTURES=${GPU_ARCH} -DCMAKE_INSTALL_PREFIX=${HOME}/apps/foo \
+      -DCMAKE_HIP_ARCHITECTURES=${GPU_ARCH} -DCMAKE_INSTALL_PREFIX=${HOME}/apps/stream-trigger \
       "${CMAKE_EXTRAS[@]}" -DCMAKE_BUILD_TYPE=$MODE ..
 
 make -j8

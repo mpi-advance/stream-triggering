@@ -31,10 +31,22 @@ def compile_test(program, output, defines, modules, st_base_path):
     st_lib = f"-L{st_base_path}/lib" if st_base_path else ""
     libs = "-lstream-triggering" if st_base_path else ""
 
+    # Determine compiler
+    compiler="CC"
+    extras=[]
+    for module in modules:
+        if "rocmcc" in module:
+            compiler="mpiamdclang++"
+            extras=["--offload-arch=gfx942", "-mllvm -amdgpu-early-inline-all=true",
+                    "-mllvm -amdgpu-function-calls=false", "-fhip-new-launch-api",
+                    "--driver-mode=g++" ]
+            break
+
     # Base compiler command
     cc_cmd = [
-        "CC", "-D__HIP_PLATFORM_AMD__", "-O3", "-g", "-std=c++20", "-x", "hip"
+        f"{compiler}", "-D__HIP_PLATFORM_AMD__", "-O3", "-g", "-std=c++20", "-x", "hip"
     ]
+    cc_cmd.extend(extras)
     
     # Add defines and other arguments
     cc_cmd.extend(defines.split())
@@ -89,7 +101,7 @@ def main():
     if args.modlist:
         module_path = Path(args.modlist)
     else:
-        module_path = Path(f"module_sets/{cluster.lower()}")
+        module_path = Path(f"../install_setup/{cluster.lower()}_modules.txt")
     
     if not module_path.exists():
         print(f"Could not find: {args.modlist}. Stopping.")

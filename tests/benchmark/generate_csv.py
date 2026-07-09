@@ -12,7 +12,7 @@ blue  = "\033[94m"
 default_input="../scratch/output"
 default_output_dir="../scratch/csv/"
 
-valid_dates=['05-19']
+valid_dates=['07-07','07-08','07-09']
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -81,18 +81,14 @@ def main():
                             raise ValueError("Expceted to find time -- found another test instead")
                         
                         test_search = False
-                        _, test, num_iters, buff_size = line.strip().split(" ")
-                        if("_" in test):
-                            test, mode = test.split("_")
-                        else:
-                            mode = "sb"
+                        _, test, mode, ipc, num_iters, buff_size = line.strip().split(" ")
                     elif "0 is done:" in line:
                         if test_search:
                             raise ValueError("Expceted to find test -- found a time value instead")
                         
                         _, time = line.strip().split(":")
                             
-                        writer.writerow([device, test, mode, num_iters, buff_size, time.strip()])
+                        writer.writerow([device, test, mode, ipc, num_iters, buff_size, time.strip()])
                         test_search = True
 
 if __name__ == "__main__":

@@ -1,117 +1,149 @@
 #!/bin/bash
 #flux: --nodes=2
 #flux: --nslots=2
-#flux: --time=5m
-#flux: --queue=pdebug
+#flux: --time=35m
+#flux: --queue=pbatch
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
-#flux: --env=NODES={{nnodes}}
-PPN=1
 
-# Debugging options
-#set -e
-ulimit -c unlimited
-## Go up on directory to tests folder
-cd ..
+### 0. Global Options / Env vars
 
-## Get the modules for the system
-SYSTEM="${LCSCHEDCLUSTER}"
-MOD_FILE="module_sets/${SYSTEM}"
-module load $(cat "$MOD_FILE")
+# set -e
+# ulimit -c unlimited
+USE_ROCPROF=false
 
-#Control output
-USER_BASE="$HOME/git/stream-triggering/tests/scratch"
-FILENAME_BASE="$USER_BASE/output/$SYSTEM-$(date +%m-%d)"
-COUNT=1
-TARGET="${FILENAME_BASE}-${COUNT}.out"
-
-while [[ -e $TARGET ]]; do
-    ((COUNT++))
-    TARGET="${FILENAME_BASE}-${COUNT}.out"
-done
-
-touch "$TARGET"
-echo $TARGET
-
-# Any extra environment variables we need
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream_trigger/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream-trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
 export MPICH_GPU_SUPPORT_ENABLED=1
 
-# Settings related to individual tests
-TEST_NAME=pingpong
-TIME=3m
-START_EXP=0
-END_EXP=0
-NUM_ITERS=10000
+TEST_NAME="pingpong"
+TIME="3m"
+START_EXP=3
+END_EXP=28
 
-# Add hostnames to file
-srun --nodes=$NODES --ntasks-per-node=1 --output=$TARGET hostname
-# Save modules
-VAR_MOD_FILE=$TARGET
-module list >> $VAR_MOD_FILE 2>&1
+### 0.5 Go up a level to start
+cd ..
 
-# Function for running test
-run_test()(
-    EXEC="./scratch/execs/${TEST_NAME}_${1}_${SYSTEM}"
-    TEST="$1"
-    if [ -n "$2" ]; then
-        EXEC="${EXEC}_$2"
-        TEST="${TEST}-$2"
+### 1. Robust Module Loading
+SYSTEM="${LCSCHEDCLUSTER}"
+#MOD_FILE="../install_setup/${SYSTEM}_modules.txt"
+MOD_FILE="../install_setup/tuolumne_rocm7_modules.txt"
+
+if [ -f "$MOD_FILE" ]; then
+    MODULES=$(grep -v '^\s*#' "$MOD_FILE" | grep -v '^\s*$' || true)
+    module load $MODULES
+else
+    echo "Warning: Module file not found at $MOD_FILE"
+fi
+
+### 2. Output File Setup (Simplified)
+USER_BASE="$HOME/git/stream-triggering/tests/scratch"
+mkdir -p "$USER_BASE/output" # Ensure directory exists
+TARGET="$USER_BASE/output/$SYSTEM-$(date +%m-%d-%H%M%S).out"
+touch "$TARGET"
+echo "Outputting to: $TARGET"
+
+# Record hostnames and modules for debugging
+srun --nodes=2 --ntasks-per-node=1 --output="$TARGET" hostname
+module list >> "$TARGET" 2>&1
+
+### 3. Core Execution Function
+run_test_instance() {
+    local base_test="$1"
+    local variant="$2"
+    local mode="$3" # "sb" or "db"
+    local topo_label="$4"
+    local n_nodes="$5"
+    local ppn="$6"
+    local custom_label="$7"
+
+    # Determine executable name
+    local exec_name="${base_test}"
+    if [[ "$mode" == "db" ]]; then
+        exec_name="${base_test}_db"
     fi
-    echo "Test: ${TEST} $NUM_ITERS $BUFF_SIZE" >> $TARGET
-    flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
-            --output="$TARGET" -o output.mode=append           \
-             "${EXEC}" $NUM_ITERS $BUFF_SIZE
-)
+    
+    local exec_path="./scratch/execs/${TEST_NAME}_${exec_name}_${SYSTEM}"
+    local test_label="${base_test}"
 
-run_db_test()(
-    EXEC="./scratch/execs/${TEST_NAME}_${1}_db_${SYSTEM}"
-    TEST="${1}"
-    if [ -n "$2" ]; then
-        EXEC="${EXEC}_$2"
-        TEST="${TEST}-${2}"
+    # Append variants if they exist (e.g., cxi-coarse)
+    if [ -n "$variant" ]; then
+        exec_path="${exec_path}_${variant}"
+        test_label="${test_label}-${variant}"
+        if [ -n "$custom_label" ]; then
+            test_label="${test_label}-${custom_label}"
+        fi
     fi
-    TEST="${TEST}_db"
-    echo "Test: ${TEST} $NUM_ITERS $BUFF_SIZE" >> $TARGET
-    #ROCPROF_EXE="rocprofv3 --sys-trace --output-format pftrace --"
-    flux run -N$NODES --tasks-per-node=$PPN --time-limit=$TIME \
-            --output="$TARGET" -o output.mode=append           \
-             ${ROCPROF_EXE} "${EXEC}" $NUM_ITERS $BUFF_SIZE
-)
 
-run_tests()
-(
-    run_test "$@"
-    run_db_test "$@"
-)
+    echo "Test: ${test_label} ${mode} ${topo_label} $NUM_ITERS $BUFF_SIZE" >> "$TARGET"
 
+    # Handle Rocprof Profiler Toggle 
+    local profiler_cmd=""
+    if [[ "$USE_ROCPROF" == "true" ]]; then
+        profiler_cmd="rocprofv3 --sys-trace --output-format pftrace --"
+    fi
+
+    flux run -N "$n_nodes" --tasks-per-node="$ppn" --time-limit="$TIME" \
+             --output="$TARGET" -o output.mode=append \
+             ${profiler_cmd} "${exec_path}" "$NUM_ITERS" "$BUFF_SIZE"
+}
+
+### 4. Wrapper Function for DB/SB and Topology
+run_tests() {
+    local base_test="$1"
+    local variant="$2"
+    local custom_label="$3"
+    
+    local run_sb="${do_sb:-true}"
+    local run_db="${do_db:-true}"
+    local run_on="${do_on_node:-true}"
+    local run_off="${do_off_node:-true}"
+
+    # Loop through execution topologies
+    for topo in "ON-NODE" "OFF-NODE"; do
+        
+        # Check explicit topology overrides
+        if [[ "$topo" == "ON-NODE" ]]; then
+            [[ "$run_on" != "true" ]] && continue
+            local n=1
+            local p=2
+        else
+            [[ "$run_off" != "true" ]] && continue
+            local n=2
+            local p=1
+        fi
+
+        if [[ "$run_sb" == "true" ]]; then
+            run_test_instance "$base_test" "$variant" "sb" "$topo" "$n" "$p" "$custom_label"
+        fi
+
+        if [[ "$run_db" == "true" ]]; then
+            run_test_instance "$base_test" "$variant" "db" "$topo" "$n" "$p" "$custom_label"
+        fi
+    done
+}
+
+### 5. Main Execution Loop
 for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
-    BUFF_SIZE=$((2 ** $exp))
+    BUFF_SIZE=$((2 ** exp))
 
-    if [ $BUFF_SIZE -ge 16777216 ]; then
-        NUM_ITERS=1000
-    elif [ $BUFF_SIZE -ge 1048576 ]; then
-        NUM_ITERS=10000
+    if [ "$BUFF_SIZE" -ge 16777216 ]; then
+        NUM_ITERS=500
+    elif [ "$BUFF_SIZE" -ge 1048576 ]; then
+        NUM_ITERS=5000
+    else
+        NUM_ITERS=50000
     fi
 
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
-
-    #run_tests "st" "cxi-fine"
-
-    #run_tests "hip"
-    #run_tests "thread"
-    #run_tests "mpi"
-    #run_test "ipc"
-    #export HSA_ENABLE_SDMA=0
     run_tests "st" "cxi-coarse"
-    #run_test "ipc"
-    #export HSA_ENABLE_SDMA=1
-    #export HSA_ENABLE_PEER_SDMA=0
-    #run_tests "st" "cxi-coarse"
-
+    run_tests "mpi"
+    export MPIA_ST_DISABLE_CREDIT=1
+    do_on_node=false do_db=false run_tests "st" "cxi-coarse" "no-credit"
+    unset MPIA_ST_DISABLE_CREDIT
+    do_off_node=false do_db=false run_tests "ipc" 
 done
