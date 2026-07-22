@@ -6,6 +6,12 @@ extern "C" {
 
 int MPIS_Queue_free(MPIS_Queue* queue)
 {
+    if(nullptr == queue || MPIS_QUEUE_NULL == *queue)
+    {
+        Print::out("Not freeing null queue.");
+        return MPI_SUCCESS;
+    }
+
     Queue* the_queue = (Queue*)(*queue);
     delete the_queue;
 
