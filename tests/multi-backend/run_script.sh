@@ -1,86 +1,76 @@
 #!/bin/bash
-#flux: --nodes=4
-#flux: --nslots=16
+#flux: --nodes=1
+#flux: --nslots=2
 #flux: --time-limit=5m
 #flux: --queue=pdebug
 #flux: --exclusive
 #flux: --output=../scratch/flux/{{jobid}}.out
 
-# Debugging options
-#set -e
-#ulimit -c unlimited
-## Go up on directory to tests folder
-cd ..
+### 0. Global Options / Env vars
 
-# Switch between Tioga and Tuo modules
-if [ $# -eq 0 ]; then
-    echo "Running for the MI250X"
-    module load craype-accel-amd-gfx90a
-    SYSTEM="TIOGA"
-else
-    echo "Running for the MI300A"
-    module load craype-accel-amd-gfx942 libfabric/2.1
-    SYSTEM="TUOLUMNE"
-fi
+# Settings related to individual tests
+TEST_NAME=null_objects
+TIME=3m
+NUM_ITERS=50
+BUFF_SIZE=10
+NODES=1
+PPN=2
 
-module load rocm
+# set -e
+# ulimit -c unlimited
+USE_ROCPROF=false
 
-#Control output
-USER_BASE="$HOME/git/stream-triggering/tests/scratch"
-FILENAME_BASE="$USER_BASE/output/$SYSTEM-$(date +%m-%d)"
-COUNT=1
-TARGET="${FILENAME_BASE}-${COUNT}.out"
-
-while [[ -e $TARGET ]]; do
-    ((COUNT++))
-    TARGET="${FILENAME_BASE}-${COUNT}.out"
-done
-
-touch "$TARGET"
-echo $TARGET
-
-# Any extra environment variables we need
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream-trigger/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
+export MPICH_GPU_SUPPORT_ENABLED=1
 
-# Settings related to individual tests
-TEST_NAME=halo
-TIME=3m
-NUM_ITERS=50
-BUFF_SIZE=10
-NODES=4
-PPN=4
+### 0.5 Go up a level to start
+cd ..
+
+### 1. Robust Module Loading
+SYSTEM="${LCSCHEDCLUSTER}"
+MOD_FILE="../install_setup/${SYSTEM}_modules.txt"
+#MOD_FILE="../install_setup/tuolumne_rocm7_modules.txt"
+
+if [ -f "$MOD_FILE" ]; then
+    MODULES=$(grep -v '^\s*#' "$MOD_FILE" | grep -v '^\s*$' || true)
+    module load $MODULES
+else
+    echo "Warning: Module file not found at $MOD_FILE"
+fi
+
+### 2. Output File Setup (Simplified)
+USER_BASE="$HOME/git/stream-triggering/tests/scratch"
+mkdir -p "$USER_BASE/output" # Ensure directory exists
+TARGET="$USER_BASE/output/$SYSTEM-$(date +%m-%d-%H%M%S).out"
+touch "$TARGET"
+echo "Outputting to: $TARGET"
 
 cd scratch/tmp/
 
-# Print out variables in run file just for tracking
-HOSTNAMES_FILE="a-hostnames.tmp"
-VAR_MOD_FILE="a-var-mod.tmp"
-echo "$TEST_NAME,$SYSTEM" >> $VAR_MOD_FILE
-module list >> $VAR_MOD_FILE 2>&1
-srun --output=$HOSTNAMES_FILE hostname
+# Record hostnames and modules for debugging
+srun --nodes=2 --ntasks-per-node=1 --output="$TARGET" hostname
+module list >> "$TARGET" 2>&1
 
 # Function for running test
 run_test()(
-    RUN_FILE="$1.tmp"
-    STRING="Test: $1 $NUM_ITERS $BUFF_SIZE"
-    flux run --setopt=exit-timeout=none --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
-    #flux run --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN --output=$RUN_FILE rocprofv3 --sys-trace --output-format pftrace -- "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
-    sed -i "1i$STRING" $RUN_FILE
+    echo "Test: $1 $NUM_ITERS $BUFF_SIZE" >> "$TARGET"
+
+    # Handle Rocprof Profiler Toggle 
+    local profiler_cmd=""
+    if [[ "$USE_ROCPROF" == "true" ]]; then
+        profiler_cmd="rocprofv3 --sys-trace --output-format pftrace --"
+    fi
+
+    flux run --time-limit=$TIME --nodes=$NODES --tasks-per-node=$PPN \
+             --output="$TARGET" -o output.mode=append \
+             ${profiler_cmd} "../execs/${TEST_NAME}_${SYSTEM}_$1" $NUM_ITERS $BUFF_SIZE
 )
 
-export MPICH_GPU_SUPPORT_ENABLED=1
-#export AMD_LOG_LEVEL=2
 run_test "cxi-coarse"
 #run_test "cxi-fine"
 
 #run_test "hip"
 #run_test "thread"
-unset MPICH_GPU_SUPPORT_ENABLED
-
-# While slurm has append to file, flux does not. So we have to 
-# manage temporary output files.
-cat *.tmp >> $TARGET
-rm -f *.tmp
