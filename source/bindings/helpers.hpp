@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <type_traits>
+#include <source_location>
 
 #include "abstract/request.hpp"
 #include "misc/initialize.hpp"
@@ -78,5 +79,12 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
     return reinterpret_cast<std::shared_ptr<Communication::Request>*>(
         ((*request)->internal_request));
 }
+
+#define MPIS_BINDING_ENTER                             \
+    auto location = std::source_location::current();   \
+    Print::out("Entering:", location.function_name());
+
+#define MPIS_BINDING_EXIT                              \
+    Print::out("Exiting:", location.function_name());
 
 #endif

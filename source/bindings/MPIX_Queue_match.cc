@@ -5,6 +5,8 @@ extern "C" {
 
 int MPIS_Queue_match(MPIS_Queue queue, MPIS_Request* request, MPI_Status* status)
 {
+    MPIS_BINDING_ENTER
+
     using namespace Communication;
     std::shared_ptr<Request>* internal_request =
         convert_request_ptr(request, RequestState::UNMATCHED);
@@ -14,6 +16,7 @@ int MPIS_Queue_match(MPIS_Queue queue, MPIS_Request* request, MPI_Status* status
     (*request)->state = RequestState::MATCHED;
     the_queue->finalize_match({*internal_request});
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

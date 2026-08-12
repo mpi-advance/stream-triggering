@@ -6,6 +6,8 @@ extern "C" {
 
 int MPIS_Queue_free(MPIS_Queue* queue)
 {
+    MPIS_BINDING_ENTER
+
     if(nullptr == queue || MPIS_QUEUE_NULL == *queue)
     {
         Print::out("Not freeing null queue.");
@@ -19,6 +21,7 @@ int MPIS_Queue_free(MPIS_Queue* queue)
 
     ACTIVE_QUEUE = MPIS_QUEUE_NULL;
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

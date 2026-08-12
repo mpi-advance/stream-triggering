@@ -140,9 +140,18 @@ void CXIQueue::exchange_protocol(Request& req)
 {
     bool same_node = (MPI_UNDEFINED != Communication::Request::rankLookup(
                                            req.peer, req.comm, on_node_peers));
-    Print::out("On node: ", req.getID(), same_node);
-    if (Communication::IPC_PROTOCOL_ENABLED &&
-        (Communication::Operation::RSEND == req.operation) && same_node)
+
+    bool to_self =
+        (my_rank == Communication::Request::rankLookup(req.peer, req.comm, comm_base));
+
+    Print::out("Req: ", req.getID(), " On node: ", same_node, " Self: ", to_self);
+
+    if ((Communication::Operation::RSEND == req.operation) && to_self)
+    {
+        req.protocol = Communication::Protocol::SELF;
+    }
+    else if (Communication::IPC_PROTOCOL_ENABLED &&
+             (Communication::Operation::RSEND == req.operation) && same_node)
     {
         req.protocol = Communication::Protocol::IPC;
     }
@@ -200,6 +209,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
                 cxi_request = std::make_unique<CXIRecvOneSided<false>>(
                     req, my_buffer, libfab, libfab.get_peer(my_rank));
                 break;
+            case Communication::Protocol::SELF:
+                cxi_request = std::make_unique<CXIRecvSelf>(req, my_buffer);
+                break;
             default:
                 cxi_request = nullptr;
                 break;
@@ -215,6 +227,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
             case Communication::Protocol::EAGER:
                 cxi_request = std::make_unique<CXIRSend>(req, my_buffer, libfab,
                                                          libfab.get_peer(my_rank));
+                break;
+            case Communication::Protocol::SELF:
+                cxi_request = std::make_unique<CXIRSendSelf>(req, my_buffer);
                 break;
             default:
                 cxi_request = nullptr;

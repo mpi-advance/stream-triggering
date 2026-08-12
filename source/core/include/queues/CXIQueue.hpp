@@ -784,8 +784,11 @@ public:
 
     ~CXIRSendShared()
     {
-        check_gpu(hipIpcCloseMemHandle(peer_buffer_ptr));
-        check_gpu(hipIpcCloseMemHandle(peer_completion_ptr));
+        if (!first_time)
+        {
+            check_gpu(hipIpcCloseMemHandle(peer_buffer_ptr));
+            check_gpu(hipIpcCloseMemHandle(peer_completion_ptr));
+        }
     }
 
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
@@ -800,7 +803,7 @@ protected:
     {
         if (first_time)
         {
-            Print::out("Opening handles for send request!");
+            Print::out(base_req.getID(), "Opening handles for send request!");
             force_gpu(hipIpcOpenMemHandle(&peer_buffer_ptr, ipc_data[0].handle,
                                           hipIpcMemLazyEnablePeerAccess));
             force_gpu(hipIpcOpenMemHandle(&peer_completion_ptr, ipc_data[1].handle,
@@ -827,6 +830,40 @@ private:
     bool  first_time;
     // [0] = remote buffer, [1] = remote completion
     std::array<ProtocolMatch::IPCBundle, 2> ipc_data;
+};
+
+class CXIRSendSelf : public CXIRequest
+{
+public:
+    CXIRSendSelf(Request& user_request, CompletionBufferFactory& buffers)
+        : CXIRequest(user_request, buffers)
+    {
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Communication::ProtocolMatch::sender_self(remote_data, base_req, comm_a, comm_b);
+    }
+
+protected:
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        Print::out("Self send wants to go to:", remote_data[0], remote_data[1]);
+
+        force_gpu(hipMemcpyDtoDAsync(remote_data[0], base_req.send_buffer,
+                                     get_size_of_buffer(base_req), *the_stream));
+
+        force_gpu(hipMemcpyDtoDAsync(remote_data[1], &num_times_started,
+                                     sizeof(num_times_started), *the_stream));
+
+        return TriggerStatus::DONE;
+    }
+
+private:
+    // [0] = remote buffer, [1] = remote completion
+    Communication::ProtocolMatch::SelfBundle remote_data;
 };
 
 class CXISendCredit : public CXIRSend
@@ -1042,6 +1079,34 @@ protected:
 private:
     // [0] = buffer, [1] = completion
     std::array<ProtocolMatch::IPCBundle, 2> ipc_data;
+};
+
+class CXIRecvSelf : public CXIRequest
+{
+public:
+    CXIRecvSelf(Request& user_request, CompletionBufferFactory& buffers)
+        : CXIRequest(user_request, buffers)
+    {
+        self_data[0] = user_request.recv_buffer;
+        self_data[1] = completion_buffer.address;
+        Print::out("Self wants to go to:", self_data[0], self_data[1]);
+    }
+
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        ProtocolMatch::receiver_self(self_data, base_req, comm_a, comm_b);
+    }
+
+protected:
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        return TriggerStatus::NOT_NEEDED;
+    }
+
+private:
+    // [0] = buffer, [1] = completion
+    ProtocolMatch::SelfBundle self_data;
 };
 
 class CXIRecvCredit : public CXIRequest

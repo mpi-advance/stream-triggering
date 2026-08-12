@@ -27,6 +27,8 @@ extern "C" {
 
 int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address)
 {
+    MPIS_BINDING_ENTER
+
     Queue* the_queue;
     switch (type)
     {
@@ -65,6 +67,7 @@ int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address
         throw std::runtime_error("There is already an active queue");
     }
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

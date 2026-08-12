@@ -27,6 +27,7 @@ enum Protocol : int
     EAGER,
     CREDIT,
     RNDV,
+    SELF,
 };
 
 constexpr size_t MAX_CREDIT_SLACK   = 5;
@@ -102,6 +103,11 @@ public:
         return matched;
     }
 
+    void set_match()
+    {
+        matched = true;
+    }
+
     size_t getID()
     {
         return myID;
@@ -139,6 +145,18 @@ public:
         check_mpi(MPI_Waitall(match_requests.size(), match_requests.data(),
                               match_statuses.data()));
         matched = true;
+    }
+
+    /* Explicity does NOT set "matched = true" */
+    void join_waitall_match(std::vector<MPI_Request>& request_train,
+                            std::vector<MPI_Status>&  status_train)
+    {
+        request_train.insert(request_train.end(), match_requests.begin(),
+                             match_requests.end());
+        match_requests.clear();
+        status_train.insert(status_train.end(), match_statuses.begin(),
+                            match_statuses.end());
+        match_statuses.clear();
     }
 
     GPUMemoryType get_memory_type()

@@ -100,9 +100,9 @@ static void sender_hip_ipc(std::array<IPCBundle, 2>& ipc_data, Request& req,
 static constexpr size_t CREDIT_REQUESTS_TO_USE = 2;
 using CreditBundle                             = fi_rma_ioc;
 
-static void sender_credit(struct fi_rma_iov* recv_buffer_details,
-    std::array<CreditBundle, MAX_CREDIT_SLACK>& credit_details, Request& req,
-    MPI_Comm phase_a, MPI_Comm phase_b)
+static void sender_credit(struct fi_rma_iov*                          recv_buffer_details,
+                          std::array<CreditBundle, MAX_CREDIT_SLACK>& credit_details,
+                          Request& req, MPI_Comm phase_a, MPI_Comm phase_b)
 {
     int          real_rank    = req.resolve_comm_world();
     MPI_Request* mpi_requests = req.get_match_requests(HIP_IPC_REQUESTS_TO_USE);
@@ -110,16 +110,16 @@ static void sender_credit(struct fi_rma_iov* recv_buffer_details,
     Print::out("(Send Credit)", req.getID(), "Matching with:", real_rank, "(", req.peer,
                ") and tag", req.tag);
 
-    check_mpi(MPI_Irecv(recv_buffer_details, sizeof(fi_rma_iov),
-                        MPI_BYTE, real_rank, req.tag, phase_a, &mpi_requests[0]));
+    check_mpi(MPI_Irecv(recv_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, real_rank,
+                        req.tag, phase_a, &mpi_requests[0]));
 
     check_mpi(MPI_Isend(credit_details.data(), sizeof(CreditBundle) * MAX_CREDIT_SLACK,
                         MPI_BYTE, real_rank, req.tag, phase_b, &mpi_requests[1]));
 }
 
 static void receiver_credit(struct fi_rma_iov* user_buffer_details,
-                            std::array<CreditBundle, MAX_CREDIT_SLACK>& credit_details, Request& req, MPI_Comm phase_a,
-                            MPI_Comm phase_b)
+                            std::array<CreditBundle, MAX_CREDIT_SLACK>& credit_details,
+                            Request& req, MPI_Comm phase_a, MPI_Comm phase_b)
 {
     int          real_rank    = req.resolve_comm_world();
     MPI_Request* mpi_requests = req.get_match_requests(RNDV_REQUESTS_TO_USE);
@@ -130,8 +130,38 @@ static void receiver_credit(struct fi_rma_iov* user_buffer_details,
                user_buffer_details->key);
     check_mpi(MPI_Isend(user_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, real_rank,
                         req.tag, phase_a, &mpi_requests[0]));
-    check_mpi(MPI_Irecv(credit_details.data(), sizeof(CreditBundle) * MAX_CREDIT_SLACK, MPI_BYTE,
-                        real_rank, req.tag, phase_b, &mpi_requests[2]));
+    check_mpi(MPI_Irecv(credit_details.data(), sizeof(CreditBundle) * MAX_CREDIT_SLACK,
+                        MPI_BYTE, real_rank, req.tag, phase_b, &mpi_requests[1]));
+}
+
+static constexpr size_t SELF_REQUESTS_TO_USE = 2;
+
+using SelfBundle = std::array<void*, 2>;
+
+static void sender_self(SelfBundle& dst_data, Request& req, MPI_Comm phase_a, MPI_Comm phase_b)
+{
+    int          real_rank    = req.resolve_comm_world();
+    MPI_Request* mpi_requests = req.get_match_requests(SELF_REQUESTS_TO_USE);
+    Print::out("(Send Self Exchange)", req.getID(), "Matching with:", real_rank, "(",
+               req.peer, ") and tag", req.tag);
+
+    check_mpi(MPI_Irecv(dst_data.data(), 2, MPI_AINT, real_rank, req.tag, phase_a,
+                        &mpi_requests[0]));
+    check_mpi(
+        MPI_Isend(nullptr, 0, MPI_BYTE, real_rank, req.tag, phase_b, &mpi_requests[1]));
+}
+
+static void receiver_self(SelfBundle& dst_data, Request& req, MPI_Comm phase_a, MPI_Comm phase_b)
+{
+    int          real_rank    = req.resolve_comm_world();
+    MPI_Request* mpi_requests = req.get_match_requests(SELF_REQUESTS_TO_USE);
+    Print::out("(Recv Self Exchange)", req.getID(), "Matching with:", real_rank, "(",
+               req.peer, ") and tag", req.tag);
+
+    check_mpi(MPI_Isend(dst_data.data(), 2, MPI_AINT, real_rank, req.tag, phase_a,
+                        &mpi_requests[0]));
+    check_mpi(
+        MPI_Irecv(nullptr, 0, MPI_BYTE, real_rank, req.tag, phase_b, &mpi_requests[1]));
 }
 
 #endif
