@@ -41,7 +41,7 @@ public:
             if (Operation::BARRIER > req->operation)
             {
                 // Normal matching
-                Communication::BlankMatch::match(*req);
+                Match::Blank::match(*req);
             }
         }
     }

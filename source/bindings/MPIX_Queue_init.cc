@@ -18,7 +18,7 @@
 #ifdef USE_CXI
 #include <hip/hip_runtime.h>
 
-#include "queues/CXIQueue.hpp"
+#include "queues/cxi/CXIQueue.hpp"
 #endif
 
 #include <stdexcept>

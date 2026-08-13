@@ -22,4 +22,12 @@ int MPI_Init(int* argc, char*** argv)
     return error_code;
 }
 
+int MPI_Finalize()
+{
+    MPIS_BINDING_ENTER
+    check_mpi(MPI_Comm_free(&Communication::MPIS_COMM_WORLD));
+    int error_code = PMPI_Finalize();
+    MPIS_BINDING_EXIT
+    return error_code;
+}
 }
