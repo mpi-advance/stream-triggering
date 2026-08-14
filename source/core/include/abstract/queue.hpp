@@ -62,6 +62,7 @@ public:
         force_mpi(
             MPI_Waitall(request_train.size(), request_train.data(), status_train.data()));
 
+        Print::out("Done with all matching.");
         for (auto& req : requests)
         {
             req->set_match();

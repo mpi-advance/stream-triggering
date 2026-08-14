@@ -113,7 +113,7 @@ static void sender_credit(struct fi_rma_iov* recv_buffer_details,
 
     check_mpi(MPI_Isend(credit_details.data(),
                         sizeof(CreditBundle) * Communication::MAX_CREDIT_SLACK, MPI_BYTE,
-                        req.peer, req.tag, phase_b, &mpi_requests[1]));
+                        req.cw_peer, req.tag, phase_b, &mpi_requests[1]));
 }
 
 static void receiver_credit(struct fi_rma_iov* user_buffer_details,
@@ -130,7 +130,7 @@ static void receiver_credit(struct fi_rma_iov* user_buffer_details,
                         req.tag, phase_a, &mpi_requests[0]));
     check_mpi(MPI_Irecv(credit_details.data(),
                         sizeof(CreditBundle) * Communication::MAX_CREDIT_SLACK, MPI_BYTE,
-                        req.peer, req.tag, phase_b, &mpi_requests[1]));
+                        req.cw_peer, req.tag, phase_b, &mpi_requests[1]));
 }
 
 static constexpr size_t SELF_REQUESTS_TO_USE = 2;
@@ -157,7 +157,7 @@ static void receiver_self(SelfBundle& dst_data, Communication::Request& req,
     req.out("(Recv Self Exchange) Matching with:", req.peer, "(", req.cw_peer,
             ") and tag", req.tag);
 
-    check_mpi(MPI_Isend(dst_data.data(), 2, MPI_AINT, req.peer, req.tag, phase_a,
+    check_mpi(MPI_Isend(dst_data.data(), 2, MPI_AINT, req.cw_peer, req.tag, phase_a,
                         &mpi_requests[0]));
     check_mpi(
         MPI_Irecv(nullptr, 0, MPI_BYTE, req.cw_peer, req.tag, phase_b, &mpi_requests[1]));
