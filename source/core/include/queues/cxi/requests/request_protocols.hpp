@@ -212,7 +212,7 @@ protected:
         force_gpu(hipMemcpyDtoDAsync(remote_data[0], base_req.send_buffer,
                                      base_req.get_size_of_buffer(), *the_stream));
 
-        force_gpu(hipMemcpyDtoDAsync(remote_data[1], &num_times_started,
+        force_gpu(hipMemcpyHtoDAsync(remote_data[1], &num_times_started,
                                      sizeof(num_times_started), *the_stream));
 
         return TriggerStatus::DONE;
