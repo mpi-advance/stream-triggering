@@ -32,8 +32,6 @@ enum MPIS_Queue_type
 };
 typedef enum MPIS_Queue_type MPS_Queue_type;
 
-void MPIS_Hello_world();
-
 /* Queue Management */
 // int MPIS_Queue_fence();
 int MPIS_Queue_free(MPIS_Queue*);

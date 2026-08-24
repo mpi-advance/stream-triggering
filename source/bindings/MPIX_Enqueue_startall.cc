@@ -5,6 +5,7 @@ extern "C" {
 
 int MPIS_Enqueue_startall(MPIS_Queue queue, int len, MPIS_Request requests[])
 {
+    MPIS_BINDING_ENTER
     Queue*                                the_queue = (Queue*)(queue);
     std::vector<std::shared_ptr<Request>> all_requests(len);
 
@@ -17,6 +18,7 @@ int MPIS_Enqueue_startall(MPIS_Queue queue, int len, MPIS_Request requests[])
 
     the_queue->enqueue_startall(all_requests);
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 #flux: --nodes=1
-#flux: --nslots=2
+#flux: --nslots=1
 #flux: --time-limit=5m
 #flux: --queue=pdebug
 #flux: --exclusive
@@ -9,12 +9,12 @@
 ### 0. Global Options / Env vars
 
 # Settings related to individual tests
-TEST_NAME=null_objects
+TEST_NAME=self_send
 TIME=3m
 NUM_ITERS=50
 BUFF_SIZE=10
 NODES=1
-PPN=2
+PPN=1
 
 # set -e
 # ulimit -c unlimited
@@ -32,7 +32,7 @@ cd ..
 ### 1. Robust Module Loading
 SYSTEM="${LCSCHEDCLUSTER}"
 MOD_FILE="../install_setup/${SYSTEM}_modules.txt"
-#MOD_FILE="../install_setup/tuolumne_rocm7_modules.txt"
+#MOD_FILE="../install_setup/tuolumne_rocm_7.14modules.txt"
 
 if [ -f "$MOD_FILE" ]; then
     MODULES=$(grep -v '^\s*#' "$MOD_FILE" | grep -v '^\s*$' || true)

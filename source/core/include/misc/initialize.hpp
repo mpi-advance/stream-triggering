@@ -6,6 +6,7 @@
 #include "abstract/request.hpp"
 #include "print.hpp"
 #include "safety/gpu.hpp"
+#include "safety/mpi.hpp"
 
 static inline void print_device_info()
 {
@@ -48,12 +49,12 @@ static inline void init_env()
     if (std::getenv("MPIA_ST_DISABLE_IPC"))
     {
         Communication::IPC_PROTOCOL_ENABLED = false;
-        Print::out("Using IPC:",Communication::IPC_PROTOCOL_ENABLED);
+        Print::out("Using IPC:", Communication::IPC_PROTOCOL_ENABLED);
     }
     if (std::getenv("MPIA_ST_DISABLE_CREDIT"))
     {
         Communication::CREDIT_PROTOCOL_ENABLED = false;
-        Print::out("Using Credit:",Communication::CREDIT_PROTOCOL_ENABLED);
+        Print::out("Using Credit:", Communication::CREDIT_PROTOCOL_ENABLED);
     }
 }
 
@@ -61,6 +62,7 @@ static inline void initialize_st()
 {
     init_debugs();
     init_env();
+    force_mpi(MPI_Comm_dup(MPI_COMM_WORLD, &Communication::MPIS_COMM_WORLD));
 }
 
 #endif

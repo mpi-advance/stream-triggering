@@ -5,8 +5,11 @@ extern "C" {
 
 int MPIS_Free_mem(void* baseptr)
 {
-    deletors.at(baseptr)();
+    MPIS_BINDING_ENTER
 
+    deletors.at(baseptr)();
+    
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

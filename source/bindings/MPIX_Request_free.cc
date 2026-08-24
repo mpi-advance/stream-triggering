@@ -4,6 +4,8 @@ extern "C" {
 
 int MPIS_Request_free(MPIS_Request* request)
 {
+    MPIS_BINDING_ENTER
+
     using namespace Communication;
 
     /* Early exit to avoid deleting memory we shouldn't */
@@ -27,6 +29,7 @@ int MPIS_Request_free(MPIS_Request* request)
     /* Set it back to null */
     *request = MPIS_REQUEST_NULL;
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

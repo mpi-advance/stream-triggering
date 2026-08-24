@@ -5,6 +5,7 @@ extern "C" {
 
 int MPIS_Enqueue_start(MPIS_Queue queue, MPIS_Request* request)
 {
+    MPIS_BINDING_ENTER
     using namespace Communication;
     Queue* the_queue = (Queue*)(queue);
 
@@ -13,6 +14,7 @@ int MPIS_Enqueue_start(MPIS_Queue queue, MPIS_Request* request)
 
     the_queue->enqueue_operation(*internal_request);
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

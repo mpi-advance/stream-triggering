@@ -1,4 +1,8 @@
-#include "queues/CXIQueue.hpp"
+
+#include "abstract/match.hpp"
+#include "queues/cxi/libfabric_wrappers.hpp"
+#include "queues/cxi/requests/request_protocols.hpp"
+#include "queues/cxi/CXIQueue.hpp"
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
@@ -140,9 +144,20 @@ void CXIQueue::exchange_protocol(Request& req)
 {
     bool same_node = (MPI_UNDEFINED != Communication::Request::rankLookup(
                                            req.peer, req.comm, on_node_peers));
-    Print::out("On node: ", req.getID(), same_node);
-    if (Communication::IPC_PROTOCOL_ENABLED &&
-        (Communication::Operation::RSEND == req.operation) && same_node)
+
+    // Forward looking lookup for when "comm_base" is not MPI_COMM_WORLD.
+    // However, all of the Match::Protocol classes use MPI_COMM_WORLD ids.
+    bool to_self =
+        (my_rank == Communication::Request::rankLookup(req.peer, req.comm, comm_base));
+
+    req.out("On node:", same_node, "Self:", to_self);
+
+    if ((Communication::Operation::RSEND == req.operation) && to_self)
+    {
+        req.protocol = Communication::Protocol::SELF;
+    }
+    else if (Communication::IPC_PROTOCOL_ENABLED &&
+             (Communication::Operation::RSEND == req.operation) && same_node)
     {
         req.protocol = Communication::Protocol::IPC;
     }
@@ -152,7 +167,7 @@ void CXIQueue::exchange_protocol(Request& req)
     }
     else if (Communication::CREDIT_PROTOCOL_ENABLED &&
              (Communication::Operation::SEND == req.operation) &&
-             (Communication::CREDIT_SIZE_CUTOFF >= get_size_of_buffer(req)))
+             (Communication::CREDIT_SIZE_CUTOFF >= req.get_size_of_buffer()))
     {
         req.protocol = Communication::Protocol::CREDIT;
     }
@@ -167,9 +182,8 @@ void CXIQueue::exchange_protocol(Request& req)
         req.protocol = Communication::Protocol::NONE;
     }
 
-    // When matching, recv requests call MPI_Recv on B, so using that here too should
-    // avoid conflicts with other protocol/matching exchanges.
-    req.start_protocol_exchange(match_phase_b);
+    // Separate communicator to avoid matching conflicts.
+    req.start_protocol_exchange(protocol_phase);
 }
 
 void CXIQueue::prepare_cxi_mr_key(Request& req)
@@ -200,6 +214,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
                 cxi_request = std::make_unique<CXIRecvOneSided<false>>(
                     req, my_buffer, libfab, libfab.get_peer(my_rank));
                 break;
+            case Communication::Protocol::SELF:
+                cxi_request = std::make_unique<CXIRecvSelf>(req, my_buffer);
+                break;
             default:
                 cxi_request = nullptr;
                 break;
@@ -215,6 +232,9 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
             case Communication::Protocol::EAGER:
                 cxi_request = std::make_unique<CXIRSend>(req, my_buffer, libfab,
                                                          libfab.get_peer(my_rank));
+                break;
+            case Communication::Protocol::SELF:
+                cxi_request = std::make_unique<CXIRSendSelf>(req, my_buffer);
                 break;
             default:
                 cxi_request = nullptr;
@@ -241,7 +261,7 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
 
     if (nullptr == cxi_request)
     {
-        Print::out("No action for:", req.operation, req.protocol);
+        req.out("No action for:", req.operation, req.protocol);
         throw std::runtime_error(
             "Unable to determine actions for Operation and Protocol.");
     }
@@ -345,7 +365,7 @@ WaitStatus CXIRequest::wait_gpu(hipStream_t* the_stream)
 
 WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
 {
-    auto  buffer_size = get_size_of_buffer(base_req);
+    auto  buffer_size = base_req.get_size_of_buffer();
     void* credit_buffer_slot =
         (char*)credit_buffers +
         (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size);
@@ -442,6 +462,9 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
 
 void CXIQueue::enqueue_waitall()
 {
+#if defined(USE_TIOGA)
+    flush_memory(); // TODO: Refine this more so not all waitalls need this
+#endif
     GPUCompletions all_in_one;
     size_t         num_reqs = 0;
     for (auto req : active_requests)

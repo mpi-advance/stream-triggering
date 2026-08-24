@@ -27,6 +27,7 @@ enum Protocol : int
     EAGER,
     CREDIT,
     RNDV,
+    SELF,
 };
 
 constexpr size_t MAX_CREDIT_SLACK   = 5;
@@ -34,6 +35,8 @@ constexpr size_t CREDIT_SIZE_CUTOFF = 32768;
 
 extern bool IPC_PROTOCOL_ENABLED;
 extern bool CREDIT_PROTOCOL_ENABLED;
+
+extern MPI_Comm MPIS_COMM_WORLD;
 
 enum GPUMemoryType
 {
@@ -55,6 +58,7 @@ public:
     MPI_Comm     comm;
     MPI_Info     info;
     MPI_Op       op;
+    int          cw_peer;  // Peer's rank in MPI Comm world
 
     Request(Operation _operation, void* _send_buffer, void* _recv_buffer,
             MPI_Count _count, MPI_Datatype _datatype, int _peer, int _tag, MPI_Comm _comm,
@@ -70,6 +74,7 @@ public:
           comm(_comm),
           info(_info),
           op(_op),
+          cw_peer(resolve_comm_world(_peer)),
           myID(assignID()),
           matched(false)
     {
@@ -85,12 +90,12 @@ public:
 
         if (0 == strcmp(value.data(), "rocm:device:fine"))
         {
-            Print::out("Using fine-grained memory!");
+            out("Using fine-grained memory!");
             memory_type = GPUMemoryType::FINE;
         }
         else
         {
-            Print::out("Using coarse-grained memory!");
+            out("Using coarse-grained memory!");
             memory_type = GPUMemoryType::COARSE;
         }
 
@@ -102,9 +107,21 @@ public:
         return matched;
     }
 
+    void set_match()
+    {
+        matched = true;
+    }
+
     size_t getID()
     {
         return myID;
+    }
+
+    inline size_t get_size_of_buffer()
+    {
+        int size = -1;
+        check_mpi(MPI_Type_size(datatype, &size));
+        return (size_t)(size * count);
     }
 
     MPI_Request* get_match_requests(size_t num)
@@ -118,12 +135,14 @@ public:
     {
         if (Operation::RECV == operation)
         {
-            check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, peer, tag, channel,
+            out("(R) Protocol Peer, Tag:", cw_peer, tag);
+            check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag, channel,
                                 &protocol_request));
         }
         else
         {
-            check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, peer, tag, channel,
+            out("(S) Protocol Peer, Tag:", cw_peer, tag);
+            check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag, channel,
                                 &protocol_request));
         }
     }
@@ -131,7 +150,7 @@ public:
     void wait_on_protcol()
     {
         check_mpi(MPI_Wait(&protocol_request, MPI_STATUS_IGNORE));
-        Print::out("Final Protocol:", protocol);
+        out("Final Protocol:", protocol);
     }
 
     void wait_on_match()
@@ -139,6 +158,18 @@ public:
         check_mpi(MPI_Waitall(match_requests.size(), match_requests.data(),
                               match_statuses.data()));
         matched = true;
+    }
+
+    /* Explicity does NOT set "matched = true" */
+    void join_waitall_match(std::vector<MPI_Request>& request_train,
+                            std::vector<MPI_Status>&  status_train)
+    {
+        request_train.insert(request_train.end(), match_requests.begin(),
+                             match_requests.end());
+        match_requests.clear();
+        status_train.insert(status_train.end(), match_statuses.begin(),
+                            match_statuses.end());
+        match_statuses.clear();
     }
 
     GPUMemoryType get_memory_type()
@@ -152,9 +183,11 @@ public:
                ((Operation::SEND == operation) || (Operation::RSEND == operation));
     }
 
-    int resolve_comm_world()
+    // Helper debug methods
+    template <bool UseRanks = true, typename... Args>
+    void out(Args&&... args)
     {
-        return rankLookup(peer, comm, MPI_COMM_WORLD);
+        Print::out<UseRanks>("[Req:", myID, "]", std::forward<Args>(args)...);
     }
 
     // Figure out "base_rank"'s rank in "lookup_comm"
@@ -170,7 +203,7 @@ public:
                                             lookup_ranks));
         force_mpi(MPI_Group_free(&base_group));
         force_mpi(MPI_Group_free(&lookup_group));
-        Print::out("Started with rank:", base_rank, " ended up with", lookup_ranks[0]);
+        Print::out("Started with rank:", base_rank, "ended up with", lookup_ranks[0]);
         return lookup_ranks[0];
     }
 
@@ -189,13 +222,17 @@ protected:
     }
 
 private:
+    int resolve_comm_world(int lookup_peer)
+    {
+        return rankLookup(lookup_peer, comm, MPIS_COMM_WORLD);
+    }
+
     void print()
     {
-        Print::out("Request", myID, "Operation:", operation, protocol,
-                   "GPU Buffer Type:", memory_type,
-                   " - attributes:\n\tBuffers:", send_buffer, recv_buffer, "\n\tCount",
-                   count, "\n\tType:", datatype, "\n\tPeer:", peer, "\n\tTag:", tag,
-                   "\n\tComm:", comm, "\n\tOp:", op);
+        out("Operation:", operation, protocol, "GPU Buffer Type:", memory_type,
+            " - attributes:\n\tBuffers:", send_buffer, recv_buffer, "\n\tCount", count,
+            "\n\tType:", datatype, "(total bytes of buffer:", get_size_of_buffer(),
+            ")\n\tPeer:", peer, "\n\tTag:", tag, "\n\tComm:", comm, "\n\tOp:", op);
     }
 };
 
