@@ -231,8 +231,8 @@ private:
     {
         out("Operation:", operation, protocol, "GPU Buffer Type:", memory_type,
             " - attributes:\n\tBuffers:", send_buffer, recv_buffer, "\n\tCount", count,
-            "\n\tType:", datatype, "\n\tPeer:", peer, "\n\tTag:", tag, "\n\tComm:", comm,
-            "\n\tOp:", op);
+            "\n\tType:", datatype, "(total bytes of buffer:", get_size_of_buffer(),
+            ")\n\tPeer:", peer, "\n\tTag:", tag, "\n\tComm:", comm, "\n\tOp:", op);
     }
 };
 

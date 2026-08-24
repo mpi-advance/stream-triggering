@@ -160,14 +160,14 @@ protected:
     {
         if (first_time)
         {
-            Print::out(base_req.getID(), "Opening handles for send request!");
+            base_req.out("Opening handles for send request!");
             force_gpu(hipIpcOpenMemHandle(&peer_buffer_ptr, ipc_data[0].handle,
                                           hipIpcMemLazyEnablePeerAccess));
             force_gpu(hipIpcOpenMemHandle(&peer_completion_ptr, ipc_data[1].handle,
                                           hipIpcMemLazyEnablePeerAccess));
             first_time = false;
         }
-        Print::out("Using Offsets for IPC:", ipc_data[0].offset, ipc_data[1].offset,
+        Print::out("<E> Using Offsets for IPC:", ipc_data[0].offset, ipc_data[1].offset,
                    base_req.get_size_of_buffer(), peer_buffer_ptr);
 
         void* peer_true_buffer = (char*)peer_buffer_ptr + ipc_data[0].offset;
@@ -175,7 +175,7 @@ protected:
                                      base_req.get_size_of_buffer(), *the_stream));
 
         void* peer_true_completion = (char*)peer_completion_ptr + ipc_data[1].offset;
-        force_gpu(hipMemcpyDtoDAsync(peer_true_completion, &num_times_started,
+        force_gpu(hipMemcpyHtoDAsync(peer_true_completion, &num_times_started,
                                      sizeof(num_times_started), *the_stream));
 
         return TriggerStatus::DONE;
@@ -207,7 +207,7 @@ protected:
     TriggerStatus start_derived(CXICounter&  trigger_cntr,
                                 hipStream_t* the_stream) override
     {
-        Print::out("Self send wants to go to:", remote_data[0], remote_data[1]);
+        Print::out("<E> Self send wants to go to:", remote_data[0], remote_data[1]);
 
         force_gpu(hipMemcpyDtoDAsync(remote_data[0], base_req.send_buffer,
                                      base_req.get_size_of_buffer(), *the_stream));

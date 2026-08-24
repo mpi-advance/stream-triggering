@@ -462,6 +462,9 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
 
 void CXIQueue::enqueue_waitall()
 {
+#if defined(USE_TIOGA)
+    flush_memory(); // TODO: Refine this more so not all waitalls need this
+#endif
     GPUCompletions all_in_one;
     size_t         num_reqs = 0;
     for (auto req : active_requests)
