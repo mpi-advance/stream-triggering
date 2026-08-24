@@ -5,6 +5,8 @@ extern "C" {
 int MPIS_Recv_init(void* buffer, MPI_Count count, MPI_Datatype datatype, int src, int tag,
                    MPI_Comm comm, MPI_Info info, MPIS_Request* request)
 {
+    MPIS_BINDING_ENTER
+
     using namespace Communication;
     std::shared_ptr<Request>* internal_request = new std::shared_ptr<Request>(
         new Request(Operation::RECV, nullptr, buffer, count, datatype, src, tag, comm, info));
@@ -12,6 +14,7 @@ int MPIS_Recv_init(void* buffer, MPI_Count count, MPI_Datatype datatype, int src
     *request =
         new MPIS_Request_struct{RequestState::UNMATCHED, (uintptr_t)internal_request};
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }

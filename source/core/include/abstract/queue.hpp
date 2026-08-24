@@ -34,12 +34,38 @@ public:
         progress_engine.wait_until_empty();
     }
 
-    virtual void match(std::shared_ptr<Request> request)
+    virtual void initiate_match(std::vector<std::shared_ptr<Request>> requests)
     {
-        if (Operation::BARRIER > request->operation)
+        for (auto& req : requests)
         {
-            // Normal matching
-            Communication::BlankMatch::match(*request);
+            if (Operation::BARRIER > req->operation)
+            {
+                // Normal matching
+                Match::Blank::match(*req);
+            }
+        }
+    }
+
+    virtual void finalize_match(std::vector<std::shared_ptr<Request>> requests)
+    {
+        std::vector<MPI_Request> request_train;
+        std::vector<MPI_Status>  status_train;
+        for (auto& req : requests)
+        {
+            if (Operation::BARRIER > req->operation)
+            {
+                req->join_waitall_match(request_train, status_train);
+                Print::out("Train size now:", request_train.size());
+            }
+        }
+
+        force_mpi(
+            MPI_Waitall(request_train.size(), request_train.data(), status_train.data()));
+
+        Print::out("Done with all matching.");
+        for (auto& req : requests)
+        {
+            req->set_match();
         }
     }
 

@@ -7,6 +7,7 @@ extern "C" {
 
 int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
 {
+    MPIS_BINDING_ENTER
     std::function<void()> delete_fn;
     if (MPI_INFO_NULL != info)
     {
@@ -79,6 +80,7 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
     /* Register pointer and it's freeing function. */
     deletors[*baseptr] = delete_fn;
 
+    MPIS_BINDING_EXIT
     return MPIS_SUCCESS;
 }
 }
