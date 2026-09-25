@@ -28,8 +28,10 @@ fi
 ST_PATH=${HOME}/apps/stream-trigger
 
 cd ..
-python3 compile.py -f benchmark/pingpong_st_db.cpp -C -T -S $ST_PATH ${module_command}
-python3 compile.py -f benchmark/pingpong_st.cpp -C -T -S $ST_PATH ${module_command}
+python3 compile.py -f benchmark/pingpong_st_db.cpp -C -H -T -S $ST_PATH ${module_command}
+python3 compile.py -f benchmark/pingpong_st.cpp -C -H -T -S $ST_PATH ${module_command}
+python3 compile.py -f benchmark/pingpong_st_raw.cpp -C -H -T -S $ST_PATH ${module_command}
 python3 compile.py -f benchmark/pingpong_mpi_db.cpp ${module_command}
 python3 compile.py -f benchmark/pingpong_mpi.cpp ${module_command}
+python3 compile.py -f benchmark/pingpong_mpi_raw.cpp ${module_command}
 python3 compile.py -f benchmark/pingpong_ipc.cpp ${module_command}

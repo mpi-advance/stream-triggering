@@ -18,7 +18,7 @@ void* send_buffer;
 void* recv_buffer;
 
 #if defined(USE_STREAM_TRIGGERING)
-MPI_Info mem_info;
+MPI_Info   mem_info;
 MPIS_Queue my_queue;
 #endif
 
@@ -118,7 +118,8 @@ void init_benchmark(int* argc, char*** argv)
 }
 
 template <typename LambdaFxn>
-void run_experiment(LambdaFxn do_cycles, bool is_double_buffered = false)
+void run_experiment(LambdaFxn do_cycles, bool is_double_buffered = false,
+                    bool check_final = true)
 {
     // Carry out some warmup runs to get things started.
     MPI_Barrier(MPI_COMM_WORLD);
@@ -131,19 +132,22 @@ void run_experiment(LambdaFxn do_cycles, bool is_double_buffered = false)
 
     // Final check
     device_sync();
-    if (is_double_buffered && 0 == (num_iters % 2))
+    if (check_final)
     {
-        // Cast to char* to do pointer math, then back to int* for function
-        print_buffer<<<1, BLOCK_SIZE, 0, bench_stream>>>(
-            (int*)((char*)recv_buffer + (sizeof(int) * BUFFER_SIZE)), BUFFER_SIZE,
-            num_iters - 1, rank);
+        if (is_double_buffered && 0 == (num_iters % 2))
+        {
+            // Cast to char* to do pointer math, then back to int* for function
+            print_buffer<<<1, BLOCK_SIZE, 0, bench_stream>>>(
+                (int*)((char*)recv_buffer + (sizeof(int) * BUFFER_SIZE)), BUFFER_SIZE,
+                num_iters - 1, rank);
+        }
+        else
+        {
+            print_buffer<<<1, BLOCK_SIZE, 0, bench_stream>>>(
+                (int*)recv_buffer, BUFFER_SIZE, num_iters - 1, rank);
+        }
+        device_sync();
     }
-    else
-    {
-        print_buffer<<<1, BLOCK_SIZE, 0, bench_stream>>>((int*)recv_buffer, BUFFER_SIZE,
-                                                         num_iters - 1, rank);
-    }
-    device_sync();
 
     std::cout << rank << " is done: " << end - start << std::endl;
 }

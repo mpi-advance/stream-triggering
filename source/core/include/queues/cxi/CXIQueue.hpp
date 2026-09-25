@@ -94,6 +94,16 @@ public:
         Queue::finalize_match(requests);
     }
 
+    void request_free(std::shared_ptr<Request> request) override
+    {
+        if(request_map.contains(request->getID()))
+        {
+            request->out("Removing from CXIQueue's cache!");
+            request_map.erase(request->getID());
+        }
+        Queue::request_free(request);
+    }
+
 private:
     void exchange_protocol(Request&);
     void prepare_cxi_mr_key(Request&);

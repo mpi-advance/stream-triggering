@@ -1,6 +1,6 @@
 #!/bin/bash
-#flux: --nodes=1
-#flux: --nslots=1
+#flux: --nodes=2
+#flux: --nslots=2
 #flux: --time-limit=5m
 #flux: --queue=pdebug
 #flux: --exclusive
@@ -9,11 +9,11 @@
 ### 0. Global Options / Env vars
 
 # Settings related to individual tests
-TEST_NAME=self_send
+TEST_NAME=as_nonblocking
 TIME=3m
 NUM_ITERS=50
 BUFF_SIZE=10
-NODES=1
+NODES=2
 PPN=1
 
 # set -e

@@ -1,8 +1,8 @@
 #!/bin/bash
 #flux: --nodes=2
 #flux: --nslots=2
-#flux: --time=35m
-#flux: --queue=pbatch
+#flux: --time-limit=10m
+#flux: --queue=pdebug
 #flux: --gpus-per-slot=1
 #flux: --output=../scratch/flux/{{jobid}}.out
 #flux: --exclusive
@@ -22,7 +22,7 @@ export MPICH_GPU_SUPPORT_ENABLED=1
 TEST_NAME="pingpong"
 TIME="3m"
 START_EXP=3
-END_EXP=28
+END_EXP=3
 
 ### 0.5 Go up a level to start
 cd ..
@@ -142,8 +142,10 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
 
     run_tests "st" "cxi-coarse"
     run_tests "mpi"
-    export MPIA_ST_DISABLE_CREDIT=1
-    do_on_node=false do_db=false run_tests "st" "cxi-coarse" "no-credit"
-    unset MPIA_ST_DISABLE_CREDIT
+    do_db=false run_tests "mpi_raw"
+    do_db=false run_tests "st_raw" "cxi-coarse"
+    #export MPIA_ST_DISABLE_CREDIT=1
+    #do_on_node=false do_db=false run_tests "st" "cxi-coarse" "no-credit"
+    #unset MPIA_ST_DISABLE_CREDIT
     do_off_node=false do_db=false run_tests "ipc" 
 done

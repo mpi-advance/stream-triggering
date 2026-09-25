@@ -69,6 +69,23 @@ public:
         }
     }
 
+    virtual void request_free(std::shared_ptr<Request> request)
+    {
+        if(request_cache.contains(request->getID()))
+        {
+            request->out("Removing from Queue's cache!");
+            request_cache.erase(request->getID());
+        }
+    }
+
+    virtual void request_freeall(std::vector<std::shared_ptr<Request>> requests)
+    {
+        for (auto& req : requests)
+        {
+            request_free(req);
+        }
+    }
+
     operator uintptr_t() const
     {
         return (uintptr_t)(*this);
