@@ -1,3 +1,4 @@
+#include "abstract/queue.hpp"
 #include "helpers.hpp"
 
 extern "C" {
@@ -19,6 +20,9 @@ int MPIS_Request_free(MPIS_Request* request)
     if (RequestState::ONGOING != (*request)->state)
     {
         std::shared_ptr<Request>* internal_request = convert_request_ptr(request);
+        /* Tell the global queue that it needs to free resources related to this request*/
+        Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
+        the_queue->request_free(*internal_request);
         /* Delete underlying request object allocated to
          * MPIS_Request_struct.internal_request */
         delete internal_request;
