@@ -26,17 +26,17 @@ extern const MPIS_Request MPIS_REQUEST_NULL;
 
 enum MPIS_Queue_type
 {
-    THREAD      = 0,
+    DEFAULT     = 0,
+    THREAD      = 1,
     GPU_MEM_OPS = 3,
     CXI         = 4
 };
-typedef enum MPIS_Queue_type MPS_Queue_type;
+typedef enum MPIS_Queue_type MPIS_Queue_type;
 
 /* Queue Management */
-// int MPIS_Queue_fence();
 int MPIS_Queue_free(MPIS_Queue*);
 int MPIS_Queue_init(MPIS_Queue*, MPIS_Queue_type, void*);
-int MPIS_Queue_wait(MPIS_Queue);
+int MPIS_Queue_wait(MPIS_Queue*);
 
 /* Push stuff to Queue */
 int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
@@ -53,6 +53,7 @@ int MPIS_Queue_match(MPIS_Queue, MPIS_Request*, MPI_Status*);
 /*        Custom MPIS Override Functions         */
 /* These have minimal, if any, new functionality */
 int MPIS_Request_free(MPIS_Request*);
+/* Custom helper function unique to this library only */
 int MPIS_Request_freeall(int, MPIS_Request[]);
 int MPIS_Wait(MPIS_Request*, MPI_Status*);
 int MPIS_Waitall(int, MPIS_Request[], MPI_Status[]);
@@ -66,10 +67,10 @@ int MPIS_Send_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI
                    MPIS_Request*);
 int MPIS_Rsend_init(const void*, MPI_Count, MPI_Datatype, int, int, MPI_Comm, MPI_Info,
                     MPIS_Request*);
-int MPIS_Allreduce_init(const void*, void*, int, MPI_Datatype, MPI_Op, MPI_Comm, MPI_Info,
-                        MPIS_Request*);
+int MPIS_Allreduce_init(const void*, void*, MPI_Count, MPI_Datatype, MPI_Op, MPI_Comm,
+                        MPI_Info, MPIS_Request*);
 
-/* New GPU Memory Allocation functions */
+/* New GPU Memory Allocation functions (helper extensions unique to this library only) */
 int MPIS_Alloc_mem(MPI_Aint, MPI_Info, void**);
 int MPIS_Free_mem(void*);
 

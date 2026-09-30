@@ -225,7 +225,7 @@ int main(int argc, char* argv[])
             MPIS_Enqueue_waitall(my_queue);
 
             // #ifdef THREAD_BACKEND
-            // MPIS_Queue_wait(my_queue);
+            // MPIS_Queue_wait(&my_queue);
             // #endif
             print_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                 (int*)top_r, (int*)bottom_r, (int*)left_r, (int*)right_r, BUFFER_SIZE,
@@ -233,7 +233,7 @@ int main(int argc, char* argv[])
                 i);
             std::cout << rank << " step: " << i << "/" << num_iters << std::endl;
         }
-        MPIS_Queue_wait(my_queue);
+        MPIS_Queue_wait(&my_queue);
     };
 
     double start = MPI_Wtime();

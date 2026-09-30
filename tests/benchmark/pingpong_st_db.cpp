@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
             if (0 == rank)
             {
 #ifdef THREAD_BACKEND
-                MPIS_Queue_wait(my_queue);
+                MPIS_Queue_wait(&my_queue);
 #endif
                 // Ping side
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
                 MPIS_Enqueue_waitall(my_queue);
 
                 // #ifdef THREAD_BACKEND
-                //                 MPIS_Queue_wait(my_queue);
+                //                 MPIS_Queue_wait(&my_queue);
                 // #endif
                 //                 print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0,
                 //                 bench_stream>>>(
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[RECV_REQ]);
                 MPIS_Enqueue_waitall(my_queue);
 #ifdef THREAD_BACKEND
-                MPIS_Queue_wait(my_queue);
+                MPIS_Queue_wait(&my_queue);
 #endif
                 // print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                 //     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
             inactive_request_ptr    = temp_reqs;
         }
 
-        MPIS_Queue_wait(my_queue);
+        MPIS_Queue_wait(&my_queue);
     };
 
     Benchmark::run_experiment(do_cycles, true);

@@ -72,7 +72,7 @@ int main()
         MPIS_Enqueue_waitall(my_queue);
         // This next line is needed for the CPU Thread example because I can't just
         // "queue" a buffer change to the hidden thread like I can to a GPU thread
-        MPIS_Queue_wait(my_queue);
+        MPIS_Queue_wait(&my_queue);
         thread_process_iteration(i);
     }
 

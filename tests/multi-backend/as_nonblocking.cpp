@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
             MPIS_Enqueue_waitall(my_queue);
 
 #ifdef THREAD_BACKEND
-            MPIS_Queue_wait(my_queue);
+            MPIS_Queue_wait(&my_queue);
 #endif
             print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf,
                                                                     BUFFER_SIZE, rank);
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
             MPIS_Enqueue_waitall(my_queue);
         }
 
-        MPIS_Queue_wait(my_queue);
+        MPIS_Queue_wait(&my_queue);
         MPIS_Request_freeall(2, my_reqs);
     }
 

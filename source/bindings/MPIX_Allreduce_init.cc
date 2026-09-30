@@ -2,7 +2,7 @@
 
 extern "C" {
 
-int MPIS_Allreduce_init(const void* sendbuf, void* recvbuf, int count,
+int MPIS_Allreduce_init(const void* sendbuf, void* recvbuf, MPI_Count count,
                         MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info,
                         MPIS_Request* request)
 {

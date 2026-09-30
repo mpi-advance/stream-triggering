@@ -32,6 +32,7 @@ int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address
     Queue* the_queue;
     switch (type)
     {
+        case DEFAULT:
 #ifdef USE_THREADS
         case THREAD:
             the_queue = new ThreadQueue();

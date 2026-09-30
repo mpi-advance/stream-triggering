@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
         for (int i = 0; i < num_cycles; i++)
         {
 #ifdef THREAD_BACKEND
-            MPIS_Queue_wait(my_queue);
+            MPIS_Queue_wait(&my_queue);
             device_sync();
 #endif
             MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
             inactive_request_ptr    = temp_reqs;
         }
 
-        MPIS_Queue_wait(my_queue);
+        MPIS_Queue_wait(&my_queue);
     };
 
     Benchmark::run_experiment(do_cycles, true, false);

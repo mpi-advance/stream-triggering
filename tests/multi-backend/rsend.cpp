@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     }
     MPIS_Enqueue_start(my_queue, &my_reqs[0]);
     MPIS_Enqueue_waitall(my_queue);
-    MPIS_Queue_wait(my_queue);
+    MPIS_Queue_wait(&my_queue);
     double end = MPI_Wtime();
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     MPIS_Enqueue_start(my_queue, &my_reqs[1]);
     MPIS_Enqueue_waitall(my_queue);
 
-    MPIS_Queue_wait(my_queue);
+    MPIS_Queue_wait(&my_queue);
     end = MPI_Wtime();
 
     std::cout << rank << " time B: " << end - start << std::endl;

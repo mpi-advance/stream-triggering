@@ -120,7 +120,7 @@ int main()
 
     MPIS_Enqueue_start(my_queue, barrier_req);
     MPIS_Enqueue_waitall(my_queue);
-    MPIS_Queue_wait(my_queue);
+    MPIS_Queue_wait(&my_queue);
 
     std::cout << rank << " After all work!" << std::endl;
     // Final check

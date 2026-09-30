@@ -86,11 +86,6 @@ public:
         }
     }
 
-    operator uintptr_t() const
-    {
-        return (uintptr_t)(*this);
-    }
-
 protected:
     Progress::Engine progress_engine;
 

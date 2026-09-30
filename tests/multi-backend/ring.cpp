@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
         MPIS_Enqueue_waitall(my_queue);
     }
 
-    MPIS_Queue_wait(my_queue);
+    MPIS_Queue_wait(&my_queue);
 
     device_sync();
     print_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
