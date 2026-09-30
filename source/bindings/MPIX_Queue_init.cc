@@ -23,6 +23,23 @@
 
 #include <stdexcept>
 
+// Picks whichever backend may be compiled in.
+// Current ordering is just numerical and has no real reason for it
+static Queue* select_default_queue(void* extra_address)
+{
+#if defined(USE_THREADS)
+    return new ThreadQueue();
+#elif defined(USE_MEM_OPS) && defined(CUDA_GPUS)
+    return new CudaQueue((cudaStream_t*)(extra_address));
+#elif defined(USE_MEM_OPS) && defined(HIP_GPUS)
+    return new HIPQueue((hipStream_t*)(extra_address));
+#elif defined(USE_CXI)
+    return new CXIQueue((hipStream_t*)(extra_address));
+#else
+    throw std::runtime_error("Queue type not enabled");
+#endif
+}
+
 extern "C" {
 
 int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address)
@@ -33,6 +50,8 @@ int MPIS_Queue_init(MPIS_Queue* queue, MPIS_Queue_type type, void* extra_address
     switch (type)
     {
         case DEFAULT:
+            the_queue = select_default_queue(extra_address);
+            break;
 #ifdef USE_THREADS
         case THREAD:
             the_queue = new ThreadQueue();
