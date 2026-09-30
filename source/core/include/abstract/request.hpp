@@ -119,9 +119,16 @@ public:
 
     inline size_t get_size_of_buffer()
     {
-        int size = -1;
-        check_mpi(MPI_Type_size(datatype, &size));
-        return (size_t)(size * count);
+        if (MPI_DATATYPE_NULL == datatype)
+        {
+            return 0;
+        }
+        else
+        {
+            int size = -1;
+            check_mpi(MPI_Type_size(datatype, &size));
+            return (size_t)(size * count);
+        }
     }
 
     MPI_Request* get_match_requests(size_t num)
@@ -136,14 +143,14 @@ public:
         if (Operation::RECV == operation)
         {
             out("(R) Protocol Peer, Tag:", cw_peer, tag);
-            check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag, channel,
-                                &protocol_request));
+            check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag,
+                                channel, &protocol_request));
         }
         else
         {
             out("(S) Protocol Peer, Tag:", cw_peer, tag);
-            check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag, channel,
-                                &protocol_request));
+            check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag,
+                                channel, &protocol_request));
         }
     }
 

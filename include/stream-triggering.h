@@ -35,7 +35,7 @@ typedef enum MPIS_Queue_type MPIS_Queue_type;
 
 /* Queue Management */
 int MPIS_Queue_free(MPIS_Queue*);
-int MPIS_Queue_init(MPIS_Queue*, MPIS_Queue_type, void*);
+int MPIS_Queue_create(MPIS_Queue*, MPIS_Queue_type, MPI_Info, void*);
 int MPIS_Queue_wait(MPIS_Queue*);
 
 /* Push stuff to Queue */

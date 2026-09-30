@@ -41,13 +41,13 @@ int main(int argc, char* argv[])
     // Make queue
     MPIS_Queue my_queue;
 #if defined(HIP_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CUDA_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CXI_BACKEND)
-    MPIS_Queue_init(&my_queue, CXI, &my_stream);
+    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
 #elif defined(THREAD_BACKEND)
-    MPIS_Queue_init(&my_queue, THREAD, &my_stream);
+    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
 #endif
 
     // Info hint
@@ -178,13 +178,13 @@ int main(int argc, char* argv[])
     std::cout << rank << " is done: " << end - start << std::endl;
 
 #if defined(HIP_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CUDA_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CXI_BACKEND)
-    MPIS_Queue_init(&my_queue, CXI, &my_stream);
+    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
 #elif defined(THREAD_BACKEND)
-    MPIS_Queue_init(&my_queue, THREAD, &my_stream);
+    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
 #endif
 
     if (0 == rank % 2)

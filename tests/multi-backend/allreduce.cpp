@@ -50,13 +50,13 @@ int main(int argc, char* argv[])
     // Make queue
     MPIS_Queue my_queue;
 #if defined(HIP_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CUDA_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &my_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
 #elif defined(CXI_BACKEND)
-    MPIS_Queue_init(&my_queue, CXI, &my_stream);
+    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
 #elif defined(THREAD_BACKEND)
-    MPIS_Queue_init(&my_queue, THREAD, &my_stream);
+    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
 #endif
 
     // Make request

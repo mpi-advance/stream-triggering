@@ -108,7 +108,7 @@ int main()
 
     // Make queue
     MPIS_Queue my_queue;
-    MPIS_Queue_init(&my_queue, CXI, &my_stream);
+    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
 
     MPIS_Request barrier_req;
     MPIS_Barrier_init(MPI_COMM_WORLD, MPI_INFO_NULL, &barrier_req);

@@ -106,13 +106,13 @@ void init_benchmark(int* argc, char*** argv)
     // Make queue, if using stream triggering
 #if defined(USE_STREAM_TRIGGERING)
 #if defined(HIP_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &Benchmark::bench_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &Benchmark::bench_stream);
 #elif defined(CUDA_BACKEND)
-    MPIS_Queue_init(&my_queue, GPU_MEM_OPS, &Benchmark::bench_stream);
+    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &Benchmark::bench_stream);
 #elif defined(CXI_BACKEND)
-    MPIS_Queue_init(&my_queue, CXI, &Benchmark::bench_stream);
+    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &Benchmark::bench_stream);
 #elif defined(THREAD_BACKEND)
-    MPIS_Queue_init(&my_queue, THREAD, &Benchmark::bench_stream);
+    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &Benchmark::bench_stream);
 #endif
 #endif
 }

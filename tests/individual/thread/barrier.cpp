@@ -49,7 +49,7 @@ int main()
 
     // Make queue and queue entries
     MPIS_Queue my_queue;
-    MPIS_Queue_init(&my_queue, THREAD, nullptr);
+    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, nullptr);
 
     // Match
     MPIS_Queue_match(my_queue, &my_reqs[0], MPI_STATUS_IGNORE);
