@@ -15,13 +15,7 @@ int main(int argc, char* argv[])
     int BUFFER_SIZE = 64;
 
     // Info hint for buffer
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
-#else
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
-#endif
+    MPI_Info mem_info = Common::make_gpu_mem_info();
 
     // Make Buffers
     int BLOCK_SIZE = 128;

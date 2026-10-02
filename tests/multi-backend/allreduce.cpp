@@ -15,17 +15,7 @@ int main(int argc, char* argv[])
     int BUFFER_SIZE = 64;
 
     // Info hint for buffer
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifdef NEED_HIP
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
-#else
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
-#endif
-#elif defined(NEED_CUDA)
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "cuda:device");
-#endif
+    MPI_Info mem_info = Common::make_gpu_mem_info();
     // Make Buffers
     int BLOCK_SIZE = 128;
     int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;

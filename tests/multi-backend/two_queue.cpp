@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "stream-triggering.h"
 
 int main(int argc, char* argv[])
 {
@@ -9,22 +10,25 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // I want "two params"
-    check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
+    Common::check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
 
     // Input parameters
     int num_warmups = 10;
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
-    read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    Common::read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
 
     // Make Buffers
     int BLOCK_SIZE = 128;
     int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
+    // Info hint for buffer
+    MPI_Info mem_info = Common::make_gpu_mem_info();
+
     void* send_buf = nullptr;
     void* recv_buf = nullptr;
-    allocate_gpu_memory(&send_buf, sizeof(int) * BUFFER_SIZE * 2);
-    allocate_gpu_memory(&recv_buf, sizeof(int) * BUFFER_SIZE * 2);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &send_buf);
+    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &recv_buf);
 
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
                                              BUFFER_SIZE * 2);
@@ -48,15 +52,6 @@ int main(int argc, char* argv[])
     MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
 #elif defined(THREAD_BACKEND)
     MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
-#endif
-
-    // Info hint
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
-#else
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
 #endif
 
 #define SEND_REQ (rank ^ 1)
@@ -250,6 +245,8 @@ int main(int argc, char* argv[])
     MPIS_Request_freeall(2, my_reqs);
     MPIS_Request_freeall(2, my_other_reqs);
     MPIS_Queue_free(&my_queue);
+    MPIS_Free_mem(send_buf);
+    MPIS_Free_mem(recv_buf);
     MPI_Info_free(&mem_info);
 
     MPI_Finalize();

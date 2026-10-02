@@ -69,22 +69,16 @@ int main(int argc, char* argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // I want "two params"
-    check_param_size(&argc, 2, "<program> <number of iterations> <local buffer size>");
+    Common::check_param_size(&argc, 2, "<program> <number of iterations> <local buffer size>");
 
     // Input parameters
     int num_warmups = 10;
     int num_iters   = 0;
     int BUFFER_SIZE = 0;
-    read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    Common::read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
 
     // Info hint for buffer
-    MPI_Info mem_info;
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
-#else
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
-#endif
+    MPI_Info mem_info = Common::make_gpu_mem_info();
 
     // Make Buffers
     int BLOCK_SIZE = 128;

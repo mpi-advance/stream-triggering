@@ -105,6 +105,47 @@ void device_sync()
 
 #endif
 
+namespace Common
+{
+void allocate_gpu_memory(void** location, size_t size)
+{
+#ifndef FINE_GRAINED_TEST
+#if defined(NEED_HIP)
+    force_gpu(hipMalloc(location, size));
+#elif defined(NEED_CUDA)
+    force_gpu(cudaMalloc(location, size));
+#else
+    static_assert(false, "Unable to allocate GPU memory, no valid GPU flags set.");
+#endif
+#else
+#if defined(NEED_HIP)
+    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
+#else
+    static_assert(false, "Unable to allocate fine-grained GPU memory for a non-HIP build.");
+#endif
+#endif
+}
+
+// Builds the MPI_Info hint that tells MPIS_Alloc_mem which GPU memory kind to
+// allocate, based on which GPU toolchain this test is compiled for. Caller
+// owns the returned info and must MPI_Info_free it.
+MPI_Info make_gpu_mem_info()
+{
+    MPI_Info info;
+    MPI_Info_create(&info);
+#if defined(NEED_HIP)
+#ifndef FINE_GRAINED_TEST
+    MPI_Info_set(info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
+#else
+    MPI_Info_set(info, "mpi_memory_alloc_kinds", "rocm:device:fine");
+#endif
+#elif defined(NEED_CUDA)
+    MPI_Info_set(info, "mpi_memory_alloc_kinds", "cuda:device");
+#endif
+    return info;
+}
+}  // namespace Common
+
 __global__ void init_buffers(int* send_buf, int* recv_buf, int buffer_len)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -208,6 +249,8 @@ __global__ void verify(volatile int* buffer, int buffer_len, int rank, int size)
     }
 }
 
+namespace Common
+{
 static void inline check_param_size(int* argc, int num_params, std::string usage)
 {
     if ((*argc) != (1 + num_params))
@@ -222,5 +265,6 @@ static void inline read_iter_buffer_input(char*** argv, int* num_iters, int* buf
     (*num_iters)   = std::atoi((*argv)[1]);
     (*buffer_size) = std::atoi((*argv)[2]);
 }
+}  // namespace Common
 
 #endif

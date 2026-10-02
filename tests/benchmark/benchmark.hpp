@@ -28,25 +28,6 @@ hipStream_t bench_stream;
 cudaStream_t bench_stream;
 #endif
 
-void allocate_gpu_memory(void** location, size_t size)
-{
-#ifndef FINE_GRAINED_TEST
-#if defined(NEED_HIP)
-    force_gpu(hipMalloc(location, size));
-#elif defined(NEED_CUDA)
-    force_gpu(cudaMalloc(location, size));
-#else
-    static_assert(false, "Unable to build benchmark, no valid GPU flags set.");
-#endif
-#else
-#if defined(NEED_HIP)
-    force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
-#else
-    static_assert(false, "Unable to build benchmark for non-HIP fine grained test");
-#endif
-#endif
-}
-
 template <bool USE_THREAD, bool DOUBLE_BUFF>
 void init_benchmark(int* argc, char*** argv)
 {
@@ -63,13 +44,13 @@ void init_benchmark(int* argc, char*** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // I want "two params"
-    check_param_size(argc, 2, "<program> <number of iterations> <buffer size>");
+    Common::check_param_size(argc, 2, "<program> <number of iterations> <buffer size>");
 
     // Input parameters
     num_warmups = 10;
     num_iters   = 0;
     BUFFER_SIZE = 0;
-    read_iter_buffer_input(argv, &num_iters, &BUFFER_SIZE);
+    Common::read_iter_buffer_input(argv, &num_iters, &BUFFER_SIZE);
 
     // Make Buffers
     BLOCK_SIZE         = 128;
@@ -80,17 +61,12 @@ void init_benchmark(int* argc, char*** argv)
     recv_buffer = nullptr;
 #if defined(USE_STREAM_TRIGGERING)
     // Info hint for buffer
-    MPI_Info_create(&mem_info);
-#ifndef FINE_GRAINED_TEST
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:coarse");
-#else
-    MPI_Info_set(mem_info, "mpi_memory_alloc_kinds", "rocm:device:fine");
-#endif
+    mem_info = Common::make_gpu_mem_info();
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * scaling_factor, mem_info, &send_buffer);
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * scaling_factor, mem_info, &recv_buffer);
 #else
-    allocate_gpu_memory(&send_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);
-    allocate_gpu_memory(&recv_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);
+    Common::allocate_gpu_memory(&send_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);
+    Common::allocate_gpu_memory(&recv_buffer, sizeof(int) * BUFFER_SIZE * scaling_factor);
 #endif
 
     init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buffer, (int*)recv_buffer,

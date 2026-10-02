@@ -33,8 +33,8 @@ int main(int argc, char* argv[])
     void*  ready_buffer       = nullptr;
     int*   ready_value_buffer = nullptr;
     size_t buffer_value_size  = std::max(Benchmark::num_warmups, Benchmark::num_iters);
-    Benchmark::allocate_gpu_memory(&ready_buffer, sizeof(int));
-    Benchmark::allocate_gpu_memory((void**)&ready_value_buffer,
+    Common::allocate_gpu_memory(&ready_buffer, sizeof(int));
+    Common::allocate_gpu_memory((void**)&ready_value_buffer,
                                    sizeof(int) * buffer_value_size);
 
     // Make sure ready_buffer is 0
