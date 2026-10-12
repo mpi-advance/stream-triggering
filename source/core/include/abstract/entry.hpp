@@ -55,6 +55,7 @@ public:
           wait_location(wait)
     {
         initialize_mpi_request(*req, mpi_request.get());
+        wait_group = std::make_shared<Progress::RequestGroup>(mpi_request);
     }
 
     /** @brief Default destructor. */
@@ -94,11 +95,11 @@ public:
      */
     operator std::shared_ptr<Progress::WaitEntry>()
     {
-        return std::make_shared<Progress::WaitEntry>(mpi_request, wait_location,
+        return std::make_shared<Progress::WaitEntry>(wait_group, wait_location,
                                                      threshold);
     }
 
-    /**
+    /** [UPDATE]
      * @brief Create a wait-all-action item for the progress engine.
      * @details This method is intended to allow for waiting on multiple items at once in
      * a single action. Currently this requires the list of MPI_Requests to be waited on
@@ -113,11 +114,12 @@ public:
      * Progress::Engine).
      * @sa HIPQueue::enqueue_waitall()
      */
-    std::shared_ptr<Progress::WaitallEntry> convert_to_waitall(
+    std::shared_ptr<Progress::WaitEntry> convert_to_waitall(
         std::vector<Progress::RequestType> other_reqs)
     {
-        return std::make_shared<Progress::WaitallEntry>(other_reqs, wait_location,
-                                                        threshold);
+        return std::make_shared<Progress::WaitEntry>(
+            std::make_shared<Progress::RequestGroup>(std::move(other_reqs)),
+            wait_location, threshold);
     }
 
     /**
@@ -193,7 +195,7 @@ protected:
     /** @brief The triggering threshold for this communication operation. */
     Progress::CounterType threshold = 0;
 
-    /**
+    /** [REVIEW]
      * @brief A shared pointer to the underlying MPI Request used for communication.
      * @details The MPI_Request is wrapped in a shared pointer so that the
      * Queue::progress_engine and the main thread can both read from it / manage the
@@ -203,6 +205,9 @@ protected:
      * @sa initialize_mpi_request
      */
     std::shared_ptr<MPI_Request> mpi_request = nullptr;
+
+    /** @brief [TODO] */
+    std::shared_ptr<Progress::RequestGroup> wait_group = nullptr;
 
     /**
      * @brief A shared pointer to the original Communication::Request object.
@@ -227,7 +232,7 @@ protected:
      */
     Progress::CounterType* start_location;
 
-    /**
+    /** [REVIEW]
      * @brief The location the "stream" will look at to wait on a communication.
      * @details Because the Queue::progress_engine is the one working on the completion of
      * the underlying MPI operation (and that the "stream" is assumed not to be able to

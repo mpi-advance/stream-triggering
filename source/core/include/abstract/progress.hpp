@@ -2,10 +2,12 @@
 #define ST_ABSTRACT_PROGRESS
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <vector>
 
 #include "misc/print.hpp"
 #include "safety/mpi.hpp"
@@ -47,40 +49,42 @@ public:
     {
     }
 
+    /** @brief [TODO] */
+    virtual ~Entry() = default;
+
     /** @brief The function the Progress::Engine will call to invoke work to be done. */
     virtual void enqueued_action() = 0;
 
 protected:
     CounterType* mem_signal;  //!< A "counter" address.
-    CounterType  iteration;   //!< The current iteration (full meaning is left up to derived classes).
+    CounterType iteration;  //!< The current iteration (full meaning is left up to derived
+                            //!< classes).
 };
 
 /**
- * @brief An implementation of Progress::Entry that represent triggered communication "starts"
+ * @brief An implementation of Progress::Entry that represent triggered communication
+ * "starts"
  * @details
  */
 class StartEntry : public Entry
 {
 public:
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] _request
      * @param [in] _mem
      * @param [in] _iteration
      */
     StartEntry(RequestType _request, CounterType* _mem, CounterType _iteration)
-        : Entry(_mem, _iteration), request(_request)
+        : Entry(_mem, _iteration), request(std::move(_request))
     {
     }
     void enqueued_action() override
     {
-        while ((*mem_signal) != iteration)
+        while (std::atomic_ref<CounterType>(*mem_signal).load(std::memory_order_acquire) <
+               iteration)
         {
             std::this_thread::yield();
-            if ((*mem_signal) > iteration)
-            {
-                break;
-            }
         }
         force_mpi(MPI_Start(request.get()));
     }
@@ -91,71 +95,95 @@ private:
 };
 
 /**
- * @brief
+ * @brief [TODO]
+ * @details
+ */
+class RequestGroup
+{
+public:
+    /**
+     * @brief [TODO]
+     * @param [in] _members
+     */
+    explicit RequestGroup(std::vector<RequestType> _members)
+        : members(std::move(_members))
+    {
+        handles.reserve(members.size());
+        for (RequestType& member : members)
+        {
+            handles.push_back(*member);
+        }
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] _member
+     */
+    explicit RequestGroup(RequestType _member)
+        : RequestGroup(std::vector<RequestType>{std::move(_member)})
+    {
+    }
+
+    /** @brief [TODO] */
+    RequestGroup(const RequestGroup& other) = delete;
+    /** @brief [TODO] */
+    RequestGroup& operator=(const RequestGroup& other) = delete;
+
+    /** @brief [TODO]
+     * @return
+     */
+    int size()
+    {
+        return handles.size();
+    }
+
+    /** @brief [TODO]
+     * @return
+     */
+    MPI_Request* data()
+    {
+        return handles.data();
+    }
+
+private:
+    std::vector<RequestType> members;  //!< [TODO]
+    std::vector<MPI_Request> handles;  //!< [TODO]
+};
+
+/**
+ * @brief [TODO]
  * @details
  */
 class WaitEntry : public Entry
 {
 public:
     /**
-     * @brief
-     * @param [in] _request
+     * @brief [TODO]
+     * @param [in] _group
      * @param [in] _mem
      * @param [in] _iteration
+     * @param [out] _statuses
      */
-    WaitEntry(RequestType _request, CounterType* _mem, CounterType _iteration)
-        : Entry(_mem, _iteration), request(_request)
+    WaitEntry(std::shared_ptr<RequestGroup> _group, CounterType* _mem,
+              CounterType _iteration, MPI_Status* _statuses = MPI_STATUSES_IGNORE)
+        : Entry(_mem, _iteration), group(std::move(_group)), statuses(_statuses)
     {
     }
 
     void enqueued_action() override
     {
-        force_mpi(MPI_Wait(request.get(), MPI_STATUS_IGNORE));
-        (*mem_signal) = iteration;
+        force_mpi(MPI_Waitall(group->size(), group->data(), statuses));
+        std::atomic_ref<CounterType>(*mem_signal)
+            .store(iteration, std::memory_order_release);
     }
 
 private:
-    /** @brief The underlying MPI Request that will be waited on by this Entry */
-    RequestType request;
+    std::shared_ptr<RequestGroup> group;     //!< [TODO]
+    MPI_Status*                   statuses;  //!< [TODO]
 };
 
 /**
- * @brief
- * @details
- */
-class WaitallEntry : public WaitEntry
-{
-public:
-    /**
-     * @brief
-     * @param [in] _requests
-     * @param [in] _mem
-     * @param [in] _iteration
-     */
-    WaitallEntry(std::vector<RequestType> _requests, CounterType* _mem,
-                 CounterType _iteration)
-        : WaitEntry(_requests.at(0), _mem, _iteration), requests(_requests)
-    {
-        for (auto& x : requests)
-        {
-            true_requests.push_back(*x);
-        }
-    }
-
-    void enqueued_action() override
-    {
-        force_mpi(
-            MPI_Waitall(true_requests.size(), true_requests.data(), MPI_STATUSES_IGNORE));
-        (*mem_signal) = iteration;
-    }
-
-private:
-    std::vector<MPI_Request> true_requests;  //!<
-    std::vector<RequestType> requests;       //!<
-};
-
-/**
- * @brief
+ * @brief [TODO]
  * @details
  */
 class Engine
@@ -175,67 +203,96 @@ public:
     }
 
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] request
      */
     void enqueued_start(std::shared_ptr<StartEntry> request)
     {
-        if (!running)
-        {
-            running         = true;
-            progress_thread = std::thread(&Engine::progress, this);
-        }
-
-        /* Add to progress thread */
-        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        ongoing.push(request);
-        item_counter++;
+        push(std::move(request));
     }
 
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] request
      */
     void enqueued_wait(std::shared_ptr<WaitEntry> request)
     {
-        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-        ongoing.push(request);
-        item_counter++;
+        push(std::move(request));
     }
 
-    /** @brief */
+    /** @brief [TODO] */
     void wait_until_empty()
     {
         while (item_counter.load() != 0)
         {
-            /* Do nothing */
+            std::this_thread::yield();
         }
     }
 
+    /** @brief [TODO]
+     * @return
+     */
+    bool is_empty()
+    {
+        return 0 == item_counter.load();
+    }
+
 private:
+    /**
+     * @brief [TODO]
+     * @param [in] item
+     */
+    void push(std::shared_ptr<Entry> item)
+    {
+        if (!running.exchange(true))
+        {
+            progress_thread = std::thread(&Engine::progress, this);
+        }
+
+        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
+        ongoing.push(std::move(item));
+        item_counter++;
+    }
+
     /** @brief */
     void progress()
     {
         while (running)
         {
-            while (ongoing.size() > 0)
-            {
-                std::shared_ptr<Entry> item = std::move(ongoing.front());
-                {  // Scope of the lock
-                    std::scoped_lock<std::mutex> incoming_lock(queue_guard);
-                    ongoing.pop();
-                }
-
-                item->enqueued_action();
-                item_counter--;
-            }
-
+            drain();
             std::this_thread::yield();
+        }
+        /* Finish anything still queued when the engine was shut down */
+        drain();
+    }
+
+    /** @brief [TODO] */
+    void drain()
+    {
+        while (std::shared_ptr<Entry> item = pop_next())
+        {
+            item->enqueued_action();
+            item_counter--;
         }
     }
 
-    bool        running;          //!<
-    std::thread progress_thread;  //!<
+    /** @brief [TODO]
+     * @return
+     */
+    std::shared_ptr<Entry> pop_next()
+    {
+        std::scoped_lock<std::mutex> incoming_lock(queue_guard);
+        if (ongoing.empty())
+        {
+            return nullptr;
+        }
+        std::shared_ptr<Entry> item = std::move(ongoing.front());
+        ongoing.pop();
+        return item;
+    }
+
+    std::atomic<bool> running;          //!< [TODO]
+    std::thread       progress_thread;  //!<
 
     std::atomic<int>                   item_counter;  //!<
     std::mutex                         queue_guard;   //!<

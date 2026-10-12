@@ -73,7 +73,7 @@ void HIPQueue::enqueue_waitall()
         return;
     }
 
-    // Otherwise let us collect all the MPI_Requests for a WaitallEntry
+    // Otherwise let us collect all the MPI_Requests for a single WaitEntry
     std::vector<Progress::RequestType> reqs;
     for (QueueEntry& entry : entries)
     {
