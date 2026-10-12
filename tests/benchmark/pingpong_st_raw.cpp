@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
             device_sync();
 #endif
             MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
-            MPIS_Enqueue_waitall(my_queue);
+            MPIS_Enqueue_waitall(my_queue, 2, active_request_ptr, MPI_STATUSES_IGNORE);
 
             MPIS_Request* temp_reqs = active_request_ptr;
             active_request_ptr      = inactive_request_ptr;

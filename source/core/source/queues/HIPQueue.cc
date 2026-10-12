@@ -56,7 +56,7 @@ void HIPQueue::enqueue_operation(std::shared_ptr<Request> request)
 void HIPQueue::enqueue_waitall()
 {
     // Make sure there's at least one thing to wait on
-    if(0 == entries.size())
+    if (0 == entries.size())
     {
         Print::out("No Requests have been started!");
         return;
@@ -65,7 +65,7 @@ void HIPQueue::enqueue_waitall()
     // Use the first queue entry to try to re-use completion buffers
     QueueEntry& first = entries.at(0);
     // If there's only one entry, we can just use a "WaitEntry"
-    if(1 == entries.size())
+    if (1 == entries.size())
     {
         progress_engine.enqueued_wait(first);
         first.wait_gpu(my_stream);

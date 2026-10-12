@@ -37,11 +37,13 @@ typedef enum MPIS_Queue_type MPIS_Queue_type;
 int MPIS_Queue_free(MPIS_Queue*);
 int MPIS_Queue_create(MPIS_Queue*, MPIS_Queue_type, MPI_Info, void*);
 int MPIS_Queue_wait(MPIS_Queue*);
+int MPIS_Queue_test(MPIS_Queue*, int*);
 
 /* Push stuff to Queue */
 int MPIS_Enqueue_startall(MPIS_Queue, int, MPIS_Request[]);
 int MPIS_Enqueue_start(MPIS_Queue, MPIS_Request*);
-int MPIS_Enqueue_waitall(MPIS_Queue);
+int MPIS_Enqueue_wait(MPIS_Queue, MPIS_Request*, MPI_Status*);
+int MPIS_Enqueue_waitall(MPIS_Queue, int, MPIS_Request[], MPI_Status[]);
 
 /* New Matching Functions */
 int MPIS_Match(MPIS_Request*, MPI_Status*);

@@ -42,11 +42,11 @@ static Queue* select_default_queue(void* extra_address)
 
 extern "C" {
 
-int MPIS_Queue_create(MPIS_Queue* queue, MPIS_Queue_type type, MPI_Info info,
+// No queue backend consumes any hints yet, hence the unnamed MPI_Info.
+int MPIS_Queue_create(MPIS_Queue* queue, MPIS_Queue_type type, MPI_Info,
                       void* extra_address)
 {
     MPIS_BINDING_ENTER
-    (void)info;  // No queue backend consumes any hints yet.
 
     Queue* the_queue;
     switch (type)

@@ -8,7 +8,7 @@ int MPIS_Queue_free(MPIS_Queue* queue)
 {
     MPIS_BINDING_ENTER
 
-    if(nullptr == queue || MPIS_QUEUE_NULL == *queue)
+    if (nullptr == queue || MPIS_QUEUE_NULL == *queue)
     {
         Print::out("Not freeing null queue.");
         return MPI_SUCCESS;

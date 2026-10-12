@@ -74,12 +74,12 @@ int main(int argc, char* argv[])
     if (0 == rank)
     {
         MPIS_Enqueue_startall(my_queue, 2, my_reqs);
-        MPIS_Enqueue_waitall(my_queue);
+        MPIS_Enqueue_waitall(my_queue, 2, my_reqs, MPI_STATUSES_IGNORE);
     }
     else
     {
         MPIS_Enqueue_start(my_queue, &my_reqs[1]);
-        MPIS_Enqueue_waitall(my_queue);
+        MPIS_Enqueue_wait(my_queue, &my_reqs[1], MPI_STATUS_IGNORE);
 
 #ifdef THREAD_BACKEND
         MPIS_Queue_wait(&my_queue);
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
         device_sync();
 #endif
         MPIS_Enqueue_start(my_queue, &my_reqs[0]);
-        MPIS_Enqueue_waitall(my_queue);
+        MPIS_Enqueue_wait(my_queue, &my_reqs[0], MPI_STATUS_IGNORE);
     }
 
     MPIS_Queue_wait(&my_queue);

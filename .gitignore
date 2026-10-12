@@ -1,6 +1,11 @@
 build/
+build*
 
 **/.vscode/
+
+# Generated Doxygen output
+/docs/
+/warnings.txt
 
 # Files from testing
 /tests/test

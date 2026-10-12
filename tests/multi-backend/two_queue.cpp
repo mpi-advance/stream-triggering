@@ -115,14 +115,14 @@ int main(int argc, char* argv[])
                 check_gpu(hipDeviceSynchronize());
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_waitall(my_queue, 2, active_request_ptr, MPI_STATUSES_IGNORE);
                 print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             }
             else
             {
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[RECV_REQ]);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_wait(my_queue, &active_request_ptr[RECV_REQ], MPI_STATUS_IGNORE);
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(&my_queue);
 #endif
@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
                 check_gpu(hipDeviceSynchronize());
 #endif
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[SEND_REQ]);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_wait(my_queue, &active_request_ptr[SEND_REQ], MPI_STATUS_IGNORE);
             }
 
             void* temp_send      = active_send_buffer;

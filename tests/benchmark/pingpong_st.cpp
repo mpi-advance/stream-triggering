@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
                 device_sync();
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, my_reqs);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_waitall(my_queue, 2, my_reqs, MPI_STATUSES_IGNORE);
 
                 // #ifdef THREAD_BACKEND
                 //                 MPIS_Queue_wait(&my_queue);
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
             else
             {
                 MPIS_Enqueue_start(my_queue, &my_reqs[RECV_REQ]);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_wait(my_queue, &my_reqs[RECV_REQ], MPI_STATUS_IGNORE);
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(&my_queue);
 #endif
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
                 device_sync();
 #endif
                 MPIS_Enqueue_start(my_queue, &my_reqs[SEND_REQ]);
-                MPIS_Enqueue_waitall(my_queue);
+                MPIS_Enqueue_wait(my_queue, &my_reqs[SEND_REQ], MPI_STATUS_IGNORE);
             }
         }
 

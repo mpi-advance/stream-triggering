@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
 
     double start = MPI_Wtime();
     MPIS_Enqueue_startall(my_queue, 2, my_reqs);
-    MPIS_Enqueue_waitall(my_queue);
+    MPIS_Enqueue_waitall(my_queue, 2, my_reqs, MPI_STATUSES_IGNORE);
     MPIS_Queue_wait(&my_queue);
     double end = MPI_Wtime();
 

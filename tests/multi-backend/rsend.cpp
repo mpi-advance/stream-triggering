@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
         sleep(5);
     }
     MPIS_Enqueue_start(my_queue, &my_reqs[0]);
-    MPIS_Enqueue_waitall(my_queue);
+    MPIS_Enqueue_wait(my_queue, &my_reqs[0], MPI_STATUS_IGNORE);
     MPIS_Queue_wait(&my_queue);
     double end = MPI_Wtime();
 
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
         sleep(5);
     }
     MPIS_Enqueue_start(my_queue, &my_reqs[1]);
-    MPIS_Enqueue_waitall(my_queue);
+    MPIS_Enqueue_wait(my_queue, &my_reqs[1], MPI_STATUS_IGNORE);
 
     MPIS_Queue_wait(&my_queue);
     end = MPI_Wtime();

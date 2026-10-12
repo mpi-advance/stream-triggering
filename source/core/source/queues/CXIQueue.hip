@@ -1,13 +1,20 @@
-
 #include "abstract/match.hpp"
+#include "queues/cxi/CXIQueue.hpp"
 #include "queues/cxi/libfabric_wrappers.hpp"
 #include "queues/cxi/requests/request_protocols.hpp"
-#include "queues/cxi/CXIQueue.hpp"
 #include "safety/gpu.hpp"
 #include "safety/libfabric.hpp"
 
-void LibfabricInstance::initialize_libfabric()
+/**
+ * @file CXIQueue.hip
+ * @brief Implementation for various methods and GPU kernels used by the CXIQueue.
+ */
+
+void LibfabricInstance::initialize_libfabric(MPI_Comm comm)
 {
+    int comm_size = -1;
+    force_mpi(MPI_Comm_size(comm, &comm_size));
+
     // Hints will be freed by helper call below
     struct fi_info* hints;
     hints = fi_allocinfo();
@@ -122,6 +129,8 @@ void LibfabricInstance::select_fi_nic(fi_info*& info)
 
 void LibfabricInstance::initialize_peer_addresses(MPI_Comm comm)
 {
+    int comm_size = -1;
+    force_mpi(MPI_Comm_size(comm, &comm_size));
     Print::out("Doing an allgather to get", comm_size, "ranks.");
     // Get our "cxi address"
     static constexpr size_t name_array_len = 100;
@@ -189,7 +198,7 @@ void CXIQueue::exchange_protocol(Request& req)
 void CXIQueue::prepare_cxi_mr_key(Request& req)
 {
     /* Make sure request has the protocol exchange done */
-    req.wait_on_protcol();
+    req.wait_on_protocol();
 
     /* New request that prepares the user's request to be enqueued later */
     std::unique_ptr<CXIRequest> cxi_request = nullptr;
@@ -282,11 +291,27 @@ LibfabricInstance::~LibfabricInstance()
     check_libfabric(fi_close(&(fabric)->fid));
 }
 
+/**
+ * @brief A GPU kernel for triggering a counter by adding a value to it.
+ * @details Note that to add to the counter, we have to assign a value to the MMIO
+ * address.
+ * @param [in, out] cntr The MMIO address of the NIC counter to add to.
+ * @param [in] value The value to add to the NIC counter.
+ */
 __global__ void add_to_counter(uint64_t* cntr, size_t value)
 {
     *cntr = value;
 }
 
+/**
+ * @brief A GPU kernel for triggering multiple counters in a single kernel.
+ * @details Currently this function only supports triggering by adding "1" to each
+ * counter (via assignment). The kernel also assumes that the object passed will fit in
+ * the kernel-argument space of a GPU (hence why it is not a pointer type).
+ * @param [in] triggers A struct containing an array of all of the addresses to trigger.
+ * @sa GPUTriggers
+ * @sa CompletionBufferFactory::MAX_GPU_COMPLETIONS
+ */
 __global__ void add_to_counters(GPUTriggers triggers)
 {
     for (int x = 0; x < triggers.actual_size; x++)
@@ -296,6 +321,14 @@ __global__ void add_to_counters(GPUTriggers triggers)
     }
 }
 
+/**
+ * @brief Spin wait on a memory address until it hits a specified value.
+ * @details Unlike ::add_to_counter(), the address passed to this function can be any GPU
+ * memory (as long as it can update while the GPU is reading it). Generally launched as a
+ * <<<1,1>>> kernel.
+ * @param [in] comp_addr The address of the value to spin on.
+ * @param [in] goal_value The goal value to reach.
+ */
 __global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value)
 {
     size_t curr_value = *comp_addr;
@@ -305,6 +338,14 @@ __global__ void wait_on_completion(volatile size_t* comp_addr, size_t goal_value
     }
 }
 
+/**
+ * @brief Spin wait on multiple memory addresses until each hits a specified value.
+ * @details Each address is checked sequentially, and each address can have its own
+ * completion value. Like ::add_to_counters(), the parameter to this function is also
+ * assumed to fit in the kernel-argument space of a GPU.
+ * @param [in] completions A struct containing an array of completions to work over.
+ * @sa GPUCompletions
+ */
 __global__ void wait_on_completions(GPUCompletions completions)
 {
     for (int x = 0; x < completions.actual_size; x++)
@@ -317,6 +358,29 @@ __global__ void wait_on_completions(GPUCompletions completions)
     }
 }
 
+/**
+ * @brief Triggering and Waiting GPU kernel for the CREDIT protocol.
+ * @details This code is a fused waiting, unpacking, and triggering kernel, used only for
+ * the "eager" Protocol::CREDIT protocol (which has pre-registered buffers that can be
+ * eagerly sent to, with some amount of credit). The first and last steps mirror
+ * ::add_to_counter() and ::wait_on_completion(), respectively. The middle part is just
+ * GPU code that copies a data between two buffers (with special logic for when it's not
+ * evenly divisible). Note that only GPU thread 0 will do the trigger of the
+ * communication.
+ *
+ * The code assumes that both buffers are at least of size "size" bytes, which is
+ * currently calculated by CXIRecvCredit::wait_gpu() to be the size of the buffer in the
+ * receive request.
+ *
+ * @param [in] comp_addr The address of the communication completion value to spin on.
+ * @param [in] goal_value The completion value to wait for.
+ * @param [in] temp_buffer The temporary buffer holding the received data.
+ * @param [in, out] user_buffer The user buffer that the data will be copied into.
+ * @param [in] size How large the buffers are, in terms of bytes.
+ * @param [in, out] cntr The MMIO address of a network counter holding a triggered
+ * operation.
+ * @param [in] value The value to add to the network counter.
+ */
 __global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
                            void* temp_buffer, void* user_buffer, size_t size,
                            uint64_t* cntr, size_t value)
@@ -353,6 +417,14 @@ __global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
     }
 }
 
+/** @brief A kernel specific to MI250X GPUs for flushing the GPU L2 buffer cache.
+ * @details This kernel is used by CXIQueue::flush_memory() (which is used when enqueueing
+ * the starts and waits of communication operations) to force the GPU to update
+ * coarse-grained GPU memory without needing intervention from the host (i.e.,
+ * hipDeviceSynchronize or hipStreamSynchronize). It directly invokes ROCm assembly.
+ * This function is only enable when CMake detects the MI250x (and adds the "USE_TIOGA"
+ * compiler definition)
+ */
 __global__ void flush_buffer()
 {
     asm volatile("buffer_wbl2");
@@ -407,7 +479,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
         {
             CXIObjects& cxi_req = request_map.at(req->getID());
             /* Start Request */
-            Print::out("Staring request:", req->getID());
+            Print::out("Starting request:", req->getID());
             TriggerStatus actions = cxi_req->start_cpu(*the_gpu_counter, my_stream);
             Print::out("Request action:", (int)actions);
 
@@ -433,8 +505,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
                 num_reqs++;
             }
 
-            if (TriggerStatus::NOT_NEEDED != actions &&
-                (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS)))
+            if (CompletionBufferFactory::MAX_GPU_COMPLETIONS == num_reqs)
             {
                 all_in_one.actual_size = num_reqs;
                 Print::out("<E> Launching add_to_counters for", num_reqs, "requests.");
@@ -463,7 +534,7 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
 void CXIQueue::enqueue_waitall()
 {
 #if defined(USE_TIOGA)
-    flush_memory(); // TODO: Refine this more so not all waitalls need this
+    flush_memory();  // TODO: Refine this more so not all waitalls need this
 #endif
     GPUCompletions all_in_one;
     size_t         num_reqs = 0;
@@ -475,7 +546,7 @@ void CXIQueue::enqueue_waitall()
             Print::out("Waiting on request:", req, all_in_one.buffer[num_reqs].comp_addr,
                        all_in_one.buffer[num_reqs].goal_value);
             num_reqs++;
-            if (0 == (num_reqs % CompletionBufferFactory::MAX_GPU_COMPLETIONS))
+            if (CompletionBufferFactory::MAX_GPU_COMPLETIONS == num_reqs)
             {
                 all_in_one.actual_size = num_reqs;
                 Print::out("<E> Enqueuing wait_on_completions kernel A");

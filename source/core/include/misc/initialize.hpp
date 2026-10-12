@@ -8,6 +8,16 @@
 #include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
+/**
+ * @file initialize.hpp
+ * @brief File for code related to initializing the stream-triggering library.
+ */
+
+/** @brief A diagnostic function that prints out GPU device information
+ * @details This function looks over all of the visible devices and prints out the ID, Bus
+ * ID, and Domain ID. Does not select a device. Currently only supports doing this for HIP
+ * Devices; runs no code when not compiled with HIP.
+ */
 static inline void print_device_info()
 {
 #ifdef HIP_GPUS
@@ -32,6 +42,10 @@ static inline void print_device_info()
 #endif
 }
 
+/** @brief Prepare variables that are used when printing debug or error messages.
+ * @details Will call Print::initialize_rank to set the rank used in printout messages. If
+ * in debug mode, this function will also call ::print_device_info().
+ */
 static inline void init_debugs()
 {
     //  Setup printing rank
@@ -44,6 +58,24 @@ static inline void init_debugs()
 #endif
 }
 
+/** @brief Parse the environment for variables of interest to this library.
+ * @details Currently this function checks for the following variables:
+ *
+ * <table>
+ * <tr><th>Environment Variable</th><th>Effect when set</th></tr>
+ * <tr><td>`MPIA_ST_DISABLE_IPC`</td>
+ * <td>Sets Communication::IPC_PROTOCOL_ENABLED to `false`, which will disable any
+ * IPC-based protocols in all Queue classes.
+ * </td></tr>
+ * <tr><td>`MPIA_ST_DISABLE_CREDIT`</td>
+ * <td>Sets Communication::CREDIT_PROTOCOL_ENABLED to `false`, which will disable any
+ * Credit-based protocols in all Queue classes.
+ * </td></tr>
+ * </table>
+ *
+ * Both flags currently only affect the CXI backend.
+ * For all variables checked, a debug printout should be made for quick verification.
+ */
 static inline void init_env()
 {
     if (std::getenv("MPIA_ST_DISABLE_IPC"))
@@ -58,6 +90,11 @@ static inline void init_env()
     }
 }
 
+/** @brief The top level function for initializing the Stream-Triggering library.
+ * @details Takes care of setting up various other aspects of the library, along with
+ * creating a duplicate of MPI_COMM_WORLD to be used as the "world comm" for this library
+ * @sa Communication::MPIS_COMM_WORLD
+ */
 static inline void initialize_st()
 {
     init_debugs();

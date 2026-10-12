@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
             // #endif
 
             MPIS_Enqueue_startall(my_queue, 4, &my_reqs[4]);
-            MPIS_Enqueue_waitall(my_queue);
+            MPIS_Enqueue_waitall(my_queue, 8, my_reqs, MPI_STATUSES_IGNORE);
 
             // #ifdef THREAD_BACKEND
             // MPIS_Queue_wait(&my_queue);
