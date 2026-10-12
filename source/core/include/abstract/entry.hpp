@@ -29,7 +29,10 @@ public:
      * @brief Constructor for creating a QueueEntry.
      * @details This method will create the internal MPI_Request used to carry out the
      * communication operation described by the passed in Communication::Request. The
-     * Progress::CounterType pointers default to nullptr if not provided.
+     * internal MPI Request object is created with a custom shared pointer deleter that
+     * takes care of freeing the MPI Request when there are no other references to it.
+     *
+     * The Progress::CounterType pointers default to nullptr if not provided.
      * @param [in] req The base Communication::Request this QueueEntry represents.
      * @param [in] start An optional address to use as the location of the "start"
      * trigger.
@@ -39,7 +42,14 @@ public:
                         Progress::CounterType*   start = nullptr,
                         Progress::CounterType*   wait  = nullptr)
         : threshold(0),
-          mpi_request(std::make_shared<MPI_Request>(MPI_REQUEST_NULL)),
+          mpi_request(new MPI_Request(MPI_REQUEST_NULL),
+                      [](MPI_Request* p) {
+                          if (MPI_REQUEST_NULL != *p)
+                          {
+                              check_mpi(MPI_Request_free(p));
+                          }
+                          delete p;
+                      }),
           original_request(req),
           start_location(start),
           wait_location(wait)
@@ -47,73 +57,18 @@ public:
         initialize_mpi_request(*req, mpi_request.get());
     }
 
-    /** @brief Destructor that frees the underlying MPI_Request object.
-     * @details QueueEntry::mpi_request is only freed if it is neither nullptr nor
-     * MPI_REQUEST_NULL.
-     */
-    virtual ~QueueEntry()
-    {
-        if (mpi_request && (MPI_REQUEST_NULL != *mpi_request))
-        {
-            check_mpi(MPI_Request_free(mpi_request.get()));
-        }
-    }
+    /** @brief Default destructor. */
+    virtual ~QueueEntry() = default;
 
-    /** @brief Copy Constructor Deleted: QueueEntry owns an MPI_Request, so it is
-     * move-only. */
+    /** @brief Copy Constructor Deleted: QueueEntry owns an MPI_Request. */
     QueueEntry(const QueueEntry& other) = delete;
-    /** @brief Copy Assignment Operator Deleted: QueueEntry owns an MPI_Request, so it is
-     * move-only. */
+    /** @brief Copy Assignment Operator Deleted: QueueEntry owns an MPI_Request. */
     QueueEntry& operator=(const QueueEntry& other) = delete;
-
-    /**
-     * @brief Move constructor for QueueEntry.
-     * @details The other QueueEntry object has QueueEntry::start_location and
-     * QueueEntry::wait_location set to nullptr, QueueEntry::mpi_request and
-     * QueueEntry::original_request reset, and QueueEntry::threshold set to 0.
-     * @param [in, out] other The object to move from.
-     */
-    QueueEntry(QueueEntry&& other) noexcept
-        : threshold(other.threshold),
-          mpi_request(other.mpi_request),
-          original_request(other.original_request),
-          start_location(other.start_location),
-          wait_location(other.wait_location)
-    {
-        // clear other structs
-        other.threshold = 0;
-        other.mpi_request.reset();
-        other.original_request.reset();
-        other.start_location = nullptr;
-        other.wait_location  = nullptr;
-    }
-
-    /**
-     * @brief Move assignment operator for QueueEntry.
-     * @details The other QueueEntry object has QueueEntry::start_location and
-     * QueueEntry::wait_location set to nullptr, QueueEntry::mpi_request and
-     * QueueEntry::original_request reset, and QueueEntry::threshold set to 0.
-     * @param [in, out] other The object to move from.
-     * @return A reference to the updated QueueEntry.
-     */
-    QueueEntry& operator=(QueueEntry&& other) noexcept
-    {
-        if (this != &other)
-        {
-            threshold        = other.threshold;
-            mpi_request      = other.mpi_request;
-            original_request = other.original_request;
-            start_location   = other.start_location;
-            wait_location    = other.wait_location;
-            // clear other
-            other.threshold = 0;
-            other.mpi_request.reset();
-            other.original_request.reset();
-            other.start_location = nullptr;
-            other.wait_location  = nullptr;
-        }
-        return *this;
-    }
+    /** @brief Move Constructor Deleted (don't want to move around MPI_Request objects). */
+    QueueEntry(QueueEntry&& other) = delete;
+    /** @brief Move Assignment Operator Deleted (don't want to move around MPI_Request
+     * objects). */
+    QueueEntry& operator=(QueueEntry&& other) = delete;
 
     /**
      * @brief Create a start-action work item for the progress engine.
@@ -242,7 +197,9 @@ protected:
      * @brief A shared pointer to the underlying MPI Request used for communication.
      * @details The MPI_Request is wrapped in a shared pointer so that the
      * Queue::progress_engine and the main thread can both read from it / manage the
-     * object's lifetime safely. The main thread creates the shared pointer.
+     * object's lifetime safely. The main thread creates the shared pointer. Note that
+     * this shared pointer is created with a custom deleter that will call
+     * MPI_Request_free upon the last shared pointer going away.
      * @sa initialize_mpi_request
      */
     std::shared_ptr<MPI_Request> mpi_request = nullptr;
