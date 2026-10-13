@@ -222,8 +222,6 @@ protected:
     Communication::Request& base_req;
     /** @brief The completion buffer of the operation. */
     CompletionBuffer completion_buffer;
-    /** @brief A buffer location to use for exchanging protocols during matching. */
-    CompletionBuffer protocol_buffer;
 
     /** @brief Counter for how many times this operation has been started. */
     size_t num_times_started;

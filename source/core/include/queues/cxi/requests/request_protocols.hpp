@@ -58,7 +58,7 @@ public:
         libfab.dealloc_counter(completion_b);
     }
 
-    /**
+    /** [UPDATE]
      * @brief Initiate matching between two communications.
      * @details This class calls out to ::Match::Protocol::sender_rndv(), but passes a
      * blank CXIRequest::protocol_buffer.
@@ -68,12 +68,10 @@ public:
      * communication.
      * @sa ::Match
      */
-    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    void match(MPI_Comm comm_a, MPI_Comm) override
     {
         /* Start requests to exchange from peer */
-        Match::Protocol::sender_rndv(work_entry.get_rma_iov_addr(),
-                                     protocol_buffer.get_rma_ioc_addr(), base_req, comm_a,
-                                     comm_b);
+        Match::Protocol::sender_eager(work_entry.get_rma_iov_addr(), base_req, comm_a);
     }
 
     /**
@@ -136,7 +134,7 @@ protected:
 class CXISend : public CXIRSend
 {
 public:
-    /**
+    /** [REVIEW]
      * @brief Constructor for the regular send operations (using a rendezvous protocol).
      * @details This class lets the parent ::CXIRSend set up most of the deferred work
      * queue objects. Once that is done, it creates a ::CXICounter triggering counter and
@@ -164,10 +162,8 @@ public:
             cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE, FI_REMOTE_WRITE,
             FI_MR_ALLOCATED | FI_RMA_EVENT, triggered.counter, FI_REMOTE_WRITE);
 
-        /* Set Protocol Buffer */
-        protocol_buffer =
-            CompletionBuffer(cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE, 1,
-                             fi_mr_key(cts_mr), 0);
+        /* Describe CTS buffer for the peer */
+        cts_details = {0, 1, fi_mr_key(cts_mr)};
     }
 
     /** @brief Destructor that frees the pinned-host clear-to-send buffer and its
@@ -177,6 +173,18 @@ public:
         /* Free CTS related items */
         check_gpu(hipHostFree(cts_buffer));
         check_libfabric(fi_close(&(cts_mr)->fid));
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] comm_a
+     * @param [in] comm_b
+     */
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Match::Protocol::sender_rndv(work_entry.get_rma_iov_addr(), &cts_details,
+                                     base_req, comm_a, comm_b);
     }
 
     /**
@@ -238,7 +246,8 @@ private:
     /** @brief Pointer for the clear-to-send pinned-host buffer. */
     void* cts_buffer;
     /** @brief Libfabric memory region handle for the clear-to-send buffer. */
-    fid_mr* cts_mr;
+    fid_mr*           cts_mr;
+    struct fi_rma_ioc cts_details;  //!< [TODO]
 };
 
 /**
@@ -654,7 +663,7 @@ public:
         libfab.dealloc_counter(completion_b);
     }
 
-    /**
+    /** [UPDATE]
      * @brief Initiate matching between two communications.
      * @details This class calls out to ::Match::Protocol::receiver_rndv().
      * @param [in] comm_a Communication::MPIS_COMM_WORLD duplicate for Phase A
@@ -666,8 +675,16 @@ public:
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Match::Protocol::receiver_rndv(&user_buffer_rma_iov, cts_entry.get_rma_ioc_addr(),
-                                       base_req, comm_a, comm_b);
+        if constexpr (USE_EAGER)
+        {
+            Match::Protocol::receiver_eager(&user_buffer_rma_iov, base_req, comm_a);
+        }
+        else
+        {
+            Match::Protocol::receiver_rndv(&user_buffer_rma_iov,
+                                           cts_entry.get_rma_ioc_addr(), base_req, comm_a,
+                                           comm_b);
+        }
     }
 
     /**
@@ -704,8 +721,8 @@ private:
 
     /** @brief Allocated completion counter (for the clear-to-send atomic operation) */
     struct fid_cntr* completion_a;
-    /** @brief Deferred work queue entry for the atomic operation that moves "clear-to-send"
-     * signal to the peer. */
+    /** @brief Deferred work queue entry for the atomic operation that moves
+     * "clear-to-send" signal to the peer. */
     AtomicEntry cts_entry;
 
     // Allocated Libfabric Objects

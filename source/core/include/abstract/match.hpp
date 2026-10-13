@@ -137,6 +137,45 @@ static void sender_rndv(struct fi_rma_iov* recv_buffer_details,
                         phase_b, &mpi_requests[1]));
 }
 
+/** @brief [TODO] */
+static constexpr size_t EAGER_REQUESTS_TO_USE = 1;
+
+/**
+ * @brief [TODO]
+ * @param [in] user_buffer_details
+ * @param [in, out] req
+ * @param [in] phase_a
+ */
+static void receiver_eager(struct fi_rma_iov*      user_buffer_details,
+                           Communication::Request& req, MPI_Comm phase_a)
+{
+    req.out("(Receiver EAGER) Matching with:", req.peer, "(", req.cw_peer, ") and tag",
+            req.tag);
+    MPI_Request* mpi_requests = req.get_match_requests(EAGER_REQUESTS_TO_USE);
+
+    req.out("(Recv) Sending: ", user_buffer_details->addr, user_buffer_details->len,
+            user_buffer_details->key);
+    check_mpi(MPI_Isend(user_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, req.cw_peer,
+                        req.tag, phase_a, &mpi_requests[0]));
+}
+
+/**
+ * @brief [TODO]
+ * @param [out] recv_buffer_details
+ * @param [in, out] req
+ * @param [in] phase_a
+ */
+static void sender_eager(struct fi_rma_iov*      recv_buffer_details,
+                         Communication::Request& req, MPI_Comm phase_a)
+{
+    req.out("(Sender EAGER) Matching with:", req.peer, "(", req.cw_peer, ") and tag",
+            req.tag);
+    MPI_Request* mpi_requests = req.get_match_requests(EAGER_REQUESTS_TO_USE);
+
+    check_mpi(MPI_Irecv(recv_buffer_details, sizeof(fi_rma_iov), MPI_BYTE, req.cw_peer,
+                        req.tag, phase_a, &mpi_requests[0]));
+}
+
 /** @brief The number of MPI_Request objects Communication::Protocol::IPC needs.
  * @details This value is currently specific to the HIP-based IPC protocol that the
  * ::CXIQueue uses.
