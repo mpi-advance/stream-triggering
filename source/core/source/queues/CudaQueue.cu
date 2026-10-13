@@ -3,52 +3,52 @@
 #include "safety/gpu.hpp"
 #include "safety/mpi.hpp"
 
-CudaQueueEntry::CudaQueueEntry(std::shared_ptr<Request> req) : QueueEntry(req)
-{
-    force_gpu(cuMemHostAlloc((void**)&start_location, sizeof(int64_t),
-                             CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
-    *start_location = 0;
-    force_gpu(cuMemHostGetDevicePointer(&start_dev, start_location, 0));
-    force_gpu(cudaHostAlloc((void**)&wait_location, sizeof(int64_t),
-                            CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_WRITECOMBINED));
-    *wait_location = 0;
-    force_gpu(cuMemHostGetDevicePointer(&wait_dev, wait_location, 0));
-}
-
-CudaQueueEntry::~CudaQueueEntry()
-{
-    check_gpu(cudaFreeHost(start_location));
-    check_gpu(cudaFreeHost(wait_location));
-}
-
-void CudaQueueEntry::start_gpu(void* the_stream)
-{
-    cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
-    CUstream      real_stream = *cuda_stream;
-    Print::out("<E> Starting asking GPU to write:", threshold, start_location);
-    force_gpu(cuStreamWriteValue64(real_stream, start_dev, threshold, 0));
-}
-
-void CudaQueueEntry::wait_gpu(void* the_stream)
-{
-    Print::out("<E> Asked GPU to wait for: ", threshold);
-    cudaStream_t* cuda_stream = (cudaStream_t*)the_stream;
-    CUstream      real_stream = *cuda_stream;
-    force_gpu(cuStreamWaitValue64(real_stream, wait_dev, threshold, 0));
-}
-
-CudaQueue::CudaQueue(cudaStream_t* stream) : my_stream(stream)
+CudaQueue::CudaQueue(cudaStream_t* stream)
+    : Queue(Memory::gpu_host_resource()), my_stream(stream)
 {
     // force_gpu(cuInit(0));
     // force_gpu(cudaSetDevice(0));
+    force_gpu(cuMemHostGetDevicePointer(&start_dev, start_signal, 0));
+    force_gpu(cuMemHostGetDevicePointer(&wait_dev, wait_signal, 0));
 }
 
-void CudaQueue::enqueue_waitall()
+CudaQueue::~CudaQueue()
 {
-    for (QueueEntry& entry : entries)
+    /* The stream must stop touching the counters before ~Queue frees them */
+    check_gpu(cudaStreamSynchronize(*my_stream));
+}
+
+void CudaQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
+{
+    Progress::CounterType target = build_start(requests);
+    force_gpu(cuStreamWriteValue64((CUstream)(*my_stream), start_dev, target, 0));
+}
+
+void CudaQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
+                                MPI_Status*                           statuses)
+{
+    Progress::CounterType target = build_wait(requests, statuses);
+    force_gpu(cuStreamWaitValue64((CUstream)(*my_stream), wait_dev, target, 0));
+}
+
+void CudaQueue::host_wait()
+{
+    Queue::host_wait();
+    Print::out("Waiting on device!");
+    force_gpu(cudaStreamSynchronize(*my_stream));
+}
+
+bool CudaQueue::queue_test()
+{
+    if (!Queue::queue_test())
     {
-        progress_engine.enqueued_wait(entry);
-        entry.wait_gpu(my_stream);
+        return false;
     }
-    entries.clear();
+    cudaError_t status = cudaStreamQuery(*my_stream);
+    if (cudaErrorNotReady == status)
+    {
+        return false;
+    }
+    force_gpu(status);
+    return true;
 }

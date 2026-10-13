@@ -13,10 +13,16 @@ int MPIS_Enqueue_startall(MPIS_Queue queue, int len, MPIS_Request requests[])
 
     for (int i = 0; i < len; ++i)
     {
-        all_requests[i] = *convert_request_ptr(&requests[i], RequestState::MATCHED);
+        all_requests[i] = *convert_request_ptr(&requests[i], {Request::State::MATCHED});
     }
 
+    check_unique_requests(all_requests);
+
     the_queue->enqueue_startall(all_requests);
+    for (auto& req : all_requests)
+    {
+        req->state = Request::State::ACTIVE;
+    }
 
     MPIS_BINDING_EXIT
     return MPIS_SUCCESS;

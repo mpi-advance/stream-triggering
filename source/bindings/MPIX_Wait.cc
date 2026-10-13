@@ -18,7 +18,7 @@ int MPIS_Wait(MPIS_Request* request, MPI_Status* status)
     Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
 
     /* Can only wait on "match" requests ATM; TODO: Give the user a status object back*/
-    the_queue->finalize_match({*convert_request_ptr(request, RequestState::ONGOING)});
+    the_queue->finalize_match({*convert_match_request(*request)});
 
     /* Delete allocated MPIS_Request object */
     delete *request;

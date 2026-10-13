@@ -10,11 +10,12 @@ int MPIS_Enqueue_wait(MPIS_Queue queue, MPIS_Request* request, MPI_Status* statu
     Queue* the_queue = (Queue*)(queue);
 
     std::shared_ptr<Request>* internal_request =
-        convert_request_ptr(request, RequestState::MATCHED);
+        convert_request_ptr(request, {Request::State::MATCHED, Request::State::ACTIVE});
 
     MPI_Status* out_status =
         (MPI_STATUS_IGNORE == status || nullptr == status) ? nullptr : status;
     the_queue->enqueue_wait(*internal_request, out_status);
+    (*internal_request)->state = Request::State::MATCHED;
 
     MPIS_BINDING_EXIT
     return MPIS_SUCCESS;

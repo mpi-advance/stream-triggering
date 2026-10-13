@@ -12,8 +12,7 @@ int MPIS_Rsend_init(const void* buffer, MPI_Count count, MPI_Datatype datatype, 
         new Request(Operation::RSEND, const_cast<void*>(buffer), nullptr, count, datatype,
                     dest, tag, comm, info));
 
-    *request =
-        new MPIS_Request_struct{RequestState::UNMATCHED, (uintptr_t)internal_request};
+    *request = new MPIS_Request_struct{false, (uintptr_t)internal_request};
 
     MPIS_BINDING_EXIT
     return MPIS_SUCCESS;

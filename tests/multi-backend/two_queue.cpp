@@ -1,4 +1,4 @@
-#include "common.hpp"
+#include "../common/queue_setup.hpp"
 #include "stream-triggering.h"
 
 int main(int argc, char* argv[])
@@ -34,25 +34,11 @@ int main(int argc, char* argv[])
                                              BUFFER_SIZE * 2);
     device_sync();
 
-#if defined(NEED_HIP)
-    hipStream_t my_stream;
-    check_gpu(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
-#elif defined(NEED_CUDA)
-    cudaStream_t my_stream;
-    check_gpu(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
-#endif
+    StreamType my_stream = Setup::create_stream();
 
     // Make queue
     MPIS_Queue my_queue;
-#if defined(HIP_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CUDA_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CXI_BACKEND)
-    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
-#elif defined(THREAD_BACKEND)
-    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
-#endif
+    Setup::create_queue(&my_queue, &my_stream);
 
 #define SEND_REQ (rank ^ 1)
 #define RECV_REQ (rank & 1)
@@ -112,10 +98,13 @@ int main(int argc, char* argv[])
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)active_send_buffer, BUFFER_SIZE, i);
 #ifdef THREAD_BACKEND
-                check_gpu(hipDeviceSynchronize());
+                device_sync();
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
                 MPIS_Enqueue_waitall(my_queue, 2, active_request_ptr, MPI_STATUSES_IGNORE);
+#ifdef THREAD_BACKEND
+                MPIS_Queue_wait(&my_queue);
+#endif
                 print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
             }
@@ -131,7 +120,7 @@ int main(int argc, char* argv[])
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
                     (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
 #ifdef THREAD_BACKEND
-                check_gpu(hipDeviceSynchronize());
+                device_sync();
 #endif
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[SEND_REQ]);
                 MPIS_Enqueue_wait(my_queue, &active_request_ptr[SEND_REQ], MPI_STATUS_IGNORE);
@@ -172,15 +161,7 @@ int main(int argc, char* argv[])
 
     std::cout << rank << " is done: " << end - start << std::endl;
 
-#if defined(HIP_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CUDA_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CXI_BACKEND)
-    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
-#elif defined(THREAD_BACKEND)
-    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
-#endif
+    Setup::create_queue(&my_queue, &my_stream);
 
     if (0 == rank % 2)
     {

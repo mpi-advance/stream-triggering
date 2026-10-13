@@ -1,6 +1,6 @@
 // Test that creates then frees many objects (basically as if it was only non-blocking and
 // not persistant)
-#include "../common/common.hpp"
+#include "../common/queue_setup.hpp"
 #include "stream-triggering.h"
 
 int main(int argc, char* argv[])
@@ -31,25 +31,11 @@ int main(int argc, char* argv[])
                                               rank);
     device_sync();
 
-#if defined(NEED_HIP)
-    hipStream_t my_stream;
-    check_gpu(hipStreamCreateWithFlags(&my_stream, hipStreamNonBlocking));
-#elif defined(NEED_CUDA)
-    cudaStream_t my_stream;
-    check_gpu(cudaStreamCreateWithFlags(&my_stream, cudaStreamNonBlocking));
-#endif
+    StreamType my_stream = Setup::create_stream();
 
     // Make queue
     MPIS_Queue my_queue;
-#if defined(HIP_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CUDA_BACKEND)
-    MPIS_Queue_create(&my_queue, GPU_MEM_OPS, MPI_INFO_NULL, &my_stream);
-#elif defined(CXI_BACKEND)
-    MPIS_Queue_create(&my_queue, CXI, MPI_INFO_NULL, &my_stream);
-#elif defined(THREAD_BACKEND)
-    MPIS_Queue_create(&my_queue, THREAD, MPI_INFO_NULL, &my_stream);
-#endif
+    Setup::create_queue(&my_queue, &my_stream);
 
     int iterations = 500;
 

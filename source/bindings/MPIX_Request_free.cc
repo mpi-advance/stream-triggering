@@ -17,7 +17,7 @@ int MPIS_Request_free(MPIS_Request* request)
     }
 
     /* Match requests don't allocate anything, only normal requests do */
-    if (RequestState::ONGOING != (*request)->state)
+    if (!(*request)->match_handle)
     {
         std::shared_ptr<Request>* internal_request = convert_request_ptr(request);
         /* Tell the global queue that it needs to free resources related to this request*/

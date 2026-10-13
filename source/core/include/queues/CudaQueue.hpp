@@ -6,64 +6,48 @@
 
 #include <memory>
 
-#include "abstract/entry.hpp"
 #include "abstract/queue.hpp"
+#include "misc/mem_pool.hpp"
 
 /**
- * @brief
- * @details
- */
-class CudaQueueEntry : public QueueEntry
-{
-public:
-    /**
-     * @brief
-     * @param [in] qe
-     */
-    CudaQueueEntry(std::shared_ptr<Request> qe);
-    /** @brief */
-    ~CudaQueueEntry();
-
-    /**
-     * @brief
-     * @param [in] stream
-     */
-    void start_gpu(void* stream) override;
-    /**
-     * @brief
-     * @param [in] stream
-     */
-    void wait_gpu(void* stream) override;
-
-protected:
-    CUdeviceptr start_dev;  //!<
-    CUdeviceptr wait_dev;   //!<
-};
-
-/**
- * @brief
+ * @brief [TODO]
  * @details
  */
 class CudaQueue : public Queue
 {
 public:
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] stream
      */
     CudaQueue(cudaStream_t* stream);
-    ~CudaQueue() = default;
+    /** @brief [TODO] */
+    ~CudaQueue();
 
     /**
-     * @brief
-     * @param [in, out] req
+     * @brief [TODO]
+     * @param [in, out] requests
      */
-    void enqueue_operation(std::shared_ptr<Request> req) override;
-    /** @brief */
-    void enqueue_waitall() override;
+    void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override;
+    /**
+     * @brief [TODO]
+     * @param [in, out] requests
+     * @param [out] statuses
+     */
+    void enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
+                         MPI_Status*                           statuses) override;
+    /**
+     * @brief [TODO]
+     * @return
+     */
+    bool queue_test() override;
+    /** @brief [TODO] */
+    void host_wait() override;
 
 protected:
     cudaStream_t* my_stream;  //!<
+    CUdeviceptr   start_dev;  //!< [TODO]
+    CUdeviceptr   wait_dev;   //!< [TODO]
 };
 
 #endif

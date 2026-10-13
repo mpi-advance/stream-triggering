@@ -1,11 +1,15 @@
 #ifndef ST_BINDING_HELPERS
 #define ST_BINDING_HELPERS
 
+#include <algorithm>
 #include <functional>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <source_location>
+#include <stdexcept>
 #include <type_traits>
+#include <vector>
 
 #include "abstract/request.hpp"
 #include "misc/initialize.hpp"
@@ -37,21 +41,14 @@ extern MPIS_Queue ACTIVE_QUEUE;
  */
 extern std::map<void*, std::function<void()>> deletors;
 
-/** @brief Keeps track of what matching actions have been done on a Request */
-enum RequestState
-{
-    ONGOING   = -1,  //!< Request has had a non-blocking match started on it.
-    UNMATCHED = 0,   //!< Request has had no matching operation started on it.
-    MATCHED   = 1,   //!< Request has been matched.
-};
-
-/** @brief The MPIS_Request object given to the user.
+/** [UPDATE]
+ * @brief The MPIS_Request object given to the user.
  * @details Note that MPIS_Request_struct::internal_request is a pointer to a shared
  * pointer of Communication::Request.
  */
 struct MPIS_Request_struct
 {
-    RequestState state;          //!< Matching status of the MPIS_Request
+    bool      match_handle;      //!< [TODO]
     uintptr_t internal_request;  //!< Pointer to internal Communication::Request object.
 };
 
@@ -80,7 +77,7 @@ struct MPISException : public std::runtime_error
  * functions may also perform state checks on the request to help reduce code duplication.
  */
 
-/**
+/** [UPDATE]
  * @brief Convert from MPIS_Request to internal representation. Checks state.
  * @details Converts from MPIS_Request object (not a pointer to one) to a pointer to a
  * shared pointer of Communication::Request. Will also check that the MPIS_Request has the
@@ -88,22 +85,24 @@ struct MPISException : public std::runtime_error
  *
  * @ingroup converters
  * @param [in] request An MPIS_Request request object to convert from.
- * @param [in] state The required ::RequestState of the MPIS_Request.
+ * @param [in] allowed
  * @return Pointer to shared pointer of Communication::Request. Throws exception if
  * invalid state.
  */
 static inline std::shared_ptr<Communication::Request>* convert_request(
-    MPIS_Request request, RequestState state)
+    MPIS_Request request, std::initializer_list<Communication::Request::State> allowed)
 {
-    if (state != request->state)
+    auto* internal = reinterpret_cast<std::shared_ptr<Communication::Request>*>(
+        (request->internal_request));
+    if (request->match_handle ||
+        allowed.end() == std::find(allowed.begin(), allowed.end(), (*internal)->state))
     {
         throw MPISException(MPIS_INVALID_REQUEST_STATE, "Invalid Request state!");
     }
-    return reinterpret_cast<std::shared_ptr<Communication::Request>*>(
-        (request->internal_request));
+    return internal;
 }
 
-/**
+/** [UPDATE]
  * @brief Convert from MPIS_Request pointer to internal representation. Checks state.
  * @details Converts from a pointer to an MPIS_Request object to a pointer to a
  * shared pointer of Communication::Request. Will also check that the MPIS_Request has the
@@ -111,19 +110,30 @@ static inline std::shared_ptr<Communication::Request>* convert_request(
  *
  * @ingroup converters
  * @param [in] request An MPIS_Request request object to convert from.
- * @param [in] state The required ::RequestState of the MPIS_Request.
+ * @param [in] allowed
  * @return Pointer to shared pointer of Communication::Request. Throws exception if
  * invalid state.
  */
 static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
-    MPIS_Request* request, RequestState state)
+    MPIS_Request* request, std::initializer_list<Communication::Request::State> allowed)
 {
-    if (state != (*request)->state)
+    return convert_request(*request, allowed);
+}
+
+/**
+ * @brief [TODO]
+ * @param [in] request
+ * @return
+ */
+static inline std::shared_ptr<Communication::Request>* convert_match_request(
+    MPIS_Request request)
+{
+    if (!request->match_handle)
     {
         throw MPISException(MPIS_INVALID_REQUEST_STATE, "Invalid Request state!");
     }
     return reinterpret_cast<std::shared_ptr<Communication::Request>*>(
-        ((*request)->internal_request));
+        (request->internal_request));
 }
 
 /**
@@ -156,6 +166,26 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
 {
     return reinterpret_cast<std::shared_ptr<Communication::Request>*>(
         ((*request)->internal_request));
+}
+
+/**
+ * @brief [TODO]
+ * @param [in] requests
+ */
+static inline void check_unique_requests(
+    const std::vector<std::shared_ptr<Communication::Request>>& requests)
+{
+    std::vector<size_t> ids;
+    ids.reserve(requests.size());
+    for (const std::shared_ptr<Communication::Request>& req : requests)
+    {
+        ids.push_back(req->getID());
+    }
+    std::sort(ids.begin(), ids.end());
+    if (std::adjacent_find(ids.begin(), ids.end()) != ids.end())
+    {
+        throw std::runtime_error("The same request was named more than once");
+    }
 }
 
 /** @brief Helper macro that current only prints out the function name when in debug mode.

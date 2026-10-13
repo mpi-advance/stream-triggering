@@ -15,10 +15,6 @@
 namespace Memory
 {
 
-/** @brief Convenience wrapper for long C++ type; the object to allocate host memory from
- */
-using GPUPool = std::pmr::monotonic_buffer_resource;
-
 /**
  * @brief A modern C++ class that can provide host memory allocated from a GPU library.
  * @details Does not support building with both AMD and NVIDIA GPU libraries at the same
@@ -88,6 +84,16 @@ protected:
         return this == &other;
     }
 };
+
+/**
+ * @brief [TODO]
+ * @return
+ */
+inline gpu_host_memory_resource* gpu_host_resource()
+{
+    static gpu_host_memory_resource the_resource;
+    return &the_resource;
+}
 
 }  // namespace Memory
 

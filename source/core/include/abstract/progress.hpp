@@ -62,39 +62,6 @@ protected:
 };
 
 /**
- * @brief An implementation of Progress::Entry that represent triggered communication
- * "starts"
- * @details
- */
-class StartEntry : public Entry
-{
-public:
-    /**
-     * @brief [TODO]
-     * @param [in] _request
-     * @param [in] _mem
-     * @param [in] _iteration
-     */
-    StartEntry(RequestType _request, CounterType* _mem, CounterType _iteration)
-        : Entry(_mem, _iteration), request(std::move(_request))
-    {
-    }
-    void enqueued_action() override
-    {
-        while (std::atomic_ref<CounterType>(*mem_signal).load(std::memory_order_acquire) <
-               iteration)
-        {
-            std::this_thread::yield();
-        }
-        force_mpi(MPI_Start(request.get()));
-    }
-
-private:
-    /** @brief The underlying MPI Request that will be started by this Entry */
-    RequestType request;
-};
-
-/**
  * @brief [TODO]
  * @details
  */
@@ -111,17 +78,8 @@ public:
         handles.reserve(members.size());
         for (RequestType& member : members)
         {
-            handles.push_back(*member);
+            handles.push_back(member ? *member : MPI_REQUEST_NULL);
         }
-    }
-
-    /**
-     * @brief [TODO]
-     * @param [in] _member
-     */
-    explicit RequestGroup(RequestType _member)
-        : RequestGroup(std::vector<RequestType>{std::move(_member)})
-    {
     }
 
     /** @brief [TODO] */
@@ -148,6 +106,40 @@ public:
 private:
     std::vector<RequestType> members;  //!< [TODO]
     std::vector<MPI_Request> handles;  //!< [TODO]
+};
+
+/** [UPDATE]
+ * @brief An implementation of Progress::Entry that represent triggered communication
+ * "starts"
+ * @details
+ */
+class StartEntry : public Entry
+{
+public:
+    /**
+     * @brief [TODO]
+     * @param [in] _group
+     * @param [in] _mem
+     * @param [in] _iteration
+     */
+    StartEntry(std::shared_ptr<RequestGroup> _group, CounterType* _mem,
+               CounterType _iteration)
+        : Entry(_mem, _iteration), group(std::move(_group))
+    {
+    }
+
+    void enqueued_action() override
+    {
+        while (std::atomic_ref<CounterType>(*mem_signal).load(std::memory_order_acquire) <
+               iteration)
+        {
+            std::this_thread::yield();
+        }
+        force_mpi(MPI_Startall(group->size(), group->data()));
+    }
+
+private:
+    std::shared_ptr<RequestGroup> group;  //!< [TODO]
 };
 
 /**

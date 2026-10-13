@@ -466,14 +466,15 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
     }
 #endif
 
-    GPUTriggers all_in_one;
-    size_t      num_reqs    = 0;
-    bool        should_bump = false;
+    GPUTriggers                           all_in_one;
+    size_t                                num_reqs    = 0;
+    bool                                  should_bump = false;
+    std::vector<std::shared_ptr<Request>> collectives;
     for (auto& req : requests)
     {
         if (Communication::Operation::BARRIER <= req->operation)
         {
-            HIPQueue::enqueue_operation(req);
+            collectives.push_back(req);
         }
         else
         {
@@ -488,9 +489,6 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
             {
                 continue;
             }
-
-            /* Add request to be waited on. */
-            active_requests.push_back(req->getID());
 
             /* Enqueue global counter bump, if needed */
             if (!should_bump && (TriggerStatus::GLOBAL_BUMP == actions))
@@ -529,21 +527,37 @@ void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
         add_to_counters<<<1, 1, 0, *my_stream>>>(all_in_one);
         force_kernel();
     }
+
+    if (!collectives.empty())
+    {
+        HIPQueue::enqueue_startall(collectives);
+    }
 }
 
-void CXIQueue::enqueue_waitall()
+void CXIQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
+                               MPI_Status*                           statuses)
 {
 #if defined(USE_TIOGA)
     flush_memory();  // TODO: Refine this more so not all waitalls need this
 #endif
     GPUCompletions all_in_one;
     size_t         num_reqs = 0;
-    for (auto req : active_requests)
+    for (auto& req : requests)
     {
-        if (WaitStatus::GLOBAL_KERNEL == request_map.at(req)->wait_gpu(my_stream))
+        if (Communication::Operation::BARRIER <= req->operation)
         {
-            all_in_one.buffer[num_reqs] = request_map.at(req)->get_gpu_completion();
-            Print::out("Waiting on request:", req, all_in_one.buffer[num_reqs].comp_addr,
+            continue;
+        }
+        auto found = request_map.find(req->getID());
+        if (request_map.end() == found || !found->second->take_outstanding())
+        {
+            continue;
+        }
+        if (WaitStatus::GLOBAL_KERNEL == found->second->wait_gpu(my_stream))
+        {
+            all_in_one.buffer[num_reqs] = found->second->get_gpu_completion();
+            Print::out("Waiting on request:", req->getID(),
+                       all_in_one.buffer[num_reqs].comp_addr,
                        all_in_one.buffer[num_reqs].goal_value);
             num_reqs++;
             if (CompletionBufferFactory::MAX_GPU_COMPLETIONS == num_reqs)
@@ -565,12 +579,9 @@ void CXIQueue::enqueue_waitall()
         force_kernel();
     }
 
-    active_requests.clear();
-    // If there are any requests offloaded to CPU
-    if (entries.size() > 0)
-    {
-        HIPQueue::enqueue_waitall();
-    }
+    /* Collectives are offloaded to the CPU; point-to-point positions get empty statuses
+     */
+    HIPQueue::enqueue_waitall(requests, statuses);
 }
 
 void CXIQueue::flush_memory()

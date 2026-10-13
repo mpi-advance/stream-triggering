@@ -22,7 +22,7 @@ int MPIS_Waitall(int len, MPIS_Request requests[], MPI_Status statuses[])
             continue;
         }
 
-        internal_requests[i] = *convert_request(request, RequestState::ONGOING);
+        internal_requests[i] = *convert_match_request(request);
     }
 
     /* Do the wait all */

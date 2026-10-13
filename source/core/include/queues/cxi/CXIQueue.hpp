@@ -99,17 +99,7 @@ public:
         my_buffer.free_mr();
     }
 
-    /**
-     * @brief Enqueue a single operation's start onto the stream.
-     * @details Currently implemented as single call to CXIQueue::enqueue_startall.
-     * @param [in] request The Communication::Request to start.
-     */
-    void enqueue_operation(std::shared_ptr<Request> request) override
-    {
-        enqueue_startall({request});
-    }
-
-    /**
+    /** [REVIEW]
      * @brief Enqueue a start operation for set of communication operations.
      * @details This function is how stream-triggering kernels are put onto a GPU stream.
      * Before any kernels are added, if the system is an MI250X system (currently decided
@@ -146,7 +136,8 @@ public:
      */
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override;
 
-    /** @brief Enqueue kernel(s) to wait on the completion of operations.
+    /** [UPDATE]
+     * @brief Enqueue kernel(s) to wait on the completion of operations.
      * @details This function, like CXIQueue::enqueue_startall, adds kernels related to
      * communication to the GPU stream. For all of the operations that have had their
      * starts enqueued, this function collects all of the completion buffers (and their
@@ -166,21 +157,13 @@ public:
      *
      * Currently, if USE_TIOGA is set, CXIQueue::flush_memory() is called.
      *
+     * @param [in] requests
+     * @param [out] statuses
      * @sa ::GPUCompletions
      * @sa ::wait_on_completions()
      */
-    void enqueue_waitall() override;
-
-    /** @brief Block the host until synchronized with the GPU.
-     * @details Since this ::Queue could have outstanding collective operations, it first
-     * calls ::Queue::host_wait() to ensure those are done as well.
-     */
-    void host_wait() override
-    {
-        Queue::host_wait();
-        Print::out("Waiting on device!");
-        force_gpu(hipStreamSynchronize(*my_stream));
-    }
+    void enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
+                         MPI_Status*                           statuses) override;
 
     /**
      * @brief Begin the process of matching for a set of communication operations.
@@ -328,14 +311,6 @@ private:
      * different object type to carry out triggering actions (in current implementation).
      */
     std::map<size_t, CXIObjects> request_map;
-    /** @brief A vector of all operations that have had their starts enqueued.
-     * @details Currently separate from Queue::entries because this class keeps track of
-     * ongoing operations in a different manner. Uses Communication::Request::myID as the
-     * key; is a list of all operations that have had their starts enqueued since the last
-     * waitall was enqueued.
-     */
-    std::vector<size_t> active_requests;
-
     /** @brief Object responsible for allocating completion/ready buffers for all
      * operations. */
     CompletionBufferFactory my_buffer;

@@ -94,7 +94,20 @@ enum GPUMemoryType
 class Request
 {
 public:
-    Operation    operation;    //!< The Operation of the Request.
+    /**
+     * @brief [TODO]
+     * @details
+     */
+    enum class State
+    {
+        UNMATCHED,  //!< [TODO]
+        MATCHING,   //!< [TODO]
+        MATCHED,    //!< [TODO]
+        ACTIVE,     //!< [TODO]
+    };
+
+    State        state = State::UNMATCHED;  //!< [TODO]
+    Operation    operation;                 //!< The Operation of the Request.
     Protocol     protocol;     //!< Which Protocol the Request has been assigned.
     void*        send_buffer;  //!< The buffer to use for sends.
     void*        recv_buffer;  //!< The buffer to use for receives.
@@ -150,8 +163,7 @@ public:
           op(_op),
           cw_peer(resolve_comm_world(_peer)),
           myID(assignID()),
-          protocol_request(MPI_REQUEST_NULL),
-          matched(false)
+          protocol_request(MPI_REQUEST_NULL)
     {
         constexpr int     string_size = 100;
         char              info_key[]  = "mpi_memory_alloc_kinds";
@@ -160,7 +172,8 @@ public:
         // Pre MPI-4.0
         if (MPI_INFO_NULL != _info)
         {
-            force_mpi(MPI_Info_get(_info, info_key, string_size-1, value.data(), &flag));
+            force_mpi(
+                MPI_Info_get(_info, info_key, string_size - 1, value.data(), &flag));
         }
 
         if (0 == strcmp(value.data(), "rocm:device:fine"))
@@ -177,18 +190,21 @@ public:
         print();
     }
 
-    /** @brief Return the matched status of a Request object.
+    /** [UPDATE]
+     * @brief Return the matched status of a Request object.
      * @return The matched status of a Request object.
      */
     bool is_matched()
     {
-        return matched;
+        return State::MATCHED <= state;
     }
 
-    /** @brief Set Request::matched to true. Multiple calls have no effect. */
+    /** [UPDATE]
+     * @brief Set Request::matched to true. Multiple calls have no effect.
+     */
     void set_match()
     {
-        matched = true;
+        state = State::MATCHED;
     }
 
     /** @brief Access the assigned ID of the Request object.
@@ -306,8 +322,8 @@ public:
         return memory_type;
     }
 
-    /** @brief A method for checking if the communication will require a synchronization of
-     * memory between the GPU and the CPU.
+    /** @brief A method for checking if the communication will require a synchronization
+     * of memory between the GPU and the CPU.
      * @return A boolean indicating if the CPU needs to synchronize memory with the GPU.
      */
     bool needs_gpu_flush()
@@ -368,8 +384,6 @@ protected:
     /** @brief A vector for holding MPI_Statuses that result from MPI communications
      * during matching. */
     std::vector<MPI_Status> match_statuses;
-    /** @brief Whether the Request has completed matching. */
-    bool matched = false;
 
     /** @brief Static method for assigning IDs to Request objects.
      * @details IDs start at 1 and increment by 1 per call to this function.

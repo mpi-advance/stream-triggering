@@ -12,8 +12,7 @@ int MPIS_Allreduce_init(const void* sendbuf, void* recvbuf, MPI_Count count,
         new Request(Operation::ALLREDUCE, const_cast<void*>(sendbuf), recvbuf, count,
                     datatype, -1, 0, comm, info, op));
 
-    *request =
-        new MPIS_Request_struct{RequestState::UNMATCHED, (uintptr_t)internal_request};
+    *request = new MPIS_Request_struct{false, (uintptr_t)internal_request};
 
     MPIS_BINDING_EXIT
     return MPIS_SUCCESS;

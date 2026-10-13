@@ -109,7 +109,7 @@ public:
     /** @brief Default destructor. */
     virtual ~CXIRequest() = default;
 
-    /**
+    /** [UPDATE]
      * @brief Carry out CPU actions related to starting the operation.
      * @details The base function automatically increases the counter for the number of
      * times started. If derived classes override this function, they must increment
@@ -134,7 +134,19 @@ public:
     virtual TriggerStatus start_cpu(CXICounter& trigger_cntr, hipStream_t* the_stream)
     {
         num_times_started++;
-        return start_derived(trigger_cntr, the_stream);
+        TriggerStatus actions = start_derived(trigger_cntr, the_stream);
+        outstanding           = (TriggerStatus::DONE != actions);
+        return actions;
+    }
+
+    /** @brief [TODO]
+     * @return
+     */
+    bool take_outstanding()
+    {
+        bool was_outstanding = outstanding;
+        outstanding          = false;
+        return was_outstanding;
     }
 
     /**
@@ -215,6 +227,9 @@ protected:
 
     /** @brief Counter for how many times this operation has been started. */
     size_t num_times_started;
+
+    /** @brief [TODO] */
+    bool outstanding = false;
 };
 
 #endif
