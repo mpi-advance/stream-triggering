@@ -59,7 +59,6 @@ public:
         Print::out("CXI Queue init-ed");
         force_mpi(MPI_Comm_rank(comm_base, &my_rank));
         Print::out("Starting MPI Comm Dupes");
-        force_mpi(MPI_Comm_dup(comm_base, &protocol_phase));
         force_mpi(MPI_Comm_dup(comm_base, &match_phase_a));
         force_mpi(MPI_Comm_dup(comm_base, &match_phase_b));
         Print::out("Starting Allgather to get CXI address data");
@@ -90,7 +89,6 @@ public:
     ~CXIQueue()
     {
         MPI_Barrier(comm_base);
-        MPI_Comm_free(&protocol_phase);
         MPI_Comm_free(&match_phase_a);
         MPI_Comm_free(&match_phase_b);
         MPI_Comm_free(&on_node_peers);
@@ -240,7 +238,7 @@ public:
     }
 
 private:
-    /**
+    /** [REVIEW]
      * @brief Determine the Communication::Protocol to use for an operation.
      * @details Sets Communication::Request::protocol and calls
      * Communication::Request::start_protocol_exchange(). Performs checks for self
@@ -289,8 +287,6 @@ private:
     MPI_Comm comm_base;
     /** @brief This process's rank in CXIQueue::comm_base. */
     int my_rank;
-    /** @brief Duplicate of CXIQueue::comm_base used for protocol exchanges. */
-    MPI_Comm protocol_phase;
     /** @brief Duplicate of CXIQueue::comm_base used for first half of matching
      * communication.
      * @details Currently also used for the allgather used in

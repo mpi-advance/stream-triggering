@@ -192,7 +192,7 @@ void CXIQueue::exchange_protocol(Request& req)
     }
 
     // Separate communicator to avoid matching conflicts.
-    req.start_protocol_exchange(protocol_phase);
+    req.start_protocol_exchange();
 }
 
 void CXIQueue::prepare_cxi_mr_key(Request& req)

@@ -25,6 +25,7 @@ int MPI_Init(int* argc, char*** argv)
 int MPI_Finalize()
 {
     MPIS_BINDING_ENTER
+    check_mpi(MPI_Comm_free(&Communication::MPIS_COMM_PROTOCOL));
     check_mpi(MPI_Comm_free(&Communication::MPIS_COMM_WORLD));
     int error_code = PMPI_Finalize();
     MPIS_BINDING_EXIT

@@ -40,6 +40,10 @@ int main(int argc, char* argv[])
            "starting a match handle was accepted");
     MPIS_Waitall(2, match_handles, MPI_STATUSES_IGNORE);
 
+    /* Waiting on handles that are now MPIS_REQUEST_NULL is a no-op */
+    EXPECT(!Checks::throws([&] { MPIS_Waitall(2, match_handles, MPI_STATUSES_IGNORE); }),
+           "waiting on null match handles was rejected");
+
     /* Started, and started again before any wait */
     MPIS_Enqueue_startall(my_queue, 2, my_reqs);
     EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &my_reqs[1]); }),

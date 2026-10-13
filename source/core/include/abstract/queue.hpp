@@ -152,18 +152,17 @@ public:
     virtual void finalize_match(std::vector<std::shared_ptr<Request>> requests)
     {
         std::vector<MPI_Request> request_train;
-        std::vector<MPI_Status>  status_train;
         for (auto& req : requests)
         {
             if (Operation::BARRIER > req->operation)
             {
-                req->join_waitall_match(request_train, status_train);
+                req->join_waitall_match(request_train);
                 Print::out("Train size now:", request_train.size());
             }
         }
 
         force_mpi(
-            MPI_Waitall(request_train.size(), request_train.data(), status_train.data()));
+            MPI_Waitall(request_train.size(), request_train.data(), MPI_STATUSES_IGNORE));
 
         Print::out("Done with all matching.");
         for (auto& req : requests)

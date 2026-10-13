@@ -18,7 +18,7 @@ int MPIS_Alloc_mem(MPI_Aint size, MPI_Info info, void** baseptr)
     {
         int flag = 0;
         // Pre MPI-4.0
-        force_mpi(MPI_Info_get(info, info_key, string_size, value, &flag));
+        force_mpi(MPI_Info_get(info, info_key, string_size - 1, value, &flag));
     }
 
     Print::out("Memory Type:", value);

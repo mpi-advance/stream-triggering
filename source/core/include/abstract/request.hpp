@@ -3,6 +3,7 @@
 
 #include <string.h>
 
+#include <stdexcept>
 #include <vector>
 
 #include "misc/print.hpp"
@@ -67,6 +68,11 @@ extern bool CREDIT_PROTOCOL_ENABLED;
  * library.
  */
 extern MPI_Comm MPIS_COMM_WORLD;
+
+/** @brief [TODO]
+ * @details
+ */
+extern MPI_Comm MPIS_COMM_PROTOCOL;
 
 /** @brief Enum for recording the details of a GPU buffer.
  * @details The exact type of buffer may influence the GPU actions a Queue will do,
@@ -236,7 +242,7 @@ public:
         }
     }
 
-    /**
+    /** [UPDATE]
      * @brief Prepare the internal vectors for holding a specified number of MPI objects.
      * @details Calling this method multiple times on the same Request object is allowed,
      * but any existing requests are discarded without being freed or completed.
@@ -246,12 +252,16 @@ public:
      */
     MPI_Request* get_match_requests(size_t num)
     {
+        if (!match_requests.empty())
+        {
+            throw std::runtime_error(
+                "Request already has matching MPI_Requests that were never joined");
+        }
         match_requests = std::vector<MPI_Request>(num, MPI_REQUEST_NULL);
-        match_statuses = std::vector<MPI_Status>(num);
         return match_requests.data();
     }
 
-    /**
+    /** [UPDATE]
      * @brief Exchange Protocol with peer process.
      * @details This protocol exchange can be considered the first step in the matching
      * process. Note that MPI operations in this method use the tag of the original
@@ -262,21 +272,20 @@ public:
      * the MPI_Comm provided in the MPI communication call, it is not valid to do so.
      * Using that communicator may cause collisions with the user's own MPI
      * communications, and thus cause odd errors or deadlock in the program.
-     * @param [in] channel The MPI_Comm to perform the exchange over.
      */
-    void start_protocol_exchange(MPI_Comm channel)
+    void start_protocol_exchange()
     {
         if (Operation::RECV == operation)
         {
             out("(R) Protocol Peer, Tag:", cw_peer, tag);
             check_mpi(MPI_Irecv(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag,
-                                channel, &protocol_request));
+                                MPIS_COMM_PROTOCOL, &protocol_request));
         }
         else
         {
             out("(S) Protocol Peer, Tag:", cw_peer, tag);
             check_mpi(MPI_Isend(&protocol, sizeof(Protocol), MPI_BYTE, cw_peer, tag,
-                                channel, &protocol_request));
+                                MPIS_COMM_PROTOCOL, &protocol_request));
         }
     }
 
@@ -287,7 +296,7 @@ public:
         out("Final Protocol:", protocol);
     }
 
-    /**
+    /** [UPDATE]
      * @brief Aggregate any MPI communications for the matching phase into a vector.
      * @details This function asks a Request object to insert any MPI_Request objects that
      * were created as a part of initiating the matching phase into a larger list of MPI
@@ -300,18 +309,12 @@ public:
      *
      * @param [in, out] request_train The vector of MPI_Request objects to append any
      * local matching-phase MPI_Requests to.
-     * @param [in, out] status_train The vector of MPI_Status objects to append any
-     * corresponding MPI_Status objects into.
      */
-    void join_waitall_match(std::vector<MPI_Request>& request_train,
-                            std::vector<MPI_Status>&  status_train)
+    void join_waitall_match(std::vector<MPI_Request>& request_train)
     {
         request_train.insert(request_train.end(), match_requests.begin(),
                              match_requests.end());
         match_requests.clear();
-        status_train.insert(status_train.end(), match_statuses.begin(),
-                            match_statuses.end());
-        match_statuses.clear();
     }
 
     /** @brief Obtain the memory type held by the Request object.
@@ -381,9 +384,6 @@ protected:
     MPI_Request protocol_request;
     /** @brief A vector that holds any MPI communications that happen during matching. */
     std::vector<MPI_Request> match_requests;
-    /** @brief A vector for holding MPI_Statuses that result from MPI communications
-     * during matching. */
-    std::vector<MPI_Status> match_statuses;
 
     /** @brief Static method for assigning IDs to Request objects.
      * @details IDs start at 1 and increment by 1 per call to this function.

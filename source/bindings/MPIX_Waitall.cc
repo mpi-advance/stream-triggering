@@ -9,7 +9,8 @@ int MPIS_Waitall(int len, MPIS_Request requests[], MPI_Status statuses[])
 
     using namespace Communication;
     Queue*                                the_queue = (Queue*)(ACTIVE_QUEUE);
-    std::vector<std::shared_ptr<Request>> internal_requests(len);
+    std::vector<std::shared_ptr<Request>> internal_requests;
+    internal_requests.reserve(len);
 
     Print::out("MPIS_Requests to wait on:", len);
     /* Convert to internal object */
@@ -22,7 +23,7 @@ int MPIS_Waitall(int len, MPIS_Request requests[], MPI_Status statuses[])
             continue;
         }
 
-        internal_requests[i] = *convert_match_request(request);
+        internal_requests.push_back(*convert_match_request(request));
     }
 
     /* Do the wait all */
