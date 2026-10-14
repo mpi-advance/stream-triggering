@@ -212,16 +212,16 @@ void CXIQueue::prepare_cxi_mr_key(Request& req)
                 cxi_request = std::make_unique<CXIRecvShared>(req, my_buffer);
                 break;
             case Communication::Protocol::EAGER:
-                cxi_request = std::make_unique<CXIRecvOneSided<true>>(
-                    req, my_buffer, libfab, libfab.get_peer(my_rank));
+                cxi_request = std::make_unique<CXIRecvEager>(req, my_buffer, libfab,
+                                                             libfab.get_peer(my_rank));
                 break;
             case Communication::Protocol::CREDIT:
                 cxi_request = std::make_unique<CXIRecvCredit>(req, my_buffer, libfab,
                                                               libfab.get_peer(my_rank));
                 break;
             case Communication::Protocol::RNDV:
-                cxi_request = std::make_unique<CXIRecvOneSided<false>>(
-                    req, my_buffer, libfab, libfab.get_peer(my_rank));
+                cxi_request = std::make_unique<CXIRecvRndv>(req, my_buffer, libfab,
+                                                            libfab.get_peer(my_rank));
                 break;
             case Communication::Protocol::SELF:
                 cxi_request = std::make_unique<CXIRecvSelf>(req, my_buffer);
@@ -439,7 +439,7 @@ WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
 {
     auto  buffer_size = base_req.get_size_of_buffer();
     void* credit_buffer_slot =
-        (char*)credit_buffers +
+        (char*)credit_buffers() +
         (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size);
     Print::out("<E> Enqueuing Credit Kernel", (size_t*)completion_buffer.address,
                num_times_started, credit_buffer_slot, base_req.recv_buffer, buffer_size,

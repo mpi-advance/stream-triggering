@@ -1,12 +1,61 @@
 #ifndef ST_CXI_QUEUE_REQUEST_PROTOCOLS
 #define ST_CXI_QUEUE_REQUEST_PROTOCOLS
 
+#include "misc/mem_pool.hpp"
 #include "queues/cxi/requests/request_base.hpp"
 
 /**
  * @file request_protocols.hpp
  * @brief File for all derivatives of ::CXIRequest.
  */
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+class CXILocalCompletion : public CXIRequest
+{
+public:
+    /**
+     * @brief [TODO]
+     * @param [in] user_request
+     * @param [in, out] buffers
+     * @param [in, out] _libfab
+     * @param [in] self
+     */
+    CXILocalCompletion(Communication::Request&  user_request,
+                       CompletionBufferFactory& buffers, LibfabricInstance& _libfab,
+                       fi_addr_t self)
+        : CXIRequest(user_request, buffers),
+          libfab(_libfab),
+          completion_local(_libfab.alloc_counter(true)),
+          local_completion(_libfab.ep, self, *completion_buffer.get_rma_ioc_addr())
+    {
+        local_completion.set_completion_counter(completion_local);
+    }
+
+    /** @brief [TODO] */
+    ~CXILocalCompletion()
+    {
+        libfab.dealloc_counter(completion_local);
+    }
+
+protected:
+    /** @brief [TODO] */
+    void queue_local_completion()
+    {
+        local_completion.bump_threshold();
+        libfab.queue_work(local_completion.get_dwqe());
+    }
+
+    /** @brief Local reference to the set of libfabric objects. */
+    LibfabricInstance& libfab;
+
+    struct fid_cntr* completion_local;  //!< [TODO]
+    /** @brief Deferred work queue entry for the atomic operation that creates the local
+     * completion. */
+    AtomicEntry local_completion;
+};
 
 /**
  * @brief Implementation of Communication::Protocol::EAGER send operations.
@@ -18,10 +67,10 @@
  *
  * Is able to be triggered off the global counter.
  */
-class CXIRSend : public CXIRequest
+class CXIRSend : public CXILocalCompletion
 {
 public:
-    /**
+    /** [UPDATE]
      * @brief Constructor for eager/rsend operations.
      * @details Takes care of setting up the two deferred work queue entries, and aligns
      * all but the initial triggering counter. Allocates two counters to use as completion
@@ -36,26 +85,21 @@ public:
      */
     CXIRSend(Communication::Request& user_request, CompletionBufferFactory& buffers,
              LibfabricInstance& _libfab, fi_addr_t self)
-        : CXIRequest(user_request, buffers),
+        : CXILocalCompletion(user_request, buffers, _libfab, self),
           work_entry(_libfab.ep, _libfab.get_peer(user_request.cw_peer),
                      {user_request.send_buffer,
                       static_cast<size_t>(user_request.get_size_of_buffer())}),
-          local_completion(_libfab.ep, self, *completion_buffer.get_rma_ioc_addr()),
-          libfab(_libfab),
-          completion_a(_libfab.alloc_counter(true)),
-          completion_b(_libfab.alloc_counter(true))
+          completion_a(_libfab.alloc_counter(true))
     {
         work_entry.set_completion_counter(completion_a);
         local_completion.set_trigger_counter(completion_a);
-        local_completion.set_completion_counter(completion_b);
     }
 
-    /** @brief Destructor that deallocates the two libfabric counters created. */
+    /** [UPDATE] @brief Destructor that deallocates the two libfabric counters created. */
     ~CXIRSend()
     {
         // Free counter
         libfab.dealloc_counter(completion_a);
-        libfab.dealloc_counter(completion_b);
     }
 
     /** [UPDATE]
@@ -98,8 +142,7 @@ public:
         libfab.queue_work(work_entry.get_dwqe());
 
         // Queue up completion DWQ
-        local_completion.bump_threshold();
-        libfab.queue_work(local_completion.get_dwqe());
+        queue_local_completion();
 
         return TriggerStatus::GLOBAL_BUMP;
     }
@@ -108,17 +151,9 @@ protected:
     /** @brief Deferred work queue entry for the RMA operation that moves the user
      * buffer. */
     RMAEntry work_entry;
-    /** @brief Deferred work queue entry for the atomic operation that creates the local
-     * completion. */
-    AtomicEntry local_completion;
-
-    /** @brief Local reference to the set of libfabric objects. */
-    LibfabricInstance& libfab;
 
     /** @brief Allocated completion counter (for the RMA operation) */
     struct fid_cntr* completion_a;
-    /** @brief Allocated completion counter (for the atomic operation) */
-    struct fid_cntr* completion_b;
 };
 
 /**
@@ -151,27 +186,27 @@ public:
      */
     CXISend(Communication::Request& user_request, CompletionBufferFactory& buffers,
             LibfabricInstance& _libfab, fi_addr_t self)
-        : CXIRSend(user_request, buffers, _libfab, self), triggered(_libfab)
+        : CXIRSend(user_request, buffers, _libfab, self),
+          triggered(_libfab),
+          cts_buffer(Memory::gpu_host_resource(),
+                     CompletionBufferFactory::DEFAULT_ITEM_SIZE)
     {
         work_entry.set_trigger_counter(triggered);
 
         /* Setup CTS buffer */
-        force_gpu(hipHostMalloc(&cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE,
-                                hipHostMallocDefault));
         cts_mr = _libfab.create_mr_with_counter(
-            cts_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE, FI_REMOTE_WRITE,
+            cts_buffer.get(), CompletionBufferFactory::DEFAULT_ITEM_SIZE, FI_REMOTE_WRITE,
             FI_MR_ALLOCATED | FI_RMA_EVENT, triggered.counter, FI_REMOTE_WRITE);
 
         /* Describe CTS buffer for the peer */
         cts_details = {0, 1, fi_mr_key(cts_mr)};
     }
 
-    /** @brief Destructor that frees the pinned-host clear-to-send buffer and its
+    /** [UPDATE] @brief Destructor that frees the pinned-host clear-to-send buffer and its
      * libfabric memory region. */
     ~CXISend()
     {
-        /* Free CTS related items */
-        check_gpu(hipHostFree(cts_buffer));
+        /* Close the MR; cts_buffer is freed afterwards, as a member */
         check_libfabric(fi_close(&(cts_mr)->fid));
     }
 
@@ -224,8 +259,7 @@ public:
         libfab.queue_work(work_entry.get_dwqe());
 
         // Queue up completion DWQ
-        local_completion.bump_threshold();
-        libfab.queue_work(local_completion.get_dwqe());
+        queue_local_completion();
 
         return TriggerStatus::EXTRA_BUMP;
     }
@@ -243,8 +277,8 @@ public:
 private:
     /** @brief Separate counter for triggering send operations. */
     CXICounter triggered;
-    /** @brief Pointer for the clear-to-send pinned-host buffer. */
-    void* cts_buffer;
+    /** [UPDATE] @brief Pointer for the clear-to-send pinned-host buffer. */
+    Memory::OwnedBuffer cts_buffer;
     /** @brief Libfabric memory region handle for the clear-to-send buffer. */
     fid_mr*           cts_mr;
     struct fi_rma_ioc cts_details;  //!< [TODO]
@@ -479,29 +513,28 @@ public:
         credit_slots.reserve(Communication::MAX_CREDIT_SLACK);
         for (size_t index = 0; index < Communication::MAX_CREDIT_SLACK; index++)
         {
-            CXICounter temp_credit_counter(_libfab);
-            void*      temp_credit_buffer;
-            force_gpu(hipHostMalloc(&temp_credit_buffer,
-                                    CompletionBufferFactory::DEFAULT_ITEM_SIZE,
-                                    hipHostMallocDefault));
+            CXICounter          temp_credit_counter(_libfab);
+            Memory::OwnedBuffer temp_credit_buffer(
+                Memory::gpu_host_resource(), CompletionBufferFactory::DEFAULT_ITEM_SIZE);
             fid_mr* temp_credit_mr = _libfab.create_mr_with_counter(
-                temp_credit_buffer, CompletionBufferFactory::DEFAULT_ITEM_SIZE,
+                temp_credit_buffer.get(), CompletionBufferFactory::DEFAULT_ITEM_SIZE,
                 FI_REMOTE_WRITE, FI_MR_ALLOCATED | FI_RMA_EVENT,
                 temp_credit_counter.counter, FI_REMOTE_WRITE);
-            Print::out("CREDIT MR SLOT:", temp_credit_buffer,
+            Print::out("CREDIT MR SLOT:", temp_credit_buffer.get(),
                        temp_credit_counter.gpu_mmio_addr, temp_credit_mr);
-            credit_slots.emplace_back(std::move(temp_credit_counter), temp_credit_buffer,
-                                      temp_credit_mr);
+            credit_slots.emplace_back(std::move(temp_credit_counter),
+                                      std::move(temp_credit_buffer), temp_credit_mr);
             credit_buffers[index] = {0, 1, fi_mr_key(temp_credit_mr)};
         }
     }
 
-    /** @brief Destructor that frees memory and memory regions for the credit slots. */
+    /** [UPDATE] @brief Destructor that frees memory and memory regions for the credit
+     * slots. */
     ~CXISendCredit()
     {
+        /* Close the MRs; the buffers are freed afterwards, with credit_slots */
         for (auto& slot : credit_slots)
         {
-            force_gpu(hipHostFree(std::get<1>(slot)));
             check_libfabric(fi_close(&(std::get<2>(slot))->fid));
         }
     }
@@ -562,8 +595,7 @@ public:
         libfab.queue_work(work_entry.get_dwqe());
 
         // Queue up completion DWQ
-        local_completion.bump_threshold();
-        libfab.queue_work(local_completion.get_dwqe());
+        queue_local_completion();
 
         return TriggerStatus::EXTRA_BUMP;
     }
@@ -586,13 +618,13 @@ public:
     }
 
 private:
-    /** @brief Details about the local credit "clear-to-send" buffers.
+    /** [UPDATE] @brief Details about the local credit "clear-to-send" buffers.
      * @details Each tuple holds the following values: Index 0 is the ::CXICounter
      * attached to the buffer; Index 1 is the raw pointer of the buffer; Index 2 is the
      * libfabric memory region of the buffer. Vector is of size
      * ::Communication::MAX_CREDIT_SLACK.
      */
-    std::vector<std::tuple<CXICounter, void*, fid_mr*>> credit_slots;
+    std::vector<std::tuple<CXICounter, Memory::OwnedBuffer, fid_mr*>> credit_slots;
     /**
      * @brief Details about the remote credit buffer.
      * @details Offset is adjusted per enqueued start operation.
@@ -608,59 +640,71 @@ private:
 };
 
 /**
- * @brief Implementation of Communication::Protocol::EAGER and
- * Communication::Protocol::RNDV recv operations.
- * @details Both of these protocols are fairly similar in the setup that they do,
- * including the data being matched. As such, they are combined into a single class
- * instead of separated like ::CXIRSend and ::CXISend. There is no real reason for this
- * other than this is how the class started out (the derived send classes came later).
- * @tparam USE_EAGER Determines if this object will follow Communication::Protocol::EAGER
- * or Communication::Protocol::RNDV semantics. Only affects
- * ::CXIRecvOneSided::start_derived().
+ * @brief [TODO]
+ * @details
  */
-template <bool USE_EAGER>
-class CXIRecvOneSided : public CXIRequest
+class CXIRecvBase : public CXILocalCompletion
 {
 public:
     /**
-     * @brief
+     * @brief [TODO]
+     * @param [in] user_request
+     * @param [in, out] buffers
+     * @param [in, out] _libfab
+     * @param [in] self
+     * @param [in] mr_buffer
+     * @param [in] mr_size
+     */
+    CXIRecvBase(Communication::Request& user_request, CompletionBufferFactory& buffers,
+                LibfabricInstance& _libfab, fi_addr_t self, void* mr_buffer,
+                size_t mr_size)
+        : CXILocalCompletion(user_request, buffers, _libfab, self),
+          completion_b(_libfab.alloc_counter(false))  // registered with MR
+    {
+        my_mr = _libfab.create_mr_with_counter(mr_buffer, mr_size, FI_REMOTE_WRITE,
+                                               FI_MR_ALLOCATED | FI_RMA_EVENT,
+                                               completion_b, FI_REMOTE_WRITE);
+
+        mr_rma_iov = {0, mr_size, fi_mr_key(my_mr)};
+
+        local_completion.set_trigger_counter(completion_b);
+    }
+
+    /** [UPDATE] @brief Destructor that frees the three counters and one memory region
+     * that were created. */
+    ~CXIRecvBase()
+    {
+        // Free MR (before the counter bound to it)
+        force_libfabric(fi_close(&(my_mr)->fid));
+        libfab.dealloc_counter(completion_b);
+    }
+
+protected:
+    struct fid_cntr* completion_b;  //!< [TODO]
+
+    struct fid_mr*    my_mr;       //!< [TODO]
+    struct fi_rma_iov mr_rma_iov;  //!< [TODO]
+};
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+class CXIRecvEager : public CXIRecvBase
+{
+public:
+    /**
+     * @brief [TODO]
      * @param [in] user_request
      * @param [in, out] buffers
      * @param [in, out] _libfab
      * @param [in] self
      */
-    CXIRecvOneSided(Communication::Request&  user_request,
-                    CompletionBufferFactory& buffers, LibfabricInstance& _libfab,
-                    fi_addr_t self)
-        : CXIRequest(user_request, buffers),
-          libfab(_libfab),
-          cts_entry(_libfab.ep, _libfab.get_peer(user_request.cw_peer)),
-          completion_a(_libfab.alloc_counter(true)),   // CTS DWQ completion tracker
-          completion_b(_libfab.alloc_counter(false)),  // registered with user MR
-          completion_c(_libfab.alloc_counter(true)),   // Local completion DWQ Tracker
-          local_completion(_libfab.ep, self, *completion_buffer.get_rma_ioc_addr())
+    CXIRecvEager(Communication::Request& user_request, CompletionBufferFactory& buffers,
+                 LibfabricInstance& _libfab, fi_addr_t self)
+        : CXIRecvBase(user_request, buffers, _libfab, self, user_request.recv_buffer,
+                      user_request.get_size_of_buffer())
     {
-        my_mr = _libfab.create_mr_with_counter(
-            user_request.recv_buffer, user_request.get_size_of_buffer(), FI_REMOTE_WRITE,
-            FI_MR_ALLOCATED | FI_RMA_EVENT, completion_b, FI_REMOTE_WRITE);
-
-        user_buffer_rma_iov = {0, user_request.get_size_of_buffer(), fi_mr_key(my_mr)};
-
-        cts_entry.set_completion_counter(completion_a);
-        local_completion.set_trigger_counter(completion_b);
-        local_completion.set_completion_counter(completion_c);
-    }
-
-    /** @brief Destructor that frees the three counters and one memory region that were
-     * created. */
-    ~CXIRecvOneSided()
-    {
-        // Free counter
-        libfab.dealloc_counter(completion_a);
-        libfab.dealloc_counter(completion_c);
-        // Free MR
-        force_libfabric(fi_close(&(my_mr)->fid));
-        libfab.dealloc_counter(completion_b);
     }
 
     /** [UPDATE]
@@ -672,23 +716,14 @@ public:
      * communication.
      * @sa ::Match
      */
-    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    void match(MPI_Comm comm_a, MPI_Comm) override
     {
         /* Start requests to exchange from peer */
-        if constexpr (USE_EAGER)
-        {
-            Match::Protocol::receiver_eager(&user_buffer_rma_iov, base_req, comm_a);
-        }
-        else
-        {
-            Match::Protocol::receiver_rndv(&user_buffer_rma_iov,
-                                           cts_entry.get_rma_ioc_addr(), base_req, comm_a,
-                                           comm_b);
-        }
+        Match::Protocol::receiver_eager(&mr_rma_iov, base_req, comm_a);
     }
 
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] trigger_cntr
      * @param [in] the_stream
      * @return
@@ -696,46 +731,79 @@ public:
     TriggerStatus start_derived(CXICounter&  trigger_cntr,
                                 hipStream_t* the_stream) override
     {
-        TriggerStatus rc = TriggerStatus::NOT_NEEDED;
-        if constexpr (!USE_EAGER)
-        {
-            Print::out("Queue CTS to Libfabric!");
-            // Update threshold of chained things
-            cts_entry.set_threshold(trigger_cntr.get_next_value());
-            // Adjust the triggering counter to use
-            cts_entry.set_trigger_counter(trigger_cntr);
-            libfab.queue_work(cts_entry.get_dwqe());
-            rc = TriggerStatus::GLOBAL_BUMP;
-        }
+        queue_local_completion();
+        return TriggerStatus::NOT_NEEDED;
+    }
+};
 
-        // Queue up completion DWQ
-        local_completion.bump_threshold();
-        libfab.queue_work(local_completion.get_dwqe());
+/**
+ * @brief [TODO]
+ * @details
+ */
+class CXIRecvRndv : public CXIRecvEager
+{
+public:
+    /**
+     * @brief [TODO]
+     * @param [in] user_request
+     * @param [in, out] buffers
+     * @param [in, out] _libfab
+     * @param [in] self
+     */
+    CXIRecvRndv(Communication::Request& user_request, CompletionBufferFactory& buffers,
+                LibfabricInstance& _libfab, fi_addr_t self)
+        : CXIRecvEager(user_request, buffers, _libfab, self),
+          completion_a(_libfab.alloc_counter(true)),  // CTS DWQ completion tracker
+          cts_entry(_libfab.ep, _libfab.get_peer(user_request.cw_peer))
+    {
+        cts_entry.set_completion_counter(completion_a);
+    }
 
-        return rc;
+    /** @brief [TODO] */
+    ~CXIRecvRndv()
+    {
+        libfab.dealloc_counter(completion_a);
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] comm_a
+     * @param [in] comm_b
+     */
+    void match(MPI_Comm comm_a, MPI_Comm comm_b) override
+    {
+        /* Start requests to exchange from peer */
+        Match::Protocol::receiver_rndv(&mr_rma_iov, cts_entry.get_rma_ioc_addr(),
+                                       base_req, comm_a, comm_b);
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] trigger_cntr
+     * @param [in] the_stream
+     * @return
+     */
+    TriggerStatus start_derived(CXICounter&  trigger_cntr,
+                                hipStream_t* the_stream) override
+    {
+        Print::out("Queue CTS to Libfabric!");
+        // Update threshold of chained things
+        cts_entry.set_threshold(trigger_cntr.get_next_value());
+        // Adjust the triggering counter to use
+        cts_entry.set_trigger_counter(trigger_cntr);
+        libfab.queue_work(cts_entry.get_dwqe());
+
+        queue_local_completion();
+        return TriggerStatus::GLOBAL_BUMP;
     }
 
 private:
-    /** @brief Local reference to the set of libfabric objects. */
-    LibfabricInstance& libfab;
-
-    /** @brief Allocated completion counter (for the clear-to-send atomic operation) */
+    /** [UPDATE] @brief Allocated completion counter (for the clear-to-send atomic
+     * operation) */
     struct fid_cntr* completion_a;
-    /** @brief Deferred work queue entry for the atomic operation that moves
+    /** [UPDATE] @brief Deferred work queue entry for the atomic operation that moves
      * "clear-to-send" signal to the peer. */
     AtomicEntry cts_entry;
-
-    // Allocated Libfabric Objects
-    struct fid_mr* my_mr;  //!<
-
-    // User buffer details
-    struct fi_rma_iov user_buffer_rma_iov;  //!<
-
-    // Local completion
-    struct fid_cntr* completion_b;  //!<
-    /** @brief Allocated completion counter (for the Atomic operation) */
-    struct fid_cntr* completion_c;
-    AtomicEntry      local_completion;  //!<
 };
 
 /**
@@ -847,14 +915,14 @@ private:
 };
 
 /**
- * @brief
+ * @brief [TODO]
  * @details
  */
-class CXIRecvCredit : public CXIRequest
+class CXIRecvCredit : private Memory::OwnedBuffer, public CXIRecvBase
 {
 public:
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] user_request
      * @param [in, out] buffers
      * @param [in, out] _libfab
@@ -862,58 +930,38 @@ public:
      */
     CXIRecvCredit(Communication::Request& user_request, CompletionBufferFactory& buffers,
                   LibfabricInstance& _libfab, fi_addr_t self)
-
-        : CXIRequest(user_request, buffers),
-          libfab(_libfab),
+        : Memory::OwnedBuffer(Memory::gpu_device_resource(), credit_size(user_request)),
+          CXIRecvBase(user_request, buffers, _libfab, self, Memory::OwnedBuffer::get(),
+                      credit_size(user_request)),
           triggered(_libfab),
-          credit_entry(_libfab.ep, _libfab.get_peer(user_request.cw_peer)),
-          completion_a(_libfab.alloc_counter(true)),   // CTS DWQ completion tracker
-          completion_b(_libfab.alloc_counter(false)),  // registered with user MR
-          completion_c(_libfab.alloc_counter(true)),   // Local completion DWQ Tracker
-          local_completion(_libfab.ep, self, *completion_buffer.get_rma_ioc_addr())
+          completion_a(_libfab.alloc_counter(true)),  // CTS DWQ completion tracker
+          credit_entry(_libfab.ep, _libfab.get_peer(user_request.cw_peer))
     {
-        auto buffer_size =
-            user_request.get_size_of_buffer() * Communication::MAX_CREDIT_SLACK;
-        force_gpu(hipMalloc(&credit_buffers, buffer_size));
-        my_mr = _libfab.create_mr_with_counter(
-            credit_buffers, buffer_size, FI_REMOTE_WRITE, FI_MR_ALLOCATED | FI_RMA_EVENT,
-            completion_b, FI_REMOTE_WRITE);
-
-        credit_buffer_rma_iov = {0, buffer_size, fi_mr_key(my_mr)};
-
         // Adjust the triggering counter to use
         credit_entry.set_trigger_counter(triggered);
         credit_entry.set_completion_counter(completion_a);
-        local_completion.set_trigger_counter(completion_b);
-        local_completion.set_completion_counter(completion_c);
     }
 
-    /** @brief */
+    /** @brief [TODO] */
     ~CXIRecvCredit()
     {
-        // Free counter
         libfab.dealloc_counter(completion_a);
-        libfab.dealloc_counter(completion_c);
-        // Free MR
-        force_libfabric(fi_close(&(my_mr)->fid));
-        libfab.dealloc_counter(completion_b);
-        check_gpu(hipFree(credit_buffers));
     }
 
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] comm_a
      * @param [in] comm_b
      */
     void match(MPI_Comm comm_a, MPI_Comm comm_b) override
     {
         /* Start requests to exchange from peer */
-        Match::Protocol::receiver_credit(&credit_buffer_rma_iov, remote_credit_buffers,
-                                         base_req, comm_a, comm_b);
+        Match::Protocol::receiver_credit(&mr_rma_iov, remote_credit_buffers, base_req,
+                                         comm_a, comm_b);
     }
 
     /**
-     * @brief
+     * @brief [TODO]
      * @param [in] trigger_cntr
      * @param [in] the_stream
      * @return
@@ -931,8 +979,7 @@ public:
         libfab.queue_work(credit_entry.get_dwqe());
 
         // Queue up local completion DWQ
-        local_completion.bump_threshold();
-        libfab.queue_work(local_completion.get_dwqe());
+        queue_local_completion();
 
         return TriggerStatus::NOT_NEEDED;
     }
@@ -945,10 +992,24 @@ public:
     WaitStatus wait_gpu(hipStream_t* the_stream) override;
 
 private:
-    void* credit_buffers;  //!<
+    /**
+     * @brief [TODO]
+     * @param [in] user_request
+     * @return
+     */
+    static size_t credit_size(Communication::Request& user_request)
+    {
+        return user_request.get_size_of_buffer() * Communication::MAX_CREDIT_SLACK;
+    }
 
-    // Reference to global libfabric stuff
-    LibfabricInstance& libfab;  //!<
+    /**
+     * @brief [TODO]
+     * @return
+     */
+    void* credit_buffers() const
+    {
+        return Memory::OwnedBuffer::get();
+    }
 
     // Counter trigger for credit counter
     CXICounter triggered;  //!<
@@ -956,19 +1017,8 @@ private:
     Match::Protocol::CreditArray remote_credit_buffers;  //!<
 
     // Credit DWQ Preparations
-    struct fid_cntr* completion_a;  //!<
+    struct fid_cntr* completion_a;  //!< [TODO]
     AtomicEntry      credit_entry;  //!<
-
-    // Allocated Libfabric Objects
-    struct fid_mr* my_mr;  //!<
-
-    // User buffer details
-    struct fi_rma_iov credit_buffer_rma_iov;  //!<
-
-    // Local completion
-    struct fid_cntr* completion_b;      //!<
-    struct fid_cntr* completion_c;      //!<
-    AtomicEntry      local_completion;  //!<
 };
 
 #endif

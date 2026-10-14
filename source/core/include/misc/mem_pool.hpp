@@ -3,10 +3,12 @@
 
 #include <cstring>
 #include <memory_resource>
+#include <new>
+#include <utility>
 
 #include "safety/gpu.hpp"
 
-/**
+/** [REVIEW]
  * @file mem_pool.hpp
  * @brief Custom memory pool for host memory allocated from GPU library calls.
  */
@@ -94,6 +96,125 @@ inline gpu_host_memory_resource* gpu_host_resource()
     static gpu_host_memory_resource the_resource;
     return &the_resource;
 }
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+class gpu_device_memory_resource : public std::pmr::memory_resource
+{
+protected:
+    /**
+     * @brief [TODO]
+     * @param [in] bytes
+     * @return
+     */
+    void* do_allocate(std::size_t bytes, std::size_t) override
+    {
+        void* ptr = nullptr;
+#ifdef HIP_GPUS
+        force_gpu(hipMalloc(&ptr, bytes));
+#elif defined(CUDA_GPUS)
+        force_gpu(cudaMalloc(&ptr, bytes));
+#endif
+        if (nullptr == ptr)
+        {
+            throw std::bad_alloc{};
+        }
+
+        return ptr;
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] ptr
+     */
+    void do_deallocate(void* ptr, std::size_t, std::size_t) override
+    {
+#ifdef HIP_GPUS
+        check_gpu(hipFree(ptr));
+#elif defined(CUDA_GPUS)
+        check_gpu(cudaFree(ptr));
+#endif
+    }
+
+    /**
+     * @brief [TODO]
+     * @param [in] other
+     * @return
+     */
+    bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
+    {
+        return this == &other;
+    }
+};
+
+/**
+ * @brief [TODO]
+ * @return
+ */
+inline gpu_device_memory_resource* gpu_device_resource()
+{
+    static gpu_device_memory_resource the_resource;
+    return &the_resource;
+}
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+class OwnedBuffer
+{
+public:
+    /**
+     * @brief [TODO]
+     * @param [in] _resource
+     * @param [in] _size
+     */
+    OwnedBuffer(std::pmr::memory_resource* _resource, std::size_t _size)
+        : resource(_resource), size(_size), ptr(_resource->allocate(_size))
+    {
+    }
+
+    /** @brief [TODO] */
+    ~OwnedBuffer()
+    {
+        if (nullptr != ptr)
+        {
+            resource->deallocate(ptr, size);
+        }
+    }
+
+    OwnedBuffer(const OwnedBuffer&)            = delete;
+    OwnedBuffer& operator=(const OwnedBuffer&) = delete;
+
+    /**
+     * @brief [TODO]
+     * @param [in, out] other
+     */
+    OwnedBuffer(OwnedBuffer&& other) noexcept
+        : resource(other.resource),
+          size(other.size),
+          ptr(std::exchange(other.ptr, nullptr))
+    {
+    }
+
+    OwnedBuffer& operator=(OwnedBuffer&&) = delete;
+
+    /**
+     * @brief [TODO]
+     * @return
+     */
+    void* get() const
+    {
+        return ptr;
+    }
+
+private:
+    std::pmr::memory_resource* resource;  //!< [TODO]
+    std::size_t                size;      //!< [TODO]
+    void*                      ptr;       //!< [TODO]
+};
 
 }  // namespace Memory
 
