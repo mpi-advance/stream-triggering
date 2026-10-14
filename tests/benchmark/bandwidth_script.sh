@@ -29,15 +29,10 @@ cd ..
 
 ### 1. Robust Module Loading
 SYSTEM="${LCSCHEDCLUSTER}"
-#MOD_FILE="../install_setup/${SYSTEM}_modules.txt"
-MOD_FILE="../install_setup/tuolumne_rocm7_modules.txt"
-
-if [ -f "$MOD_FILE" ]; then
-    MODULES=$(grep -v '^\s*#' "$MOD_FILE" | grep -v '^\s*$' || true)
-    module load $MODULES
-else
-    echo "Warning: Module file not found at $MOD_FILE"
-fi
+source "$(git rev-parse --show-toplevel)/install_setup/st_env.sh"
+# Default to the modules install.sh built the library with
+MOD_FILE="${MOD_FILE:-$(st_build_module_file "${ST_ROOT}/build")}"
+st_load_modules ${MOD_FILE:+-m "$MOD_FILE"}
 
 ### 2. Output File Setup (Simplified)
 USER_BASE="$HOME/git/stream-triggering/tests/scratch"

@@ -29,18 +29,13 @@ cd ..
 
 ### 1. Robust Module Loading
 SYSTEM="${LMOD_SYSTEM_NAME}"
-MOD_FILE="../install_setup/${SYSTEM}_modules.txt"
-#MOD_FILE="../install_setup/tuolumne_rocm7_modules.txt"
+source "$(git rev-parse --show-toplevel)/install_setup/st_env.sh"
+# Default to the modules install.sh built the library with
+MOD_FILE="${MOD_FILE:-$(st_build_module_file "${ST_ROOT}/build")}"
+st_load_modules ${MOD_FILE:+-m "$MOD_FILE"}
 
-if [ -f "$MOD_FILE" ]; then
-    MODULES=$(grep -v '^\s*#' "$MOD_FILE" | grep -v '^\s*$' || true)
-    module load $MODULES
-else
-    echo "Warning: Module file not found at $MOD_FILE"
-fi
-
-### 1.5 Cray-specific, frontier-specific module adjusting:
-export LD_LIBRARY_PATH=${CRAY_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
+### 1.5 Cray-specific, frontier-specific environment (CRAY_LD_LIBRARY_PATH):
+st_cluster_env
 
 ### 2. Output File Setup (Simplified)
 USER_BASE="$HOME/git/stream-triggering/tests/scratch"
