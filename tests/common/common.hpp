@@ -15,7 +15,10 @@
 #include <vector>
 
 #include "mpi.h"
+
+#if defined(USE_STREAM_TRIGGERING)
 #include "stream-triggering.h"
+#endif
 
 #if NEED_HIP
 #define check_gpu(function)                       \
@@ -162,6 +165,7 @@ MPI_Info make_gpu_mem_info()
     return info;
 }
 
+#if defined(USE_STREAM_TRIGGERING)
 // Matches reqs, frees the originals, and leaves the matched handles in reqs.
 inline void match_in_place(int count, MPIS_Request reqs[])
 {
@@ -170,6 +174,7 @@ inline void match_in_place(int count, MPIS_Request reqs[])
     MPIS_Request_freeall(count, reqs);
     std::copy(matched.begin(), matched.end(), reqs);
 }
+#endif
 }  // namespace Common
 
 __global__ void init_buffers(int* send_buf, int* recv_buf, int buffer_len)

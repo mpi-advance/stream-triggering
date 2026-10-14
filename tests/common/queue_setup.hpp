@@ -1,8 +1,8 @@
 #ifndef ST_TEST_QUEUE_SETUP
 #define ST_TEST_QUEUE_SETUP
 
+#define USE_STREAM_TRIGGERING  // For common.hpp to compile with stream triggering stuff
 #include "common.hpp"
-#include "stream-triggering.h"
 
 /* GPU stream and MPIS_Queue setup shared by the multi-backend tests. The queue type
  * follows the <BACKEND>_BACKEND define the test is compiled with. */
