@@ -31,6 +31,8 @@ case "$LAUNCHER_NAME" in
             LAYOUT_ARGS=( -N 1 )
         elif [ "$ST_LAUNCHER_LAYOUT" == "off-node" ]; then
             if [ "$LAUNCHER_NAME" == "flux" ]; then
+                # flux rejects -n together with --tasks-per-node
+                RANK_ARGS=()
                 LAYOUT_ARGS=( -N "$RANKS" --tasks-per-node=1 )
             else
                 LAYOUT_ARGS=( -N "$RANKS" --ntasks-per-node=1 )
