@@ -18,8 +18,12 @@ int MPIS_Request_free(MPIS_Request* request)
 
     if ((*request)->match_handle)
     {
-        /* Match requests only own the list of Requests being matched */
-        delete convert_match_request(*request);
+        /* Finish the match first, so its new requests don't stay MATCHING (they
+         * couldn't be started or freed). Match requests only own that list. */
+        std::vector<std::shared_ptr<Request>>* matching = convert_match_request(*request);
+        Queue*                                 the_queue = (Queue*)(ACTIVE_QUEUE);
+        the_queue->finalize_match(*matching);
+        delete matching;
     }
     else
     {
