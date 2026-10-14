@@ -52,7 +52,7 @@ st_load_modules() {
     fi
 
     echo "Reading modules from $module_file..."
-    export ST_MODULE_FILE="$module_file"
+    export ST_MODULE_FILE=$(realpath "$module_file")
     export ST_MODULES_LOADED=$(grep -v '^\s*#' "$module_file" | grep -v '^\s*$' || true)
 
     if [ -z "$ST_MODULES_LOADED" ]; then
