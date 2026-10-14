@@ -4,28 +4,23 @@
  * message, and as finished after MPIS_Queue_wait. */
 int main(int argc, char* argv[])
 {
-    Checks::init(&argc, &argv);
-    int       peer        = Checks::rank ^ 1;
-    bool      receiver    = (1 == Checks::rank % 2);
-    const int BUFFER_SIZE = 64;
+    using namespace Checks;
 
-    MPI_Info mem_info = Common::make_gpu_mem_info();
-    void*    buffer   = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &buffer);
+    const int BUFFER_SIZE = Checks::buffer_size(64);
 
-    StreamType my_stream = Setup::create_stream();
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
+    Checks::setup(&argc, &argv, BUFFER_SIZE);
+    int  peer     = rank ^ 1;
+    bool receiver = (1 == rank % 2);
 
     MPIS_Request my_req;
     if (receiver)
     {
-        MPIS_Recv_init(buffer, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
                        &my_req);
     }
     else
     {
-        MPIS_Send_init(buffer, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
                        &my_req);
     }
     MPIS_Match(&my_req, MPI_STATUS_IGNORE);
@@ -55,9 +50,5 @@ int main(int argc, char* argv[])
     EXPECT(1 == flag, "queue reported unfinished work after MPIS_Queue_wait");
 
     MPIS_Request_free(&my_req);
-    MPIS_Free_mem(buffer);
-    MPI_Info_free(&mem_info);
-    MPIS_Queue_free(&my_queue);
-
-    return Checks::finish("queue_test");
+    return Checks::teardown("queue_test");
 }

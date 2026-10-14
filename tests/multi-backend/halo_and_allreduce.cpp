@@ -1,5 +1,4 @@
-#include "../common/queue_setup.hpp"
-#include "../common/timers.hpp"
+#include "../common/checks.hpp"
 #include "stream-triggering.h"
 
 __global__ void init_halos(int* top_s, int* top_r, int* bottom_s, int* bottom_r,
@@ -33,58 +32,19 @@ __global__ void pack_halos(int* top_s, int* bottom_s, int* left_s, int* right_s,
     right_s[index]  = (rank * 100) + iter;
 }
 
-__global__ void print_halos(int* top_r, int* bottom_r, int* left_r, int* right_r,
-                            int buffer_len, int rank, int top_peer, int bottom_peer,
-                            int left_peer, int right_peer, int iter)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    if (((top_peer * 100) + iter) != top_r[index])
-    {
-        printf("<GPU %d> Top: %d \n", rank, top_r[index]);
-    }
-    if (((bottom_peer * 100) + iter) != bottom_r[index])
-    {
-        printf("<GPU %d> Bottom: %d \n", rank, bottom_r[index]);
-    }
-    if (((left_peer * 100) + iter) != left_r[index])
-    {
-        printf("<GPU %d> Left: %d \n", rank, left_r[index]);
-    }
-    if (((right_peer * 100) + iter) != right_r[index])
-    {
-        printf("<GPU %d> Right: %d \n", rank, right_r[index]);
-    }
-}
-
 int main(int argc, char* argv[])
 {
-    //MPI_Init(&argc, &argv);
-    int thread_mode;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &thread_mode);
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    // I want "two params"
-    Common::check_param_size(&argc, 2, "<program> <number of iterations> <local buffer size>");
+    using namespace Checks;
 
     // Input parameters
-    int num_warmups = 10;
-    int num_iters   = 0;
-    int BUFFER_SIZE = 0;
-    Common::read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    int num_iters   = Checks::iterations(10);
+    int BUFFER_SIZE = Checks::buffer_size(64);
+    int NUM_BLOCKS  = Common::num_blocks(BUFFER_SIZE);
 
-    // Info hint for buffer
-    MPI_Info mem_info = Common::make_gpu_mem_info();
+    // Memory info, stream and queue, plus the allreduce's send/recv buffers
+    Checks::setup(&argc, &argv, BUFFER_SIZE, 1);
 
     // Make Buffers
-    int BLOCK_SIZE = 128;
-    int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
     void* top_s    = nullptr;
     void* top_r    = nullptr;
@@ -103,18 +63,9 @@ int main(int argc, char* argv[])
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &right_s);
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &right_r);
 
-    init_halos<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)top_s, (int*)top_r, (int*)bottom_s,
-                                           (int*)bottom_r, (int*)left_s, (int*)left_r,
-                                           (int*)right_s, (int*)right_r, BUFFER_SIZE);
-
-    /* Init memory for allreduce */
-    void* send_buf = nullptr;
-    void* recv_buf = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buf);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buf);
-    init_buffers2<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf, BUFFER_SIZE,
-                                              rank);
-
+    init_halos<<<NUM_BLOCKS, Common::BLOCK_SIZE>>>(
+        (int*)top_s, (int*)top_r, (int*)bottom_s, (int*)bottom_r, (int*)left_s,
+        (int*)left_r, (int*)right_s, (int*)right_r, BUFFER_SIZE);
     device_sync();
 
     int dims[2] = {0, 0};
@@ -141,34 +92,24 @@ int main(int argc, char* argv[])
     MPI_Group_free(&base_group);
     MPI_Group_free(&lookup_group);
 
-    std::string rank_patterns = std::to_string(rank);
-    rank_patterns += "(";
-    rank_patterns += std::to_string(rank2);
-    rank_patterns += "): ";
-    rank_patterns += std::to_string(nbr_up);
-    rank_patterns += "(";
-    rank_patterns += std::to_string(lookup_ranks[0]);
-    rank_patterns += ") ";
-    rank_patterns += std::to_string(nbr_down);
-    rank_patterns += "(";
-    rank_patterns += std::to_string(lookup_ranks[1]);
-    rank_patterns += ") ";
-    rank_patterns += std::to_string(nbr_left);
-    rank_patterns += "(";
-    rank_patterns += std::to_string(lookup_ranks[2]);
-    rank_patterns += ") ";
-    rank_patterns += std::to_string(nbr_right);
-    rank_patterns += "(";
-    rank_patterns += std::to_string(lookup_ranks[3]);
-    rank_patterns += ") ";
+    // Neighbors as "cart rank(world rank)": up, down, left, right
+    if (Checks::verbose)
+    {
+        std::cout << rank << "(" << rank2 << "): " << nbr_up << "(" << lookup_ranks[0]
+                  << ") " << nbr_down << "(" << lookup_ranks[1] << ") " << nbr_left << "("
+                  << lookup_ranks[2] << ") " << nbr_right << "(" << lookup_ranks[3] << ")"
+                  << std::endl;
+    }
 
-    std::cout << rank_patterns << std::endl;
-
-    StreamType my_stream = Setup::create_stream();
-
-    // Make queue
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
+    // Each halo holds (100 * sender's rank) + iteration
+    void* recv_halos[4] = {top_r, bottom_r, left_r, right_r};
+    auto  check_halos   = [&](int iter) {
+        for (int k = 0; k < 4; k++)
+        {
+            Checks::expect_buffer(my_stream, recv_halos[k], BUFFER_SIZE,
+                                     (100 * lookup_ranks[k]) + iter, 0);
+        }
+    };
 
     // Make requests
     MPIS_Request my_reqs[8];
@@ -203,37 +144,44 @@ int main(int argc, char* argv[])
     MPIS_Queue_match(my_queue, &my_req, MPI_STATUS_IGNORE);
     MPI_Barrier(MPI_COMM_WORLD);
 
+    // Sum over all ranks of (100 * rank + index)
+    auto check_allreduce = [&]() {
+        Checks::expect_buffer(my_stream, recv_buf, BUFFER_SIZE,
+                              100 * (size * (size - 1) / 2), size);
+    };
+
     auto do_cycles = [&](int num_cycles) {
         for (int i = 0; i < num_cycles; i++)
         {
             // Post Receives
             MPIS_Enqueue_startall(my_queue, 4, my_reqs);
             // Packing Kernel
-            pack_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            pack_halos<<<NUM_BLOCKS, Common::BLOCK_SIZE, 0, my_stream>>>(
                 (int*)top_s, (int*)bottom_s, (int*)left_s, (int*)right_s, BUFFER_SIZE,
                 rank, i);
-            init_buffers2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+            init_buffers2<<<NUM_BLOCKS, Common::BLOCK_SIZE, 0, my_stream>>>(
                 (int*)send_buf, (int*)recv_buf, BUFFER_SIZE, rank);
 
-            // #ifdef THREAD_BACKEND
-            //             device_sync();
-            // #endif
+#ifdef THREAD_BACKEND
+            device_sync();
+#endif
 
             MPIS_Enqueue_startall(my_queue, 4, &my_reqs[4]);
             MPIS_Enqueue_waitall(my_queue, 8, my_reqs, MPI_STATUSES_IGNORE);
             MPIS_Enqueue_start(my_queue, &my_req);
             MPIS_Enqueue_wait(my_queue, &my_req, MPI_STATUS_IGNORE);
 
-            // #ifdef THREAD_BACKEND
-            // MPIS_Queue_wait(&my_queue);
-            // #endif
-            print_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                (int*)top_r, (int*)bottom_r, (int*)left_r, (int*)right_r, BUFFER_SIZE,
-                rank, lookup_ranks[0], lookup_ranks[1], lookup_ranks[2], lookup_ranks[3],
-                i);
-            verify<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
-                                                             rank, size);
-            std::cout << rank << " step: " << i << "/" << num_iters << std::endl;
+#ifdef THREAD_BACKEND
+            MPIS_Queue_wait(&my_queue);
+#endif
+            check_halos(i);
+            check_allreduce();
+#ifdef THREAD_BACKEND
+            // The next receives start right away, so finish checking these first
+            device_sync();
+#endif
+            if (Checks::verbose)
+                std::cout << rank << " step: " << i << "/" << num_iters << std::endl;
         }
         MPIS_Queue_wait(&my_queue);
     };
@@ -242,15 +190,11 @@ int main(int argc, char* argv[])
     do_cycles(num_iters);
     double end = MPI_Wtime();
     // Final check
-    std::cout << rank << " done queueing, about to sync." << std::endl;
-    device_sync();
-    print_halos<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-        (int*)top_r, (int*)bottom_r, (int*)left_r, (int*)right_r, BUFFER_SIZE, rank,
-        lookup_ranks[0], lookup_ranks[1], lookup_ranks[2], lookup_ranks[3],
-        num_iters - 1);
-    verify<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE, rank,
-                                                     size);
-    device_sync();
+    if (Checks::verbose)
+        std::cout << rank << " done queueing, about to sync." << std::endl;
+    check_halos(num_iters - 1);
+    check_allreduce();
+    device_sync();  // Before the halo buffers are freed
 
     // Cleanup
     MPIS_Request_freeall(8, my_reqs);
@@ -262,21 +206,12 @@ int main(int argc, char* argv[])
     MPIS_Free_mem(left_r);
     MPIS_Free_mem(right_s);
     MPIS_Free_mem(right_r);
-
-    // Allreduce cleanup
     MPIS_Request_freeall(1, &my_req);
-    MPIS_Free_mem(send_buf);
-    MPIS_Free_mem(recv_buf);
-
-    MPI_Info_free(&mem_info);
-
-    MPIS_Queue_free(&my_queue);
 
     MPI_Comm_free(&cart_comm);
 
-    std::cout << rank << " is done: " << end - start << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " is done: " << end - start << std::endl;
 
-    MPI_Finalize();
-
-    return 0;
+    return Checks::teardown("halo_and_allreduce");
 }

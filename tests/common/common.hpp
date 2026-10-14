@@ -16,16 +16,18 @@
 
 #if NEED_HIP
 #define check_gpu(function)                       \
-    do {                                          \
+    do                                            \
+    {                                             \
         auto err = function;                      \
         check_hip_error(err, __FILE__, __LINE__); \
-    } while(0)
+    } while (0)
 
 #define force_gpu(function)                             \
-    do {                                                \
+    do                                                  \
+    {                                                   \
         auto err = function;                            \
         check_hip_error<true>(err, __FILE__, __LINE__); \
-    } while(0)
+    } while (0)
 
 template <bool shouldThrow = false>
 void check_hip_error(const hipError_t err, const char* filename, const int line)
@@ -53,16 +55,18 @@ void device_sync()
 
 #elif NEED_CUDA
 #define check_gpu(function)                        \
-    do {                                           \
+    do                                             \
+    {                                              \
         auto err = function;                       \
         check_cuda_error(err, __FILE__, __LINE__); \
-    } while(0)
+    } while (0)
 
 #define force_gpu(function)                              \
-    do {                                                 \
+    do                                                   \
+    {                                                    \
         auto err = function;                             \
         check_cuda_error<true>(err, __FILE__, __LINE__); \
-    } while(0)
+    } while (0)
 
 template <bool shouldThrow = false>
 void check_cuda_error(const cudaError_t err, const char* filename, const int line)
@@ -107,6 +111,15 @@ void device_sync()
 
 namespace Common
 {
+/* Threads per block for the test and benchmark kernels */
+constexpr int BLOCK_SIZE = 128;
+
+/* Blocks needed to cover buffer_len elements with BLOCK_SIZE threads each */
+inline int num_blocks(int buffer_len)
+{
+    return (buffer_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+}
+
 void allocate_gpu_memory(void** location, size_t size)
 {
 #ifndef FINE_GRAINED_TEST
@@ -121,7 +134,8 @@ void allocate_gpu_memory(void** location, size_t size)
 #if defined(NEED_HIP)
     force_gpu(hipExtMallocWithFlags(location, size, hipDeviceMallocFinegrained));
 #else
-    static_assert(false, "Unable to allocate fine-grained GPU memory for a non-HIP build.");
+    static_assert(false,
+                  "Unable to allocate fine-grained GPU memory for a non-HIP build.");
 #endif
 #endif
 }
@@ -204,48 +218,6 @@ __global__ void print_buffer(volatile int* buffer, int buffer_len, int iteration
     {
         printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
                index, buffer[index], iteration * 100);
-    }
-}
-
-__global__ void print_buffer2(volatile int* buffer, int buffer_len, int rank)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    printf("<GPU %d> Buffer value @ index: %d is: %d\n", rank, index, buffer[index]);
-}
-
-__global__ void print_buffer3(volatile int* buffer, int buffer_len, int rank)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    if (buffer[index] != index)
-    {
-        printf("<GPU %d> Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
-               index, buffer[index], index);
-    }
-}
-
-__global__ void dummy_kernel(int rank, int value)
-{
-    printf("<GPU %d> Dummy kernel %d\n", rank, value);
-}
-
-__global__ void verify(volatile int* buffer, int buffer_len, int rank, int size)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    int expected = ((size*(size-1))/2)*100 + (size*index);
-
-    if (buffer[index] != expected)
-    {
-        printf("<GPU %d> V Wrong buffer value @ index: %d Got: %d Expected: %d\n", rank,
-               index, buffer[index], expected);
     }
 }
 

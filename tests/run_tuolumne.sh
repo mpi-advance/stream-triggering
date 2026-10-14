@@ -13,25 +13,13 @@
 #   MOD_FILE            Module file (default: the one install.sh recorded)
 #   ST_LAUNCHER_LAYOUT  on-node / off-node (see launch.sh)
 #   CTEST_ARGS          Extra ctest arguments (e.g. "-R halo")
+#   ST_TEST_SIZE        Elements (ints) per buffer (CXI's credit cutoff is 8192)
+#   ST_TEST_ITERS       Iterations, for tests that loop
+#   ST_TEST_VERBOSE     1 for the tests' informational output
 
 ST_ROOT=$(git rev-parse --show-toplevel)
 source "${ST_ROOT}/install_setup/st_env.sh"
 
-BACKEND="${1:-${BACKEND}}"
-BUILD_DIR="${BUILD_DIR:-${ST_ROOT}/build}"
-MOD_FILE="${MOD_FILE:-$(st_build_module_file "$BUILD_DIR")}"
-
-st_load_modules ${MOD_FILE:+-m "$MOD_FILE"}
-st_cluster_env
 export MPICH_GPU_SUPPORT_ENABLED=1
-
-SCRATCH="${ST_ROOT}/tests/scratch"
-mkdir -p "${SCRATCH}/output" "${SCRATCH}/junit"
-RUN_NAME="$(st_detect_cluster)-${BACKEND:-all}-$(date +%m-%d-%H%M%S)"
-
-echo "Running: ${RUN_NAME}"
 flux run -N 2 --tasks-per-node=1 hostname
-
-ctest --test-dir "$BUILD_DIR" ${BACKEND:+-L "$BACKEND"} --timeout 180 --output-on-failure \
-      --output-junit "${SCRATCH}/junit/${RUN_NAME}.xml" \
-      --output-log "${SCRATCH}/output/${RUN_NAME}.log" ${CTEST_ARGS}
+st_run_ctest "${1:-${BACKEND}}"

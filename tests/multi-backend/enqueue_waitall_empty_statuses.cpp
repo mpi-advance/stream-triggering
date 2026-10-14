@@ -4,21 +4,14 @@
  * waited on) get empty MPI_Statuses, in the caller's order, next to real ones. */
 int main(int argc, char* argv[])
 {
-    Checks::init(&argc, &argv);
-    int       peer        = Checks::rank ^ 1;
-    const int BUFFER_SIZE = 64;
+    using namespace Checks;
 
-    MPI_Info mem_info = Common::make_gpu_mem_info();
-    void*    send_buf = nullptr;
-    void*    recv_buf = nullptr;
-    void*    idle_buf = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buf);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buf);
+    const int BUFFER_SIZE = Checks::buffer_size(64);
+
+    Checks::setup(&argc, &argv, BUFFER_SIZE);
+    int   peer     = rank ^ 1;
+    void* idle_buf = nullptr;
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &idle_buf);
-
-    StreamType my_stream = Setup::create_stream();
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
 
     /* [0] = send, [1] = recv, [2]/[3] = a matched pair that is never started */
     MPIS_Request my_reqs[4];
@@ -62,11 +55,7 @@ int main(int argc, char* argv[])
     }
 
     MPIS_Request_freeall(4, my_reqs);
-    MPIS_Free_mem(send_buf);
-    MPIS_Free_mem(recv_buf);
     MPIS_Free_mem(idle_buf);
-    MPI_Info_free(&mem_info);
-    MPIS_Queue_free(&my_queue);
 
-    return Checks::finish("enqueue_waitall_empty_statuses");
+    return Checks::teardown("enqueue_waitall_empty_statuses");
 }

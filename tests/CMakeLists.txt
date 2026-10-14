@@ -34,10 +34,10 @@ foreach(backend hip cuda thread)
 endforeach()
 message(STATUS "Test variants (${ST_TEST_GPU}): ${ST_TEST_VARIANTS}")
 
-# st_add_test(<name> [RANKS <n>] [ARGS ...]) builds multi-backend/<name>.cpp.
+# st_add_test(<name> [RANKS <n>]) builds multi-backend/<name>.cpp.
 # RANKS defaults to 2.
 function(st_add_test name)
-    cmake_parse_arguments(PARSE_ARGV 1 ST "" "RANKS" "ARGS")
+    cmake_parse_arguments(PARSE_ARGV 1 ST "" "RANKS" "")
     if(NOT ST_RANKS)
         set(ST_RANKS 2)
     endif()
@@ -63,7 +63,7 @@ function(st_add_test name)
 
         add_test(NAME ${target}
                  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/launch.sh ${ST_RANKS}
-                         $<TARGET_FILE:${target}> ${ST_ARGS})
+                         $<TARGET_FILE:${target}>)
         set_tests_properties(${target} PROPERTIES LABELS ${variant} ENVIRONMENT "${env}")
     endforeach()
 endfunction()
@@ -75,8 +75,8 @@ st_add_test(barrier)
 st_add_test(duplicate_requests)
 st_add_test(enqueue_wait_statuses)
 st_add_test(enqueue_waitall_empty_statuses)
-st_add_test(halo ARGS 10 64)
-st_add_test(halo_and_allreduce ARGS 10 64)
+st_add_test(halo)
+st_add_test(halo_and_allreduce)
 st_add_test(hello_world)
 st_add_test(invalid_request_state)
 st_add_test(null_objects)
@@ -85,4 +85,4 @@ st_add_test(request_free_recreate)
 st_add_test(ring)
 st_add_test(rsend)
 st_add_test(self_send RANKS 1)
-st_add_test(two_queue ARGS 10 64)
+st_add_test(two_queue)

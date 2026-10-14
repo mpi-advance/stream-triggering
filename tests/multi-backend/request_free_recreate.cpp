@@ -4,20 +4,13 @@
  * new requests communicate normally on the same queue. */
 int main(int argc, char* argv[])
 {
-    Checks::init(&argc, &argv);
-    int       peer        = Checks::rank ^ 1;
-    const int BUFFER_SIZE = 64;
+    using namespace Checks;
+
+    const int BUFFER_SIZE = Checks::buffer_size(64);
     const int ROUNDS      = 5;
 
-    MPI_Info mem_info = Common::make_gpu_mem_info();
-    void*    send_buf = nullptr;
-    void*    recv_buf = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buf);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buf);
-
-    StreamType my_stream = Setup::create_stream();
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
+    Checks::setup(&argc, &argv, BUFFER_SIZE);
+    int peer = rank ^ 1;
 
     for (int round = 0; round < ROUNDS; ++round)
     {
@@ -44,10 +37,5 @@ int main(int argc, char* argv[])
         MPIS_Request_freeall(2, my_reqs);
     }
 
-    MPIS_Free_mem(send_buf);
-    MPIS_Free_mem(recv_buf);
-    MPI_Info_free(&mem_info);
-    MPIS_Queue_free(&my_queue);
-
-    return Checks::finish("request_free_recreate");
+    return Checks::teardown("request_free_recreate");
 }

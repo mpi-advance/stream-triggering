@@ -1,63 +1,42 @@
-#include "../common/queue_setup.hpp"
+#include "../common/checks.hpp"
 #include "stream-triggering.h"
 
 int main(int argc, char* argv[])
 {
-    int mode;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    using namespace Checks;
 
     // Input parameters
-    int BUFFER_SIZE = 64;
+    int BUFFER_SIZE = Checks::buffer_size(64);
+    int NUM_BLOCKS  = Common::num_blocks(BUFFER_SIZE);
 
-    // Info hint for buffer
-    MPI_Info mem_info = Common::make_gpu_mem_info();
-
-    // Make Buffers
-    int BLOCK_SIZE = 128;
-    int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
-    void* send_buf = nullptr;
-    void* recv_buf = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buf);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buf);
-
-    init_buffers2<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf, BUFFER_SIZE,
-                                              rank);
-    device_sync();
-
-    StreamType my_stream = Setup::create_stream();
-
-    // Make queue
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
+    // Buffers (send: 100 * rank + index), stream and queue
+    Checks::setup(&argc, &argv, BUFFER_SIZE);
 
     // Make requests
+    int          peer = rank ^ 1;
     MPIS_Request my_reqs[2];
     if (0 == rank % 2)
     {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[1]);
     }
     else
     {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[1]);
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
+        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);
     }
     MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    std::cout << rank << " starting test!" << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " starting test!" << std::endl;
 
     double start = MPI_Wtime();
-    if (0 == rank)
+    if (0 == rank % 2)
     {
         MPIS_Enqueue_startall(my_queue, 2, my_reqs);
         MPIS_Enqueue_waitall(my_queue, 2, my_reqs, MPI_STATUSES_IGNORE);
@@ -70,10 +49,10 @@ int main(int argc, char* argv[])
 #ifdef THREAD_BACKEND
         MPIS_Queue_wait(&my_queue);
 #endif
-        print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf,
-                                                                BUFFER_SIZE, rank);
+        // The even rank's data
+        Checks::expect_buffer(my_stream, recv_buf, BUFFER_SIZE, 100 * (rank & ~1), 1);
 
-        pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+        pack_buffer2<<<NUM_BLOCKS, Common::BLOCK_SIZE, 0, my_stream>>>(
             (int*)send_buf, (int*)recv_buf, BUFFER_SIZE);
 
 #ifdef THREAD_BACKEND
@@ -86,28 +65,16 @@ int main(int argc, char* argv[])
     MPIS_Queue_wait(&my_queue);
     double end = MPI_Wtime();
 
-    std::cout << rank << " done with GPU communication" << std::endl;
-    std::cout << rank << " time: " << end - start << std::endl;
+    if (Checks::verbose)
+    {
+        std::cout << rank << " done with GPU communication" << std::endl;
+        std::cout << rank << " time: " << end - start << std::endl;
+    }
 
-    // Final check
-    device_sync();
-    dummy_kernel<<<1, 1, 0, my_stream>>>(rank, 2);
-    print_buffer3<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>((int*)recv_buf, BUFFER_SIZE,
-                                                            rank);
-    device_sync();
+    // Final check: the odd rank echoed the even rank's data back
+    Checks::expect_buffer(my_stream, recv_buf, BUFFER_SIZE, 100 * (rank & ~1), 1);
 
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
-    MPIS_Free_mem(send_buf);
-    MPIS_Free_mem(recv_buf);
-
-    MPI_Info_free(&mem_info);
-
-    MPIS_Queue_free(&my_queue);
-
-    std::cout << rank << " is done." << std::endl;
-
-    MPI_Finalize();
-
-    return 0;
+    return Checks::teardown("hello_world");
 }

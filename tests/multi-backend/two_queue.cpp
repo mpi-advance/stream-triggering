@@ -1,26 +1,20 @@
-#include "../common/queue_setup.hpp"
+#include "../common/checks.hpp"
 #include "stream-triggering.h"
 
 int main(int argc, char* argv[])
 {
-    int mode;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+    Checks::init(&argc, &argv);
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    // I want "two params"
-    Common::check_param_size(&argc, 2, "<program> <number of iterations> <buffer size>");
+    int rank = Checks::rank;
+    int peer = rank ^ 1;
 
     // Input parameters
     int num_warmups = 10;
-    int num_iters   = 0;
-    int BUFFER_SIZE = 0;
-    Common::read_iter_buffer_input(&argv, &num_iters, &BUFFER_SIZE);
+    int num_iters   = Checks::iterations(10);
+    int BUFFER_SIZE = Checks::buffer_size(64);
 
     // Make Buffers
-    int BLOCK_SIZE = 128;
-    int NUM_BLOCKS = (BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int NUM_BLOCKS = Common::num_blocks(BUFFER_SIZE);
 
     // Info hint for buffer
     MPI_Info mem_info = Common::make_gpu_mem_info();
@@ -30,8 +24,8 @@ int main(int argc, char* argv[])
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &send_buf);
     MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE * 2, mem_info, &recv_buf);
 
-    init_buffers<<<NUM_BLOCKS, BLOCK_SIZE>>>((int*)send_buf, (int*)recv_buf,
-                                             BUFFER_SIZE * 2);
+    init_buffers<<<Common::num_blocks(BUFFER_SIZE * 2), Common::BLOCK_SIZE>>>(
+        (int*)send_buf, (int*)recv_buf, BUFFER_SIZE * 2);
     device_sync();
 
     StreamType my_stream = Setup::create_stream();
@@ -40,90 +34,101 @@ int main(int argc, char* argv[])
     MPIS_Queue my_queue;
     Setup::create_queue(&my_queue, &my_stream);
 
-#define SEND_REQ (rank ^ 1)
+#define SEND_REQ ((rank & 1) ^ 1)
 #define RECV_REQ (rank & 1)
 
-    // Make requests
+    // Requests for both halves of the buffers, alternated between iterations
     MPIS_Request my_reqs[2];
     MPIS_Request my_other_reqs[2];
     // MPIS_Request queue_reqs[2]; TODO
     int offset = sizeof(int) * BUFFER_SIZE;
-    if (0 == rank % 2)
-    {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
-        MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
-    }
-    else
-    {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
-        MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
-    }
 
-    MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[1], MPI_STATUS_IGNORE);
-    MPI_Barrier(MPI_COMM_WORLD);
+    void*         active_send_buffer;
+    void*         active_recv_buffer;
+    void*         inactive_send_buffer;
+    void*         inactive_recv_buffer;
+    MPIS_Request* active_request_ptr;
+    MPIS_Request* inactive_request_ptr;
 
-    void* active_send_buffer = send_buf;
-    void* active_recv_buffer = recv_buf;
+    // Creates and matches the requests, and makes the first half active. The odd rank
+    // echoes straight from its receive buffers.
+    auto make_requests = [&]() {
+        if (0 == rank % 2)
+        {
+            MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD,
+                           mem_info, &my_reqs[SEND_REQ]);
+            MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD,
+                           mem_info, &my_reqs[RECV_REQ]);
+            MPIS_Send_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, peer, 0,
+                           MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
+            MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, peer, 0,
+                           MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
+        }
+        else
+        {
+            MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD,
+                           mem_info, &my_reqs[RECV_REQ]);
+            MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD,
+                           mem_info, &my_reqs[SEND_REQ]);
+            MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, peer, 0,
+                           MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
+            MPIS_Send_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, peer, 0,
+                           MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
+        }
 
-    void* inactive_send_buffer = (char*)send_buf + offset;
-    void* inactive_recv_buffer = (char*)recv_buf + offset;
+        MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
+        MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
+        MPIS_Match(&my_other_reqs[0], MPI_STATUS_IGNORE);
+        MPIS_Match(&my_other_reqs[1], MPI_STATUS_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
 
-    MPIS_Request* active_request_ptr   = my_reqs;
-    MPIS_Request* inactive_request_ptr = my_other_reqs;
+        active_send_buffer   = send_buf;
+        active_recv_buffer   = recv_buf;
+        inactive_send_buffer = (char*)send_buf + offset;
+        inactive_recv_buffer = (char*)recv_buf + offset;
+        active_request_ptr   = my_reqs;
+        inactive_request_ptr = my_other_reqs;
+    };
 
     auto do_cycles = [&](int num_cycles) {
         for (int i = 0; i < num_cycles; i++)
         {
-            if (0 == rank)
+            if (0 == rank % 2)
             {
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(&my_queue);
 #endif
                 // Ping side
-                pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
+                pack_buffer<<<NUM_BLOCKS, Common::BLOCK_SIZE, 0, my_stream>>>(
                     (int*)active_send_buffer, BUFFER_SIZE, i);
 #ifdef THREAD_BACKEND
                 device_sync();
 #endif
                 MPIS_Enqueue_startall(my_queue, 2, active_request_ptr);
-                MPIS_Enqueue_waitall(my_queue, 2, active_request_ptr, MPI_STATUSES_IGNORE);
+                MPIS_Enqueue_waitall(my_queue, 2, active_request_ptr,
+                                     MPI_STATUSES_IGNORE);
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(&my_queue);
 #endif
-                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
+                Checks::expect_buffer(my_stream, active_recv_buffer, BUFFER_SIZE, i * 100,
+                                      0);
             }
             else
             {
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[RECV_REQ]);
-                MPIS_Enqueue_wait(my_queue, &active_request_ptr[RECV_REQ], MPI_STATUS_IGNORE);
+                MPIS_Enqueue_wait(my_queue, &active_request_ptr[RECV_REQ],
+                                  MPI_STATUS_IGNORE);
 #ifdef THREAD_BACKEND
                 MPIS_Queue_wait(&my_queue);
 #endif
-                print_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)active_recv_buffer, BUFFER_SIZE, i, rank);
-                pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, my_stream>>>(
-                    (int*)send_buf, (int*)active_recv_buffer, BUFFER_SIZE);
+                Checks::expect_buffer(my_stream, active_recv_buffer, BUFFER_SIZE, i * 100,
+                                      0);
 #ifdef THREAD_BACKEND
                 device_sync();
 #endif
                 MPIS_Enqueue_start(my_queue, &active_request_ptr[SEND_REQ]);
-                MPIS_Enqueue_wait(my_queue, &active_request_ptr[SEND_REQ], MPI_STATUS_IGNORE);
+                MPIS_Enqueue_wait(my_queue, &active_request_ptr[SEND_REQ],
+                                  MPI_STATUS_IGNORE);
             }
 
             void* temp_send      = active_send_buffer;
@@ -142,85 +147,51 @@ int main(int argc, char* argv[])
         MPIS_Queue_wait(&my_queue);
     };
 
+    make_requests();
     do_cycles(num_warmups);
     MPI_Barrier(MPI_COMM_WORLD);
     double start = MPI_Wtime();
     do_cycles(num_iters);
     double end = MPI_Wtime();
 
-    // Final check
-    device_sync();
-    print_buffer<<<1, BLOCK_SIZE, 0, my_stream>>>((int*)inactive_recv_buffer, BUFFER_SIZE,
-                                                  num_iters - 1, rank);
-    device_sync();
+    // Final check: the last iteration's data
+    Checks::expect_buffer(my_stream, inactive_recv_buffer, BUFFER_SIZE,
+                          (num_iters - 1) * 100, 0);
+    device_sync();  // Before the buffers are reused or freed
 
     // Cleanup of first queue
     MPIS_Request_freeall(2, my_reqs);
     MPIS_Request_freeall(2, my_other_reqs);
     MPIS_Queue_free(&my_queue);
 
-    std::cout << rank << " is done: " << end - start << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " is done: " << end - start << std::endl;
 
+    // Same again on a new queue
     Setup::create_queue(&my_queue, &my_stream);
-
-    if (0 == rank % 2)
-    {
-        MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 1, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)send_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
-        MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 1, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
-    }
-    else
-    {
-        MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[RECV_REQ]);
-        MPIS_Send_init(recv_buf, BUFFER_SIZE, MPI_INT, 0, 0, MPI_COMM_WORLD, mem_info,
-                       &my_reqs[SEND_REQ]);
-        MPIS_Recv_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[RECV_REQ]);
-        MPIS_Send_init((char*)recv_buf + offset, BUFFER_SIZE, MPI_INT, 0, 0,
-                       MPI_COMM_WORLD, mem_info, &my_other_reqs[SEND_REQ]);
-    }
-
-    std::cout << rank << " is done with second request creation" << std::endl;
-
-    MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[1], MPI_STATUS_IGNORE);
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    std::cout << rank << " is done with second request match" << std::endl;
-
-    active_send_buffer = send_buf;
-    active_recv_buffer = recv_buf;
-
-    inactive_send_buffer = (char*)send_buf + offset;
-    inactive_recv_buffer = (char*)recv_buf + offset;
-
-    active_request_ptr   = my_reqs;
-    inactive_request_ptr = my_other_reqs;
+    make_requests();
+    if (Checks::verbose)
+        std::cout << rank << " is done with second request creation and match"
+                  << std::endl;
 
     do_cycles(num_warmups);
-    std::cout << rank << " is done with second warmup" << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " is done with second warmup" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     start = MPI_Wtime();
     do_cycles(num_iters);
     end = MPI_Wtime();
 
-    std::cout << rank << " is done with second test" << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " is done with second test" << std::endl;
 
-    // Final check
-    device_sync();
-    print_buffer<<<1, BLOCK_SIZE, 0, my_stream>>>((int*)inactive_recv_buffer, BUFFER_SIZE,
-                                                  num_iters - 1, rank);
-    device_sync();
+    // Final check: the last iteration's data
+    Checks::expect_buffer(my_stream, inactive_recv_buffer, BUFFER_SIZE,
+                          (num_iters - 1) * 100, 0);
+    device_sync();  // Before the buffers are reused or freed
 
-     std::cout << rank << " is done done: " << end - start << std::endl;
+    if (Checks::verbose)
+        std::cout << rank << " is done done: " << end - start << std::endl;
 
     // Cleanup of second time
     MPIS_Request_freeall(2, my_reqs);
@@ -230,7 +201,5 @@ int main(int argc, char* argv[])
     MPIS_Free_mem(recv_buf);
     MPI_Info_free(&mem_info);
 
-    MPI_Finalize();
-
-    return 0;
+    return Checks::finish("two_queue");
 }

@@ -80,3 +80,26 @@ st_cluster_env() {
         export ST_LAUNCHER="${ST_LAUNCHER:-srun --network=job_vni,res_tles=1024 --gpus-per-task=1}"
     fi
 }
+
+# Load a build's modules and environment, then run its CTest suite. JUnit and log
+# output go under tests/scratch/. Usage: st_run_ctest [backend label]
+# Uses BUILD_DIR, MOD_FILE and CTEST_ARGS from the environment (see tests/run_*.sh).
+st_run_ctest() {
+    local backend="$1"
+    local build_dir="${BUILD_DIR:-${ST_ROOT}/build}"
+    local mod_file="${MOD_FILE:-$(st_build_module_file "$build_dir")}"
+
+    st_load_modules ${mod_file:+-m "$mod_file"} || return 1
+    st_cluster_env
+
+    local scratch="${ST_ROOT}/tests/scratch"
+    mkdir -p "${scratch}/output" "${scratch}/junit"
+    local cluster run_name
+    cluster=$(st_detect_cluster)
+    run_name="${cluster:-local}-${backend:-all}-$(date +%m-%d-%H%M%S)"
+    echo "Running: ${run_name}"
+
+    ctest --test-dir "$build_dir" ${backend:+-L "$backend"} --timeout 180 \
+          --output-on-failure --output-junit "${scratch}/junit/${run_name}.xml" \
+          --output-log "${scratch}/output/${run_name}.log" ${CTEST_ARGS}
+}

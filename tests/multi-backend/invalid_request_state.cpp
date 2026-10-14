@@ -5,19 +5,12 @@
  * before a wait was enqueued for it. A rejected call changes nothing. */
 int main(int argc, char* argv[])
 {
-    Checks::init(&argc, &argv);
-    int       peer        = Checks::rank ^ 1;
-    const int BUFFER_SIZE = 64;
+    using namespace Checks;
 
-    MPI_Info mem_info = Common::make_gpu_mem_info();
-    void*    send_buf = nullptr;
-    void*    recv_buf = nullptr;
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &send_buf);
-    MPIS_Alloc_mem(sizeof(int) * BUFFER_SIZE, mem_info, &recv_buf);
+    const int BUFFER_SIZE = Checks::buffer_size(64);
 
-    StreamType my_stream = Setup::create_stream();
-    MPIS_Queue my_queue;
-    Setup::create_queue(&my_queue, &my_stream);
+    Checks::setup(&argc, &argv, BUFFER_SIZE);
+    int peer = rank ^ 1;
 
     /* [0] = send, [1] = recv */
     MPIS_Request my_reqs[2];
@@ -62,10 +55,6 @@ int main(int argc, char* argv[])
     MPIS_Queue_wait(&my_queue);
 
     MPIS_Request_freeall(2, my_reqs);
-    MPIS_Free_mem(send_buf);
-    MPIS_Free_mem(recv_buf);
-    MPI_Info_free(&mem_info);
-    MPIS_Queue_free(&my_queue);
 
-    return Checks::finish("invalid_request_state");
+    return Checks::teardown("invalid_request_state");
 }
