@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
                        mem_info, &my_reqs[0]);
         MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, round, MPI_COMM_WORLD,
                        mem_info, &my_reqs[1]);
-        MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
+        Common::match_in_place(2, my_reqs);
 
         MPI_Status statuses[2];
         MPIS_Enqueue_startall(my_queue, 2, my_reqs);

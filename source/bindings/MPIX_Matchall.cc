@@ -1,25 +1,20 @@
-#include <vector>
-
 #include "helpers.hpp"
+
 extern "C" {
 
-int MPIS_Matchall(int len, MPIS_Request requests[], MPI_Status statuses[])
+int MPIS_Matchall(int len, MPIS_Request tomatch[], MPIS_Request newrequests[],
+                  MPI_Info info)
 {
     MPIS_BINDING_ENTER
 
-    std::vector<MPIS_Request> imatch_reqs(len);
-    for (int i = 0; i < len; ++i)
-    {
-        int err_code = MPIS_Imatch(&requests[i], &imatch_reqs[i]);
-        if (MPIS_SUCCESS != err_code)
-            return err_code;
-    }
-
-    int err_code = MPIS_Waitall(len, imatch_reqs.data(), statuses);
+    MPIS_Request match_request;
+    int err_code = MPIS_Imatchall(len, tomatch, newrequests, info, &match_request);
     if (MPIS_SUCCESS != err_code)
         return err_code;
 
+    err_code = MPIS_Wait(&match_request, MPI_STATUS_IGNORE);
+
     MPIS_BINDING_EXIT
-    return MPIS_SUCCESS;
+    return err_code;
 }
 }

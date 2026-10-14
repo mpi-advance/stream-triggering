@@ -10,9 +10,12 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 #include "mpi.h"
+#include "stream-triggering.h"
 
 #if NEED_HIP
 #define check_gpu(function)                       \
@@ -157,6 +160,15 @@ MPI_Info make_gpu_mem_info()
     MPI_Info_set(info, "mpi_memory_alloc_kinds", "cuda:device");
 #endif
     return info;
+}
+
+// Matches reqs, frees the originals, and leaves the matched handles in reqs.
+inline void match_in_place(int count, MPIS_Request reqs[])
+{
+    std::vector<MPIS_Request> matched(count);
+    MPIS_Matchall(count, reqs, matched.data(), MPI_INFO_NULL);
+    MPIS_Request_freeall(count, reqs);
+    std::copy(matched.begin(), matched.end(), reqs);
 }
 }  // namespace Common
 

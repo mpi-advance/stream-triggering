@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
         MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);
     }
-    MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(2, my_reqs);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (Checks::verbose)

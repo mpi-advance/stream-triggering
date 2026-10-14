@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
         MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
                        &my_req);
     }
-    MPIS_Match(&my_req, MPI_STATUS_IGNORE);
+    Common::match_in_place(1, &my_req);
 
     int flag = -1;
     MPIS_Queue_test(&my_queue, &flag);

@@ -46,11 +46,11 @@ int MPIS_Enqueue_wait(MPIS_Queue, MPIS_Request*, MPI_Status*);
 int MPIS_Enqueue_waitall(MPIS_Queue, int, MPIS_Request[], MPI_Status[]);
 
 /* New Matching Functions */
-int MPIS_Match(MPIS_Request*, MPI_Status*);
-int MPIS_Matchall(int, MPIS_Request[], MPI_Status[]);
-int MPIS_Imatch(MPIS_Request*, MPIS_Request*);
+int MPIS_Match(MPIS_Request, MPIS_Request*, MPI_Info);
+int MPIS_Matchall(int, MPIS_Request[], MPIS_Request[], MPI_Info);
+int MPIS_Imatch(MPIS_Request, MPIS_Request*, MPI_Info, MPIS_Request*);
+int MPIS_Imatchall(int, MPIS_Request[], MPIS_Request[], MPI_Info, MPIS_Request*);
 int MPIS_Is_matched(MPIS_Request*, int*);
-int MPIS_Queue_match(MPIS_Queue, MPIS_Request*, MPI_Status*);
 
 /*        Custom MPIS Override Functions         */
 /* These have minimal, if any, new functionality */

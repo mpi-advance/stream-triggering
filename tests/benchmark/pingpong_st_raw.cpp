@@ -40,10 +40,8 @@ int main(int argc, char* argv[])
                         &my_other_reqs[SEND_REQ]);
     }
 
-    MPIS_Match(&my_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_reqs[1], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[0], MPI_STATUS_IGNORE);
-    MPIS_Match(&my_other_reqs[1], MPI_STATUS_IGNORE);
+    Common::match_in_place(2, my_reqs);
+    Common::match_in_place(2, my_other_reqs);
 
     auto do_cycles = [&](int num_cycles) {
         using namespace Benchmark;

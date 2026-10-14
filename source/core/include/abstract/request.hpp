@@ -3,6 +3,7 @@
 
 #include <string.h>
 
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -194,6 +195,16 @@ public:
         }
 
         print();
+    }
+
+    /**
+     * @brief [TODO]
+     * @return
+     */
+    std::shared_ptr<Request> clone() const
+    {
+        return std::make_shared<Request>(operation, send_buffer, recv_buffer, count,
+                                         datatype, peer, tag, comm, info, op);
     }
 
     /** [UPDATE]

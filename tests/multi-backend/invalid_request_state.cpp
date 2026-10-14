@@ -1,8 +1,9 @@
 #include "../common/checks.hpp"
 
 /* The bindings reject requests used in the wrong lifecycle state: starting a request
- * that isn't matched (or whose match hasn't completed), and starting a request again
- * before a wait was enqueued for it. A rejected call changes nothing. */
+ * that isn't matched (or whose match hasn't completed), freeing a request whose match
+ * hasn't completed, matching a matched request, and starting a request again before a
+ * wait was enqueued for it. A rejected call changes nothing. */
 int main(int argc, char* argv[])
 {
     using namespace Checks;
@@ -13,29 +14,42 @@ int main(int argc, char* argv[])
     int peer = rank ^ 1;
 
     /* [0] = send, [1] = recv */
+    MPIS_Request init_reqs[2];
     MPIS_Request my_reqs[2];
     MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
-                   &my_reqs[0]);
+                   &init_reqs[0]);
     MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
-                   &my_reqs[1]);
+                   &init_reqs[1]);
 
-    /* Not matched yet */
-    EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &my_reqs[1]); }),
+    /* The originals can't be started */
+    EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &init_reqs[1]); }),
            "starting an unmatched request was accepted");
 
     /* Match started but not completed */
-    MPIS_Request match_handles[2];
-    MPIS_Imatch(&my_reqs[0], &match_handles[0]);
-    MPIS_Imatch(&my_reqs[1], &match_handles[1]);
+    MPIS_Request match_req;
+    MPIS_Imatchall(2, init_reqs, my_reqs, MPI_INFO_NULL, &match_req);
     EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &my_reqs[1]); }),
            "starting a request whose match hasn't completed was accepted");
-    EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &match_handles[1]); }),
-           "starting a match handle was accepted");
-    MPIS_Waitall(2, match_handles, MPI_STATUSES_IGNORE);
+    EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &match_req); }),
+           "starting a match request was accepted");
+    EXPECT(Checks::throws([&] { MPIS_Request_free(&my_reqs[1]); }),
+           "freeing a request whose match hasn't completed was accepted");
+    MPIS_Wait(&match_req, MPI_STATUS_IGNORE);
 
-    /* Waiting on handles that are now MPIS_REQUEST_NULL is a no-op */
-    EXPECT(!Checks::throws([&] { MPIS_Waitall(2, match_handles, MPI_STATUSES_IGNORE); }),
-           "waiting on null match handles was rejected");
+    /* Waiting on a handle that is now MPIS_REQUEST_NULL is a no-op */
+    EXPECT(!Checks::throws([&] { MPIS_Wait(&match_req, MPI_STATUS_IGNORE); }),
+           "waiting on a null match request was rejected");
+
+    /* Matching leaves the originals unmatched, and a matched request can't be
+     * matched again */
+    EXPECT(Checks::throws([&] { MPIS_Enqueue_start(my_queue, &init_reqs[1]); }),
+           "starting an original after matching it was accepted");
+    EXPECT(Checks::throws([&] {
+               MPIS_Request rematched;
+               MPIS_Match(my_reqs[1], &rematched, MPI_INFO_NULL);
+           }),
+           "matching an already matched request was accepted");
+    MPIS_Request_freeall(2, init_reqs);
 
     /* Started, and started again before any wait */
     MPIS_Enqueue_startall(my_queue, 2, my_reqs);

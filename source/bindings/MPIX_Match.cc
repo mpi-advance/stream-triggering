@@ -1,22 +1,19 @@
-#include "abstract/queue.hpp"
 #include "helpers.hpp"
 
 extern "C" {
 
-int MPIS_Match(MPIS_Request* request, MPI_Status* status)
+int MPIS_Match(MPIS_Request tomatch, MPIS_Request* newrequest, MPI_Info info)
 {
     MPIS_BINDING_ENTER
 
-    using namespace Communication;
-    std::shared_ptr<Request>* internal_request =
-        convert_request_ptr(request, {Request::State::UNMATCHED});
-    Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
+    MPIS_Request match_request;
+    int          err_code = MPIS_Imatch(tomatch, newrequest, info, &match_request);
+    if (MPIS_SUCCESS != err_code)
+        return err_code;
 
-    the_queue->initiate_match({*internal_request});
-    (*internal_request)->state = Request::State::MATCHING;
-    the_queue->finalize_match({*internal_request});
+    err_code = MPIS_Wait(&match_request, MPI_STATUS_IGNORE);
 
     MPIS_BINDING_EXIT
-    return MPIS_SUCCESS;
+    return err_code;
 }
 }

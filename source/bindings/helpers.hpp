@@ -49,7 +49,8 @@ extern std::map<void*, std::function<void()>> deletors;
 struct MPIS_Request_struct
 {
     bool      match_handle;      //!< [TODO]
-    uintptr_t internal_request;  //!< Pointer to internal Communication::Request object.
+    uintptr_t internal_request;  //!< [UPDATE] Pointer to internal Communication::Request
+                                 //!< object.
 };
 
 /** @brief Custom exception class that holds an error code. */
@@ -125,14 +126,14 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
  * @param [in] request
  * @return
  */
-static inline std::shared_ptr<Communication::Request>* convert_match_request(
+static inline std::vector<std::shared_ptr<Communication::Request>>* convert_match_request(
     MPIS_Request request)
 {
     if (!request->match_handle)
     {
         throw MPISException(MPIS_INVALID_REQUEST_STATE, "Invalid Request state!");
     }
-    return reinterpret_cast<std::shared_ptr<Communication::Request>*>(
+    return reinterpret_cast<std::vector<std::shared_ptr<Communication::Request>>*>(
         (request->internal_request));
 }
 

@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
                    &my_reqs[0]);
     MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, peer, 5, MPI_COMM_WORLD, mem_info,
                    &my_reqs[1]);
-    MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(2, my_reqs);
 
     MPIS_Request twice[3] = {my_reqs[0], my_reqs[1], my_reqs[1]};
     EXPECT(Checks::throws([&] { MPIS_Enqueue_startall(my_queue, 3, twice); }),

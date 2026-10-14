@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
     MPIS_Recv_init(recv_buf, BUFFER_SIZE, MPI_INT, (rank - 1 + size) % size, 0,
                    MPI_COMM_WORLD, mem_info, &my_reqs[1]);
 
-    MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(2, my_reqs);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0)

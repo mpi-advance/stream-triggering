@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
                    &my_reqs[2]);
     MPIS_Recv_init((int*)idle_buf + BUFFER_SIZE, BUFFER_SIZE, MPI_INT, peer, 9,
                    MPI_COMM_WORLD, mem_info, &my_reqs[3]);
-    MPIS_Matchall(4, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(4, my_reqs);
 
     /* Started recv, never-started recv, and a send whose wait was already enqueued */
     MPIS_Enqueue_startall(my_queue, 2, my_reqs);

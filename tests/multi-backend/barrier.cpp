@@ -29,11 +29,11 @@ int main(int argc, char* argv[])
         MPIS_Send_init(send_buf, BUFFER_SIZE, MPI_INT, peer, 0, MPI_COMM_WORLD, mem_info,
                        &my_reqs[0]);
     }
-    MPIS_Matchall(2, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(2, my_reqs);
 
     MPIS_Request barrier_req;
     MPIS_Barrier_init(MPI_COMM_WORLD, MPI_INFO_NULL, &barrier_req);
-    MPIS_Queue_match(my_queue, &barrier_req, MPI_STATUS_IGNORE);
+    Common::match_in_place(1, &barrier_req);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -83,5 +83,6 @@ int main(int argc, char* argv[])
 
     // Cleanup
     MPIS_Request_freeall(2, my_reqs);
+    MPIS_Request_free(&barrier_req);
     return Checks::teardown("barrier");
 }

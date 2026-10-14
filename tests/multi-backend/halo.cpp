@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
     MPIS_Send_init(bottom_s, BUFFER_SIZE, MPI_INT, nbr_down, 50, cart_comm, mem_info,
                    &my_reqs[7]);
 
-    MPIS_Matchall(8, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(8, my_reqs);
     MPI_Barrier(MPI_COMM_WORLD);
 
     auto do_cycles = [&](int num_cycles) {

@@ -23,7 +23,9 @@ int MPIS_Waitall(int len, MPIS_Request requests[], MPI_Status statuses[])
             continue;
         }
 
-        internal_requests.push_back(*convert_match_request(request));
+        std::vector<std::shared_ptr<Request>>* matching = convert_match_request(request);
+        internal_requests.insert(internal_requests.end(), matching->begin(),
+                                 matching->end());
     }
 
     /* Do the wait all */
@@ -39,7 +41,8 @@ int MPIS_Waitall(int len, MPIS_Request requests[], MPI_Status statuses[])
             continue;
         }
 
-        /* Delete allocated MPIS_Request object */
+        /* Delete the match's Request list and the allocated MPIS_Request object */
+        delete convert_match_request(request);
         delete request;
         /* Set it back to null */
         requests[i] = MPIS_REQUEST_NULL;

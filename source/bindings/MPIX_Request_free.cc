@@ -16,10 +16,17 @@ int MPIS_Request_free(MPIS_Request* request)
         return MPIS_SUCCESS;
     }
 
-    /* Match requests don't allocate anything, only normal requests do */
-    if (!(*request)->match_handle)
+    if ((*request)->match_handle)
     {
-        std::shared_ptr<Request>* internal_request = convert_request_ptr(request);
+        /* Match requests only own the list of Requests being matched */
+        delete convert_match_request(*request);
+    }
+    else
+    {
+        /* A Request still being matched is in use by its match request */
+        std::shared_ptr<Request>* internal_request = convert_request_ptr(
+            request,
+            {Request::State::UNMATCHED, Request::State::MATCHED, Request::State::ACTIVE});
         /* Tell the global queue that it needs to free resources related to this request*/
         Queue* the_queue = (Queue*)(ACTIVE_QUEUE);
         the_queue->request_free(*internal_request);

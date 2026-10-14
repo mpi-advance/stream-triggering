@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
     MPIS_Request my_req;
     MPIS_Allreduce_init(send_buf, recv_buf, BUFFER_SIZE, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                         MPI_INFO_NULL, &my_req);
-    MPIS_Queue_match(my_queue, &my_req, MPI_STATUS_IGNORE);
+    Common::match_in_place(1, &my_req);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (Checks::verbose)

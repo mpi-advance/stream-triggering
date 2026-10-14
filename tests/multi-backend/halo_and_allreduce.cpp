@@ -136,12 +136,12 @@ int main(int argc, char* argv[])
     MPIS_Send_init(bottom_s, BUFFER_SIZE, MPI_INT, nbr_down, 50, cart_comm, mem_info,
                    &my_reqs[7]);
 
-    MPIS_Matchall(8, my_reqs, MPI_STATUSES_IGNORE);
+    Common::match_in_place(8, my_reqs);
 
     MPIS_Request my_req;
     MPIS_Allreduce_init(send_buf, recv_buf, BUFFER_SIZE, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                         MPI_INFO_NULL, &my_req);
-    MPIS_Queue_match(my_queue, &my_req, MPI_STATUS_IGNORE);
+    Common::match_in_place(1, &my_req);
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Sum over all ranks of (100 * rank + index)
