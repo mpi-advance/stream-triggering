@@ -541,11 +541,13 @@ void CXIQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
     flush_memory();  // TODO: Refine this more so not all waitalls need this
 #endif
     GPUCompletions all_in_one;
-    size_t         num_reqs = 0;
+    size_t         num_reqs        = 0;
+    bool           has_collectives = false;
     for (auto& req : requests)
     {
         if (Communication::Operation::BARRIER <= req->operation)
         {
+            has_collectives = true;
             continue;
         }
         auto found = request_map.find(req->getID());
@@ -581,7 +583,16 @@ void CXIQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
 
     /* Collectives are offloaded to the CPU; point-to-point positions get empty statuses
      */
-    HIPQueue::enqueue_waitall(requests, statuses);
+    if (has_collectives)
+    {
+        HIPQueue::enqueue_waitall(requests, statuses);
+    }
+    else if (nullptr != statuses)
+    {
+        /* Skip the progress engine and stream wait: no CPU work to wait on */
+        std::vector<MPI_Request> nulls(requests.size(), MPI_REQUEST_NULL);
+        force_mpi(MPI_Waitall(nulls.size(), nulls.data(), statuses));
+    }
 }
 
 void CXIQueue::flush_memory()
