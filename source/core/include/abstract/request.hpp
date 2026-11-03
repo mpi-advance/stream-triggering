@@ -1,5 +1,5 @@
-#ifndef ST_REQUEST_QUEUE
-#define ST_REQUEST_QUEUE
+#ifndef ST_ABSTRACT_REQUEST
+#define ST_ABSTRACT_REQUEST
 
 #include <string.h>
 
@@ -20,10 +20,10 @@ namespace Communication
 {
 
 /** @brief Abstraction for describing the actual communication of something.
- *  @details Some of the code depends on using Operation::BARRIER as the cutoff point
+ * @details Some of the code depends on using Operation::BARRIER as the cutoff point
  * between point to point and collective operations. Anything below this value is
- * considered a point-to-point operation; anything above is considered a collective
- * operation.
+ * considered a point-to-point operation; anything equal to or above Operation::BARRIER is
+ * considered a collective operation.
  */
 enum Operation : int
 {
@@ -51,14 +51,14 @@ enum Protocol : int
 /** @brief How many eager buffers Protocol::CREDIT will use before having to wait for a
  * free buffer. */
 constexpr size_t MAX_CREDIT_SLACK = 5;
-/** @brief Max message size for using Protocol::CREDIT. */
+/** @brief Max message size (bytes) for using Protocol::CREDIT. */
 constexpr size_t CREDIT_SIZE_CUTOFF = 32768;
 
 /** @brief Whether Queue objects may use IPC to move data. Defaults to true.
  * @sa ::init_env()
  */
 extern bool IPC_PROTOCOL_ENABLED;
-/** @brief Whether Queue object allowed to use credit-based protocols to move data.
+/** @brief Whether Queue objects allowed to use credit-based protocols to move data.
  * Defaults to true.
  * @sa ::init_env()
  */
@@ -70,8 +70,9 @@ extern bool CREDIT_PROTOCOL_ENABLED;
  */
 extern MPI_Comm MPIS_COMM_WORLD;
 
-/** @brief [TODO]
- * @details
+/** @brief Library communicator for protocol exchange phase.
+ * @details Currently a duplicate of ::MPIS_COMM_WORLD. Created in ::initialize_st(),
+ * freed in the MPI_Finalize override of this library.
  */
 extern MPI_Comm MPIS_COMM_PROTOCOL;
 
@@ -85,8 +86,7 @@ enum GPUMemoryType
     FINE   = 2,  //!< GPU Buffer is fine-grained.
 };
 
-/**
- * @brief A container for communication operations.
+/** @brief A container for communication operations.
  * @details The documentation of this class does its best to distinguish between the
  * Request objects of this library and MPI_Request objects, but be sure to use a careful
  * eye when reading the documentation.
@@ -101,20 +101,28 @@ enum GPUMemoryType
 class Request
 {
 public:
-    /**
-     * @brief [TODO]
-     * @details
+    /** @brief Helper enum class for keeping track of the Request object's state.
+     * @details These different values allow functions to make sure that the object is in
+     * the right state before starting a specific action (such as making sure a request is
+     * matched before its first start).
+     * The Request::State::MATCHED phase has a special rule, where after it has had its
+     * wait enqueued, the ::Request object will be reset to this state.
+     *
+     * In the current implementation, any Communication::Request with
+     * Request::State::MATCHING as its state is not allowed to be freed until it has
+     * finished the match.
      */
     enum class State
     {
-        UNMATCHED,  //!< [TODO]
-        MATCHING,   //!< [TODO]
-        MATCHED,    //!< [TODO]
-        ACTIVE,     //!< [TODO]
+        UNMATCHED,  //!< Request is unmatched, likely just created.
+        MATCHING,   //!< Request has initiated, but not finished, the matching process.
+        MATCHED,    //!< Request has, at least, been matched.
+        ACTIVE,     //!< Request has been started, but not waited on yet.
     };
 
-    State        state = State::UNMATCHED;  //!< [TODO]
-    Operation    operation;                 //!< The Operation of the Request.
+    /** @brief Request::State of the Request (defaults to Request::State::UNMATCHED). */
+    State        state = State::UNMATCHED;
+    Operation    operation;    //!< The Operation of the Request.
     Protocol     protocol;     //!< Which Protocol the Request has been assigned.
     void*        send_buffer;  //!< The buffer to use for sends.
     void*        recv_buffer;  //!< The buffer to use for receives.
@@ -127,8 +135,7 @@ public:
     MPI_Op       op;           //!< MPI_Op to use for reduce operations.
     int          cw_peer;      //!< Peer's rank in ::MPIS_COMM_WORLD.
 
-    /**
-     * @brief The general constructor for a Request object.
+    /** @brief The general constructor for a Request object.
      * @details This constructor is very broad in the number of things it accepts.
      * Currently only @p op is optional, defaulting to MPI_OP_NULL if not provided.
      * Neither buffer is required and one or both may be nullptr. The info object is
@@ -138,7 +145,8 @@ public:
      *
      * The peer process is also translated into the rank they are in MPIS_COMM_WORLD
      * (Request::cw_peer) and an ID is assigned to this object as a part of constructing
-     * this object (Request::myID).
+     * this object (Request::myID). With collectives, @p _peer will be MPI_PROC_NULL, so
+     * Request::cw_peer is also set to MPI_PROC_NULL.
      *
      * If in a debug build, a printout of the Request object is performed at the end of
      * the constructor.
@@ -197,9 +205,12 @@ public:
         print();
     }
 
-    /**
-     * @brief [TODO]
-     * @return
+    /** @brief Create a copy of the ::Request object.
+     * @details This object is mostly a container, so this method creates a new ::Request
+     * object with the same values inside. The two Request objects are not tied together
+     * in any way. The new ::Request object has a new Request::myID, a Request::state of
+     * Request::State::UNMATCHED, and Request::protocol of Protocol::NONE.
+     * @return A shared pointer to the newly cloned Request object.
      */
     std::shared_ptr<Request> clone() const
     {
@@ -207,8 +218,8 @@ public:
                                          datatype, peer, tag, comm, info, op);
     }
 
-    /** [UPDATE]
-     * @brief Return the matched status of a Request object.
+    /** @brief Indicate if the Request object has, at least, been matched.
+     * @details Here, "matched" means Request::state >= Request::State::MATCHED.
      * @return The matched status of a Request object.
      */
     bool is_matched()
@@ -216,8 +227,9 @@ public:
         return State::MATCHED <= state;
     }
 
-    /** [UPDATE]
-     * @brief Set Request::matched to true. Multiple calls have no effect.
+    /** @brief Mark the ::Request as "matched".
+     * @details This is done by setting Request::state to Request::State::MATCHED,
+     * regardless of the current state of the ::Request object.
      */
     void set_match()
     {
@@ -237,7 +249,8 @@ public:
      * non-contiguous datatypes and not the true size of a non-contiguous buffer.
      * Calculates the size of the MPI_Datatype in Request::datatype and value of
      * Request::count.
-     * @return The size, in bytes, of the buffer involved in the communication.
+     * @return The size, in bytes, of the buffer involved in the communication. Returns 0
+     * if MPI_DATATYPE_NULL is used.
      */
     inline size_t get_size_of_buffer()
     {
@@ -253,13 +266,13 @@ public:
         }
     }
 
-    /** [UPDATE]
-     * @brief Prepare the internal vectors for holding a specified number of MPI objects.
-     * @details Calling this method multiple times on the same Request object is allowed,
-     * but any existing requests are discarded without being freed or completed.
+    /** @brief Prepare an internal vector for holding a specified number of MPI objects.
+     * @details Calling this method multiple times on the same Request object without
+     * calling Request::join_waitall_match() in between is not allowed, and doing so will
+     * cause an exception to be thrown.
      * @param [in] num The size to make the vectors.
      * @return The underlying pointer of Request::match_requests (for convenient use with
-     * the C MPI functions.).
+     * the C MPI functions).
      */
     MPI_Request* get_match_requests(size_t num)
     {
@@ -272,17 +285,16 @@ public:
         return match_requests.data();
     }
 
-    /** [UPDATE]
-     * @brief Exchange Protocol with peer process.
+    /** @brief Exchange Protocol values with peer process's communication.
      * @details This protocol exchange can be considered the first step in the matching
      * process. Note that MPI operations in this method use the tag of the original
      * communication call. While this should work for collectives (tag of 0 is used),
-     * support for collectives is still considered experimental.
-     * The communicator does not have to be ::MPIS_COMM_WORLD, as long as both sides
-     * calling this method are aware of this. While it may seem like a valid idea to use
-     * the MPI_Comm provided in the MPI communication call, it is not valid to do so.
-     * Using that communicator may cause collisions with the user's own MPI
-     * communications, and thus cause odd errors or deadlock in the program.
+     * support for collectives is still considered experimental (currently
+     * Queue::initiate_match() skip calling this for collectives). The communicator is
+     * coded as using ::MPIS_COMM_PROTOCOL. While it may seem like a valid idea to use the
+     * MPI_Comm provided in the MPI communication call, using that communicator may cause
+     * collisions with the user's own MPI communications, and thus cause odd errors or
+     * deadlock in the program.
      */
     void start_protocol_exchange()
     {
@@ -300,23 +312,21 @@ public:
         }
     }
 
-    /** @brief Wait on the MPI communications exchanging Protocol information.*/
+    /** @brief Wait on the MPI communications exchanging Protocol information. */
     void wait_on_protocol()
     {
         check_mpi(MPI_Wait(&protocol_request, MPI_STATUS_IGNORE));
         out("Final Protocol:", protocol);
     }
 
-    /** [UPDATE]
-     * @brief Aggregate any MPI communications for the matching phase into a vector.
+    /** @brief Aggregate any MPI communications for the matching phase into a vector.
      * @details This function asks a Request object to insert any MPI_Request objects that
      * were created as a part of initiating the matching phase into a larger list of MPI
-     * communications. The input parameters are collecting MPI communications from a
-     * series of Request objects in order to perform a single MPI_Waitall call on all of
-     * them at once. This is done to avoid the deadlock caused by different processes
+     * communications. The input parameter collects MPI_Requests from a series of
+     * Communication::Request objects in order to perform a single MPI_Waitall call on all
+     * of them at once. This is done to avoid the deadlock caused by different processes
      * desiring to (validly) match requests in different orders. Explicitly does NOT set
-     * Request::matched to true, but Request::match_requests and Request::match_statuses
-     * are cleared.
+     * Request::state, but Request::match_requests is cleared.
      *
      * @param [in, out] request_train The vector of MPI_Request objects to append any
      * local matching-phase MPI_Requests to.
@@ -339,6 +349,7 @@ public:
     /** @brief A method for checking if the communication will require a synchronization
      * of memory between the GPU and the CPU.
      * @return A boolean indicating if the CPU needs to synchronize memory with the GPU.
+     * @sa CXIQueue
      */
     bool needs_gpu_flush()
     {
@@ -346,13 +357,11 @@ public:
                ((Operation::SEND == operation) || (Operation::RSEND == operation));
     }
 
-    /**
-     * @brief Custom wrapper of Print::out that adds a prefix to print Request::myID
+    /** @brief Custom wrapper of Print::out() that adds a prefix to print Request::myID
      * first.
      * @tparam UseRanks A compile-time option to determine if the printout should be
      * prefaced by a printout of the rank doing the printing.
-     * @tparam Args The parameter pack of the types of things to print
-     * through
+     * @tparam Args The parameter pack of the types of things to print through
      * @param [in] args The set of items to print out.
      */
     template <bool UseRanks = true, typename... Args>
@@ -361,9 +370,7 @@ public:
         Print::out<UseRanks>("[Req:", myID, "]", std::forward<Args>(args)...);
     }
 
-    /**
-     * @brief Determine what the rank of process @p base_rank in @p base_comm is in @p
-     * lookup_comm.
+    /** @brief Translate @p base_rank from @p base_comm into its rank in @p lookup_comm.
      * @param [in] base_rank The rank of a process to translate.
      * @param [in] base_comm The communicator of the base rank.
      * @param [in] lookup_comm The communicator to perform rank translation on.
@@ -407,11 +414,9 @@ protected:
     }
 
 private:
-    /**
-     * @brief Specialization of rankLookup that uses MPIS_COMM_WORLD as the lookup
-     * communicator.
-     * @param [in] lookup_peer The rank in Request::comm to lookup in MPIS_COMM_WORLD.
-     * @return The rank of @p lookup_peer inside MPIS_COMM_WORLD (MPI_COMM_WORLD).
+    /** @brief Convenience wrapper around Request::rankLookup() using ::MPIS_COMM_WORLD.
+     * @param [in] lookup_peer The rank in Request::comm to lookup in ::MPIS_COMM_WORLD.
+     * @return The rank of @p lookup_peer inside ::MPIS_COMM_WORLD (MPI_COMM_WORLD).
      */
     int resolve_comm_world(int lookup_peer)
     {
