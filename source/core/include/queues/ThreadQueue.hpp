@@ -73,7 +73,7 @@ public:
      * in a single "waitall" action. Queue::entries is cleared after this method is
      * called.
      * @param [in] requests
-     * @param [out] statuses
+     * @param [in] statuses
      */
     void enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
                          MPI_Status*                           statuses) override

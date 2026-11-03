@@ -41,16 +41,16 @@ extern MPIS_Queue ACTIVE_QUEUE;
  */
 extern std::map<void*, std::function<void()>> deletors;
 
-/** [UPDATE]
- * @brief The MPIS_Request object given to the user.
- * @details Note that MPIS_Request_struct::internal_request is a pointer to a shared
- * pointer of Communication::Request.
+/** @brief The MPIS_Request object given to the user.
+ * @details Note that the type of MPIS_Request_struct::internal_request depends on the
+ * value of MPIS_Request_struct::match_handle. If not a "match" handle (false), then it is
+ * a pointer to a shared pointer of Communication::Request. If a "match" handle, then it
+ * is a pointer to a vector of shared pointers to Communication::Request.
  */
 struct MPIS_Request_struct
 {
-    bool      match_handle;      //!< [TODO]
-    uintptr_t internal_request;  //!< [UPDATE] Pointer to internal Communication::Request
-                                 //!< object.
+    bool      match_handle;  //!< Indication of if this is a "match" request operation.
+    uintptr_t internal_request;  //!< Pointer to internal representation of operation.
 };
 
 /** @brief Custom exception class that holds an error code. */
@@ -122,9 +122,12 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
 }
 
 /**
- * @brief [TODO]
- * @param [in] request
- * @return
+ * @brief Get internal representation from an MPIS_Request representing a match operation.
+ * @details Will throw an MPISException if the MPIS_Request is not from a match operation
+ * (aka MPIS_Request::match_handle is false).
+ * @param [in] request An MPIS_Request request object to convert from.
+ * @return The vector of shared pointers of Communication::Request objects that the input
+ * handle was a pointer to.
  */
 static inline std::vector<std::shared_ptr<Communication::Request>>* convert_match_request(
     MPIS_Request request)
@@ -170,8 +173,12 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
 }
 
 /**
- * @brief [TODO]
- * @param [in] requests
+ * @brief Helper function that enforces that all Communication::Request in the vector be
+ * unique.
+ * @details Checks the that all ids (Communication::Request::getID()) are unique by
+ * creating a vector of the IDs, sorting it, and then using a C++ algorithm to look for
+ * same values. If found, method will throw an exception.
+ * @param [in] requests The vector of Communication::Request that must be unique.
  */
 static inline void check_unique_requests(
     const std::vector<std::shared_ptr<Communication::Request>>& requests)

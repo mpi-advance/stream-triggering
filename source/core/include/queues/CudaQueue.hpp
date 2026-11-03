@@ -32,7 +32,7 @@ public:
     /**
      * @brief [TODO]
      * @param [in, out] requests
-     * @param [out] statuses
+     * @param [in] statuses
      */
     void enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
                          MPI_Status*                           statuses) override;

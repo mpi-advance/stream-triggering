@@ -80,7 +80,7 @@ public:
     /** [UPDATE]
      * @brief Enqueue a waitall operation to the Queue.
      * @param [in, out] reqs
-     * @param [out] statuses
+     * @param [in] statuses
      */
     virtual void enqueue_waitall(std::vector<std::shared_ptr<Request>> reqs,
                                  MPI_Status*                           statuses) = 0;
@@ -233,16 +233,15 @@ protected:
             members.push_back(find_or_create_request(*req));
         }
 
-        progress_engine.enqueued_start(std::make_shared<Progress::StartEntry>(
-            std::make_shared<Progress::RequestGroup>(std::move(members)), start_signal,
-            ++start_target));
+        progress_engine.enqueue_action(std::make_unique<Progress::StartEntry>(
+            std::move(members), start_signal, ++start_target));
         return start_target;
     }
 
     /**
      * @brief [TODO]
      * @param [in] reqs
-     * @param [out] statuses
+     * @param [in] statuses
      * @return
      */
     Progress::CounterType build_wait(const std::vector<std::shared_ptr<Request>>& reqs,
@@ -256,9 +255,9 @@ protected:
             members.push_back((request_cache.end() != found) ? found->second : nullptr);
         }
 
-        progress_engine.enqueued_wait(std::make_shared<Progress::WaitEntry>(
-            std::make_shared<Progress::RequestGroup>(std::move(members)), wait_signal,
-            ++wait_target, (nullptr != statuses) ? statuses : MPI_STATUSES_IGNORE));
+        progress_engine.enqueue_action(std::make_unique<Progress::WaitEntry>(
+            std::move(members), wait_signal, ++wait_target,
+            (nullptr != statuses) ? statuses : MPI_STATUSES_IGNORE));
         return wait_target;
     }
 

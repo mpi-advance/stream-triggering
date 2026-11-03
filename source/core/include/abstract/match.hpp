@@ -137,14 +137,18 @@ static void sender_rndv(struct fi_rma_iov* recv_buffer_details,
                         phase_b, &mpi_requests[1]));
 }
 
-/** @brief [TODO] */
+/** @brief The number of MPI_Request objects Communication::Protocol::EAGER needs. */
 static constexpr size_t EAGER_REQUESTS_TO_USE = 1;
 
-/**
- * @brief [TODO]
- * @param [in] user_buffer_details
- * @param [in, out] req
- * @param [in] phase_a
+/** @brief The receiver's side of matching for Communication::Protocol::EAGER.
+ * @details This protocol only exchanges details about the remote side's buffer. In
+ * essence, it can be thought of as the first half of Match::Protocol::receiver_rndv()
+ * @param [in] user_buffer_details Pointer to details about the receiver's buffer, in the
+ * form of a fi_rma_iov.
+ * @param [in, out] req Communication::Request to be matched and to store matching
+ * MPI_Requests into.
+ * @param [in] phase_a Communication::MPIS_COMM_WORLD duplicate for Phase A
+ * communication
  */
 static void receiver_eager(struct fi_rma_iov*      user_buffer_details,
                            Communication::Request& req, MPI_Comm phase_a)
@@ -159,11 +163,15 @@ static void receiver_eager(struct fi_rma_iov*      user_buffer_details,
                         req.tag, phase_a, &mpi_requests[0]));
 }
 
-/**
- * @brief [TODO]
- * @param [out] recv_buffer_details
- * @param [in, out] req
- * @param [in] phase_a
+/** @brief The sender's side of matching for Communication::Protocol::EAGER.
+ * @details This protocol only exchanges details about the remote side's buffer. In
+ * essence, it can be thought of as the first half of Match::Protocol::sender_rndv()
+ * @param [out] recv_buffer_details Location to store information about the peer's
+ * receiver's buffer, in the form of a fi_rma_iov.
+ * @param [in, out] req Communication::Request to be matched and to store matching
+ * MPI_Requests into.
+ * @param [in] phase_a Communication::MPIS_COMM_WORLD duplicate for Phase A
+ * communication
  */
 static void sender_eager(struct fi_rma_iov*      recv_buffer_details,
                          Communication::Request& req, MPI_Comm phase_a)
