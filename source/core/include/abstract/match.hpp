@@ -26,7 +26,7 @@
  * be non-blocking in nature to help avoid deadlock when matching a set of valid, but
  * arbitrarily ordered communication operations, except for Match::Blank, which needs to
  * use an eager MPI_Send of zero bytes.
- * Matching will be completed when Communication::Queue::finalize_match() is called (or
+ * Matching will be completed when Queue::finalize_match() is called (or
  * more specifically, when Communication::Request::join_waitall_match() is called).
  * @sa Communication::Request::get_match_requests()
  */

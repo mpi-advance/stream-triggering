@@ -34,28 +34,14 @@ public:
     /** @brief Default destructor. */
     ~ThreadQueue() = default;
 
-    /** [UPDATE]
-     * @brief Enqueue a specific communication to the ::ThreadQueue.
-     * @details This function uses the id inside @p request (Communication::Request::myID)
-     * as the index in the operation cache. If no entry exists for this ID yet, a new
-     * ::ThreadQueueEntry is created and inserted into the map (Queue::request_cache).
-     * After that check, the ::ThreadQueueEntry is retrieved from the map cache and
-     * provided to the progress thread (Queue::progress_engine).
-     *
-     * Each time an operation is started, its threshold is incremented
-     * (QueueEntry::increment), in theory aligning with the concept that the same
-     * operation could be queued up multiple times. In practice, for this backend, that is
-     * untested since this project focuses on GPU stream-triggered communication.
-     *
-     * The corresponding ::ThreadQueueEntry is also added to ::Queue::entries so that
-     * this backend can keep track of all operations that have been started.
-     *
-     * Because the thread backend is a basic backend that does not tie to another stream,
-     * once the ::ThreadQueueEntry has been enqueued, the trigger
-     * (QueueEntry::start_location) for the start is immediately set to the correct value
-     * (via QueueEntry::get_threshold()) for the start to be triggered.
-     * @param [in] requests
-     * @sa Communication::Request::getID()
+    /** @brief Enqueue the starts of a set of operations to the ::ThreadQueue.
+     * @details Effectively offloads the starting to Queue::build_start(). Since this
+     * thread implementation is the "stream", it goes ahead and immediately marks the
+     * triggering counter to the triggering threshold (after enqueueing the start of the
+     * operations).
+     * @param [in] requests The vector of Communication::Request objects to enqueue the
+     * start of.
+     * @sa Queue::build_start()
      */
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override
     {
@@ -66,14 +52,13 @@ public:
             .store(target, std::memory_order_release);
     }
 
-    /** [UPDATE]
-     * @brief Iterates over all started entries and creates a Progress::WaitEntry for
-     * each one.
-     * @details Note that each entry is currently enqueued separately and not all together
-     * in a single "waitall" action. Queue::entries is cleared after this method is
-     * called.
-     * @param [in] requests
-     * @param [in] statuses
+    /** @brief Enqueue the wait for a set of operations to the ::ThreadQueue.
+     * @details Just calls out to Queue::build_wait().
+     * @param [in, out] requests The Communication::Request operations to have their wait
+     * enqueued.
+     * @param [out] statuses A pointer to an array of MPI_Status objects to be filled in
+     * upon the completion of the waitall. Pointer should be valid until the waitall is
+     * done. Null pointer is mapped to MPI_STATUS_IGNORE.
      */
     void enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
                          MPI_Status*                           statuses) override

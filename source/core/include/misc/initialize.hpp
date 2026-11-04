@@ -90,10 +90,12 @@ static inline void init_env()
     }
 }
 
-/** [UPDATE] @brief The top level function for initializing the Stream-Triggering library.
+/** @brief The top level function for initializing the Stream-Triggering library.
  * @details Takes care of setting up various other aspects of the library, along with
- * creating a duplicate of MPI_COMM_WORLD to be used as the "world comm" for this library
+ * creating a duplicate of MPI_COMM_WORLD to be used as the "world comm" for this library.
+ * This communicator is then duplicated to create ::Communication::MPIS_COMM_PROTOCOL.
  * @sa Communication::MPIS_COMM_WORLD
+ * @sa Communication::MPIS_COMM_PROTOCOL
  */
 static inline void initialize_st()
 {

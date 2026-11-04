@@ -72,21 +72,21 @@ struct MPISException : public std::runtime_error
 /**
  * \defgroup converters C <-> C++ Request Conversion Functions
  * @brief Any function that helps convert from the C MPIS_Request to the internal
- * Communicator::Request object.
+ * ::Communication::Request object.
  * @details More specifically, the functions convert from MPIS_Request (object or pointer)
  * to a shared pointer of Communication::Request (or a pointer to a shared pointer). These
  * functions may also perform state checks on the request to help reduce code duplication.
  */
 
-/** [UPDATE]
- * @brief Convert from MPIS_Request to internal representation. Checks state.
+/** @brief Convert from MPIS_Request to internal representation. Checks state.
  * @details Converts from MPIS_Request object (not a pointer to one) to a pointer to a
  * shared pointer of Communication::Request. Will also check that the MPIS_Request has the
- * requested ::RequestState before converting.
+ * requested Communication::Request::State before converting.
  *
  * @ingroup converters
  * @param [in] request An MPIS_Request request object to convert from.
- * @param [in] allowed
+ * @param [in] allowed A set of Communication::Request::State that the converted
+ * Communication::Request is allowed to be in.
  * @return Pointer to shared pointer of Communication::Request. Throws exception if
  * invalid state.
  */
@@ -103,15 +103,15 @@ static inline std::shared_ptr<Communication::Request>* convert_request(
     return internal;
 }
 
-/** [UPDATE]
- * @brief Convert from MPIS_Request pointer to internal representation. Checks state.
+/** @brief Convert from MPIS_Request pointer to internal representation. Checks state.
  * @details Converts from a pointer to an MPIS_Request object to a pointer to a
  * shared pointer of Communication::Request. Will also check that the MPIS_Request has the
- * requested ::RequestState before converting.
+ * requested Communication::Request::State before converting.
  *
  * @ingroup converters
  * @param [in] request An MPIS_Request request object to convert from.
- * @param [in] allowed
+ * @param [in] allowed A set of Communication::Request::State that the converted
+ * Communication::Request is allowed to be in.
  * @return Pointer to shared pointer of Communication::Request. Throws exception if
  * invalid state.
  */
@@ -121,10 +121,9 @@ static inline std::shared_ptr<Communication::Request>* convert_request_ptr(
     return convert_request(*request, allowed);
 }
 
-/**
- * @brief Get internal representation from an MPIS_Request representing a match operation.
+/** @brief Get internal representation from an MPIS_Request representing a match operation.
  * @details Will throw an MPISException if the MPIS_Request is not from a match operation
- * (aka MPIS_Request::match_handle is false).
+ * (aka MPIS_Request_struct::match_handle is false).
  * @param [in] request An MPIS_Request request object to convert from.
  * @return The vector of shared pointers of Communication::Request objects that the input
  * handle was a pointer to.

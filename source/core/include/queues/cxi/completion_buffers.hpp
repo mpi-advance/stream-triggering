@@ -107,9 +107,9 @@ public:
 };
 
 /**
- * @brief The class designed for handing out pre-allocated ::CompletionBuffers.
+ * @brief The class designed for handing out pre-allocated ::CompletionBuffer.
  * @details This class allocates a single chunk of GPU (currently HIP) memory, of which it
- * carves out CompletionBufferFactory::DEFAULT_ITEM_SIZE sizds chunks to be used as the
+ * carves out CompletionBufferFactory::DEFAULT_ITEM_SIZE sizes chunks to be used as the
  * location to store GPU-based completion values at. The whole buffer is registered with
  * libfabric to get a memory region key that can be given to peers so that their deferred
  * work queue actions are able to write to a given completion buffer. Because this is a

@@ -97,8 +97,7 @@ public:
         my_buffer.free_mr();
     }
 
-    /** [REVIEW]
-     * @brief Enqueue a start operation for set of communication operations.
+    /** @brief Enqueue a start operation for set of communication operations.
      * @details This function is how stream-triggering kernels are put onto a GPU stream.
      * Before any kernels are added, if the system is an MI250X system (currently decided
      * by if USE_TIOGA is defined) and any operation needs the GPU buffers to be flushed
@@ -106,8 +105,7 @@ public:
      * Communication::Request::needs_gpu_flush()), an additional kernel
      * (CXIQueue::flush_memory()) is added.
      *
-     * All collective operations are deferred to HIPQueue::enqueue_operation(), and are
-     * not added to CXIQueue::active_requests.
+     * All collective operations are deferred to HIPQueue::enqueue_startall().
      *
      * All point-to-point operations in @p requests are then checked for their desired
      * triggering mechanism (::TriggerStatus) after calling CXIRequest::start_cpu(). If
@@ -121,12 +119,10 @@ public:
      * CompletionBufferFactory::MAX_GPU_COMPLETIONS and ::add_to_counters()), then
      * multiple kernels will be launched.
      *
-     * At the end, the gpu counter's (CXIQueue::the_gpu_counter)  next "threshold" is set
-     * (by CXICounter::up_use_count(), if it was used) and any counter triggers are queue
-     * up. Note that if all requests return ::TriggerStatus::DONE, this function may add
-     * no additional kernels to the stream (unless a memory flush is needed), and they
-     * will not be added to CXIQueue::active_requests (meaning they won't be waited on by
-     * the GPU).
+     * At the end, the gpu counter's (CXIQueue::the_gpu_counter) next "threshold" is set
+     * (by CXICounter::up_use_count(), if it was used) and any counter triggers are queued
+     * up. Note that if all requests return ::TriggerStatus::DONE, this function may not
+     * add any additional kernels to the stream (unless a memory flush is needed).
      *
      * @param [in] requests The set of requests to enqueue a start for.
      * @sa ::GPUTriggers
@@ -134,29 +130,36 @@ public:
      */
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override;
 
-    /** [UPDATE]
-     * @brief Enqueue kernel(s) to wait on the completion of operations.
-     * @details This function, like CXIQueue::enqueue_startall, adds kernels related to
-     * communication to the GPU stream. For all of the operations that have had their
-     * starts enqueued, this function collects all of the completion buffers (and their
-     * goal values) to build a ::GPUCompletions object. Like when starts are enqueued, if
-     * too many (greater than CompletionBufferFactory::MAX_GPU_COMPLETIONS) are present,
+    /** @brief Enqueue kernel(s) to wait on the completion of operations.
+     * @details This function, like CXIQueue::enqueue_startall(), adds kernels related to
+     * communication to the GPU stream. For all of the passed Communication::Request
+     * objects, this function collects their completion buffers (and their goal
+     * values) to build a ::GPUCompletions object. Like when starts are enqueued, if too
+     * many (greater than CompletionBufferFactory::MAX_GPU_COMPLETIONS) are present,
      * multiple kernels will be launched.
      *
-     * All active operations will have CXIRequest::wait_gpu() called on them. The ones
-     * that return ::WaitStatus::NOT_NEEDED are presumed to have launched their own wait
-     * kernel. ::WaitStatus::GLOBAL_KERNEL means the operation's completion buffer will be
-     * added into the kernel to be waited on.
+     * All non-collective operations will have CXIRequest::take_outstanding() called. If
+     * this method returns false (meaning back to back waits were called, no start was
+     * ever called, or the operation does not need a wait), that Communication::Request
+     * will not have its wait operation enqueued, and the function moves onto the next
+     * operation. Any operation that is not in CXIQueue::request_map at this point is also
+     * skipped (meaning it was not matched by this queue).
      *
-     * After launching the kernel(s), CXIQueue::active_requests is cleared.
+     * All remaining non-collective operations will then have CXIRequest::wait_gpu()
+     * called on them. The ones that return ::WaitStatus::NOT_NEEDED are presumed to have
+     * launched their own wait kernel. ::WaitStatus::GLOBAL_KERNEL means the operation's
+     * completion buffer will be added into the kernel to be waited on.
      *
      * Any collective operation will be deferred to HIPQueue::enqueue_waitall() after the
      * point-to-point operations have been handled.
      *
      * Currently, if USE_TIOGA is set, CXIQueue::flush_memory() is called.
      *
-     * @param [in] requests
-     * @param [out] statuses
+     * @param [in, out] requests The vector of Communication::Request objects to enqueue
+     * the waitall for.
+     * @param [out] statuses A pointer to an array of MPI_Status objects to be filled in
+     * upon the completion of the waitall. Pointer should be valid until the waitall is
+     * done.
      * @sa ::GPUCompletions
      * @sa ::wait_on_completions()
      */
@@ -238,8 +241,7 @@ public:
     }
 
 private:
-    /** [REVIEW]
-     * @brief Determine the Communication::Protocol to use for an operation.
+    /** @brief Determine the Communication::Protocol to use for an operation.
      * @details Sets Communication::Request::protocol and calls
      * Communication::Request::start_protocol_exchange(). Performs checks for self
      * communication, communication on a node, and the Communication::Operation involved.
@@ -253,7 +255,6 @@ private:
      * @param [in, out] req The Communication::Request object to decide the
      * Communication::Protocol for.
      * @sa ::init_env()
-     * @sa CXIQueue::protocol_phase
      */
     void exchange_protocol(Request& req);
 
