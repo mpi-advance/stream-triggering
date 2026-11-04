@@ -13,7 +13,9 @@
 # ulimit -c unlimited
 USE_ROCPROF=false
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${HOME}/apps/stream-trigger/lib
+# ST_PREFIX: where install.sh (or the meta repo's build script) installed the library
+ST_PREFIX="${ST_PREFIX:-${HOME}/apps/stream-trigger}"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ST_PREFIX}/lib
 #export HSA_USE_SVM=0
 export HSA_XNACK=1
 #export MPICH_ASYNC_PROGRESS=1
@@ -35,7 +37,8 @@ MOD_FILE="${MOD_FILE:-$(st_build_module_file "${ST_ROOT}/build")}"
 st_load_modules ${MOD_FILE:+-m "$MOD_FILE"}
 
 ### 2. Output File Setup (Simplified)
-USER_BASE="$HOME/git/stream-triggering/tests/scratch"
+# ST_BENCH_OUT: base directory for outputs (defaults to this checkout's tests/scratch)
+USER_BASE="${ST_BENCH_OUT:-${ST_ROOT}/tests/scratch}"
 mkdir -p "$USER_BASE/output" # Ensure directory exists
 TARGET="$USER_BASE/output/$SYSTEM-$(date +%m-%d-%H%M%S).out"
 touch "$TARGET"
