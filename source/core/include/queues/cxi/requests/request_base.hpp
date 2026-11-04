@@ -22,10 +22,7 @@ enum class TriggerStatus
     GLOBAL_BUMP = 1,
     /** @brief The operation has its own counter that needs to be triggered. */
     EXTRA_BUMP = 2,
-    /** @brief The operation does not need a counter trigger, and does not need to be
-     * added to the list of "started" operations.
-     * @sa CXIQueue::active_requests
-     */
+    /** @brief The operation does not need a counter trigger. */
     DONE = 3,
 };
 
@@ -79,8 +76,7 @@ struct GPUTriggers
     size_t actual_size;
 };
 
-/**
- * @brief The abstract base class for the CXIQueue to describe operations with.
+/** @brief The abstract base class for the CXIQueue to describe operations with.
  * @details The base class attempts to describe, generally, all of the basic operations an
  * operation may need to do. The original concept was that there were four phases: 1)
  * start-cpu, 2) start-gpu, 3) wait-cpu, 4) wait-gpu. However, 2 ended up just being a
@@ -94,8 +90,7 @@ struct GPUTriggers
 class CXIRequest
 {
 public:
-    /**
-     * @brief Base constructor. Stores the passed operation and allocates a completion
+    /** @brief Base constructor. Stores the passed operation and allocates a completion
      * buffer.
      * @param [in] req The Communication::Request operation this class is tasked with
      * carrying out.
@@ -109,8 +104,7 @@ public:
     /** @brief Default destructor. */
     virtual ~CXIRequest() = default;
 
-    /** [UPDATE]
-     * @brief Carry out CPU actions related to starting the operation.
+    /** @brief Carry out CPU actions related to starting the operation.
      * @details The base function automatically increases the counter for the number of
      * times started. If derived classes override this function, they must increment
      * ::CXIRequest::num_times_started on their own, or have a different mechanism for
@@ -126,6 +120,13 @@ public:
      * Derived classes may, but are not required to, enqueue operations to the provided
      * GPU stream.
      *
+     * Derived classes should take care to set ::CXIRequest::outstanding to help ensure
+     * wait operations do not get enqueued without a matching start.
+     *
+     * Also marks the CXIRequest object as "outstanding" if TriggerStatus::DONE was not
+     * returned from CXIRequest::start_derived(). A request is outstanding if it has not
+     * had its corresponding wait operation called on it yet.
+     *
      * @param [in] trigger_cntr The global hardware counter that can be used.
      * @param [in] the_stream The GPU stream that should be enqueued to.
      * @return ::TriggerStatus indicating how the operation will be triggered (it may not
@@ -139,8 +140,10 @@ public:
         return actions;
     }
 
-    /** @brief [TODO]
-     * @return
+    /** @brief Marks the request as "ready to start".
+     * @details Designed to prevent enqueueing a wait without a matching start having been
+     * enqueued in between. Always sets CXIRequest::outstanding to false.
+     * @return The value of CXIRequest::outstanding before it was set to false.
      */
     bool take_outstanding()
     {
@@ -149,8 +152,7 @@ public:
         return was_outstanding;
     }
 
-    /**
-     * @brief Perform GPU actions related to waiting on the operation.
+    /** @brief Perform GPU actions related to waiting on the operation.
      * @details The base version does not do anything but be asked to be in the global
      * wait kernel.
      * @param [in] the_stream The GPU stream that should be enqueued to.
@@ -169,8 +171,7 @@ public:
         return base_req.get_memory_type();
     }
 
-    /**
-     * @brief Initiate matching between two communications.
+    /** @brief Initiate matching between two communications.
      * @details At the point this is called, the protocol has been decided, and should be
      * the same on both pairs of the communication (and are already technically matched
      * up). This method finishes the necessary exchanges in order to support the desired
@@ -194,8 +195,10 @@ public:
 
     /** @brief Generate a ::GPUTriggerDescription for the operation.
      * @details Note that not all classes will have a trigger description they can return.
-     * It is up to the caller to check the return of CXIRequest::start_cpu(). The base
-     * version will throw an exception if called.
+     * It is up to the caller to check the return of CXIRequest::start_cpu(). Generally,
+     * this method should be called when ::TriggerStatus::EXTRA_BUMP is returned.
+     *
+     * The base version will throw an exception if called.
      * @return A ::GPUTriggerDescription on how to trigger the start of the operation
      * (throws runtime error in base version).
      */
@@ -205,8 +208,7 @@ public:
     }
 
 protected:
-    /**
-     * @brief Protocol-specific start actions (e.g. queueing triggered NIC operations, or
+    /** @brief Protocol-specific start actions (e.g. queueing triggered NIC operations, or
      * enqueuing stream work).
      * @details Unimplemented in the base class, required to be implemented by the child
      * class. See ::CXIRequest::start_cpu() on more details about the provided parameters.
@@ -226,7 +228,7 @@ protected:
     /** @brief Counter for how many times this operation has been started. */
     size_t num_times_started;
 
-    /** @brief [TODO] */
+    /** @brief Has the ::CXIRequest object been started without a wait? */
     bool outstanding = false;
 };
 

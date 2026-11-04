@@ -186,7 +186,7 @@ void CXIQueue::exchange_protocol(Request& req)
     }
     else
     {
-        /* RECV will get the protocl from the match. Not technically needed since it is
+        /* RECV will get the protocol from the match. Not technically needed since it is
          * defaulted to none */
         req.protocol = Communication::Protocol::NONE;
     }
@@ -381,9 +381,9 @@ __global__ void wait_on_completions(GPUCompletions completions)
  * operation.
  * @param [in] value The value to add to the network counter.
  */
-__global__ void eager_recv(volatile size_t* comp_addr, size_t goal_value,
-                           void* temp_buffer, void* user_buffer, size_t size,
-                           uint64_t* cntr, size_t value)
+__global__ void credit_recv(volatile size_t* comp_addr, size_t goal_value,
+                            void* temp_buffer, void* user_buffer, size_t size,
+                            uint64_t* cntr, size_t value)
 {
     int index       = blockIdx.x * blockDim.x + threadIdx.x;
     int num_threads = blockDim.x * gridDim.x;
@@ -439,16 +439,17 @@ WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
 {
     auto  buffer_size = base_req.get_size_of_buffer();
     void* credit_buffer_slot =
-        (char*)credit_buffers() +
+        (char*)staging_buffers() +
         (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size);
     Print::out("<E> Enqueuing Credit Kernel", (size_t*)completion_buffer.address,
                num_times_started, credit_buffer_slot, base_req.recv_buffer, buffer_size,
-               (uint64_t*)(triggered.gpu_mmio_addr));
-    eager_recv<<<1, 64, 0, *the_stream>>>(
+               (uint64_t*)(credit_trigger_cntr.gpu_mmio_addr));
+    credit_recv<<<1, 64, 0, *the_stream>>>(
         (size_t*)completion_buffer.address, num_times_started, credit_buffer_slot,
-        base_req.recv_buffer, buffer_size, (uint64_t*)(triggered.gpu_mmio_addr), 1);
+        base_req.recv_buffer, buffer_size, (uint64_t*)(credit_trigger_cntr.gpu_mmio_addr),
+        1);
     force_kernel();
-    triggered.up_use_count();
+    credit_trigger_cntr.up_use_count();
     return WaitStatus::NOT_NEEDED;
 }
 
