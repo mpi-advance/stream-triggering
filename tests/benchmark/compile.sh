@@ -25,7 +25,8 @@ if [ -n "$CUSTOM_MODULE_FILE" ]; then
     module_command="-m ${CUSTOM_MODULE_FILE}"
 fi
 
-ST_PATH=${HOME}/apps/stream-trigger
+# ST_PREFIX: where install.sh (or the meta repo's build script) installed the library
+ST_PATH="${ST_PREFIX:-${HOME}/apps/stream-trigger}"
 
 cd ..
 python3 compile.py -f benchmark/pingpong_st_db.cpp -C -H -T -S $ST_PATH ${module_command}

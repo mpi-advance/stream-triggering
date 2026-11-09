@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=2
-#SBATCH --time=00:05:00
+#SBATCH --time=01:30:00
 #SBATCH --partition=batch
 #SBATCH --qos=debug
 #SBATCH --account=csc698
@@ -23,8 +23,8 @@ export MPICH_GPU_SUPPORT_ENABLED=1
 
 TEST_NAME="pingpong"
 TIME="00:03:00"
-START_EXP=15
-END_EXP=15
+START_EXP=3
+END_EXP=28
 
 ### 0.5 Go up a level to start
 cd ..
@@ -90,7 +90,7 @@ run_test_instance() {
     fi
 
     srun --network=single_node_vni,job_vni,def_tles=$TLES -N "$n_nodes" --ntasks-per-node="$ppn" \
-         --time="$TIME" --output="$TARGET" \
+         --time="$TIME" --output="$TARGET" --open-mode=append \
          "${exec_path}" "$NUM_ITERS" "$BUFF_SIZE"
 }
 
@@ -134,19 +134,21 @@ for (( exp=START_EXP; exp<=END_EXP; exp++ )); do
     BUFF_SIZE=$((2 ** exp))
 
     if [ "$BUFF_SIZE" -ge 16777216 ]; then
-        NUM_ITERS=500
-    #elif [ "$BUFF_SIZE" -ge 1048576 ]; then
-    #    NUM_ITERS=5000
+        NUM_ITERS=1000
+    elif [ "$BUFF_SIZE" -ge 1048576 ]; then
+        NUM_ITERS=10000
     else
-        NUM_ITERS=10
+        NUM_ITERS=100000
     fi
 
     echo "Starting round: $NUM_ITERS $BUFF_SIZE"
 
     run_tests "st" "cxi-coarse"
-    #run_tests "mpi"
-    export MPIA_ST_DISABLE_CREDIT=1
+    run_tests "mpi"
+    do_db=false run_tests "mpi_raw"
+    do_db=false run_tests "st_raw" "cxi-coarse"
+    #export MPIA_ST_DISABLE_CREDIT=1
     #do_on_node=false do_db=false run_tests "st" "cxi-coarse" "no-credit"
-    unset MPIA_ST_DISABLE_CREDIT
-    #do_off_node=false do_db=false run_tests "ipc" 
+    #unset MPIA_ST_DISABLE_CREDIT
+    do_off_node=false do_db=false run_tests "ipc" 
 done
