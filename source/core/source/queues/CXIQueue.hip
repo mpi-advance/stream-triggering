@@ -359,61 +359,54 @@ __global__ void wait_on_completions(GPUCompletions completions)
 }
 
 /**
- * @brief Triggering and Waiting GPU kernel for the CREDIT protocol.
- * @details This code is a fused waiting, unpacking, and triggering kernel, used only for
- * the "eager" Protocol::CREDIT protocol (which has pre-registered buffers that can be
- * eagerly sent to, with some amount of credit). The first and last steps mirror
- * ::add_to_counter() and ::wait_on_completion(), respectively. The middle part is just
- * GPU code that copies a data between two buffers (with special logic for when it's not
- * evenly divisible). Note that only GPU thread 0 will do the trigger of the
- * communication.
- *
- * The code assumes that both buffers are at least of size "size" bytes, which is
- * currently calculated by CXIRecvCredit::wait_gpu() to be the size of the buffer in the
- * receive request.
- *
- * @param [in] comp_addr The address of the communication completion value to spin on.
- * @param [in] goal_value The completion value to wait for.
- * @param [in] temp_buffer The temporary buffer holding the received data.
- * @param [in, out] user_buffer The user buffer that the data will be copied into.
- * @param [in] size How large the buffers are, in terms of bytes.
- * @param [in, out] cntr The MMIO address of a network counter holding a triggered
- * operation.
- * @param [in] value The value to add to the network counter.
+ * @brief [TODO]
+ * @param [in] completions
+ * @param [in] copies
  */
-__global__ void credit_recv(volatile size_t* comp_addr, size_t goal_value,
-                            void* temp_buffer, void* user_buffer, size_t size,
-                            uint64_t* cntr, size_t value)
+__global__ void wait_and_copy(GPUCompletions completions, GPUCreditCopies copies)
 {
-    int index       = blockIdx.x * blockDim.x + threadIdx.x;
-    int num_threads = blockDim.x * gridDim.x;
-
-    /* Wait on the data to come in*/
-    while (*comp_addr < goal_value)
-    {
-        // Do nothing
-    }
-
-    /* Unpack the data*/
-    double4* c_temp             = reinterpret_cast<double4*>(temp_buffer);
-    double4* c_user             = reinterpret_cast<double4*>(user_buffer);
-    size_t   max_complete_index = (size / sizeof(double4));
-    for (int i = index; i < max_complete_index; i += num_threads)
-    {
-        c_user[i] = c_temp[i];
-    }
+    const size_t index       = threadIdx.x;
+    const size_t num_threads = blockDim.x;
 
     if (0 == index)
     {
-        char* start_temp = reinterpret_cast<char*>(&c_temp[max_complete_index]);
-        char* start_user = reinterpret_cast<char*>(&c_user[max_complete_index]);
-        for (size_t remainder = 0; remainder < (size % sizeof(double4)); remainder++)
+        for (size_t x = 0; x < completions.actual_size; x++)
         {
-            start_user[remainder] = start_temp[remainder];
+            while (*(completions.buffer[x].comp_addr) < completions.buffer[x].goal_value)
+            {
+            }
         }
+    }
+    __syncthreads();
 
-        /* Trigger the Credit back*/
-        *cntr = value;
+    for (size_t c = 0; c < copies.actual_size; c++)
+    {
+        const double4* __restrict__ c_temp =
+            reinterpret_cast<const double4*>(copies.buffer[c].temp_buffer);
+        double4* __restrict__ c_user =
+            reinterpret_cast<double4*>(copies.buffer[c].user_buffer);
+        const size_t size               = copies.buffer[c].size;
+        const size_t max_complete_index = size / sizeof(double4);
+        for (size_t i = index; i < max_complete_index; i += num_threads)
+        {
+            c_user[i] = c_temp[i];
+        }
+        const size_t remainder = size % sizeof(double4);
+        if (index < remainder)
+        {
+            reinterpret_cast<char*>(&c_user[max_complete_index])[index] =
+                reinterpret_cast<const char*>(&c_temp[max_complete_index])[index];
+        }
+    }
+
+    /* Every thread is done with every staging slot before the credits go back */
+    __syncthreads();
+    if (0 == index)
+    {
+        for (size_t c = 0; c < copies.actual_size; c++)
+        {
+            *(copies.buffer[c].cntr) = 1;
+        }
     }
 }
 
@@ -437,20 +430,19 @@ WaitStatus CXIRequest::wait_gpu(hipStream_t* the_stream)
 
 WaitStatus CXIRecvCredit::wait_gpu(hipStream_t* the_stream)
 {
-    auto  buffer_size = base_req.get_size_of_buffer();
-    void* credit_buffer_slot =
-        (char*)staging_buffers() +
-        (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size);
-    Print::out("<E> Enqueuing Credit Kernel", (size_t*)completion_buffer.address,
-               num_times_started, credit_buffer_slot, base_req.recv_buffer, buffer_size,
-               (uint64_t*)(credit_trigger_cntr.gpu_mmio_addr));
-    credit_recv<<<1, 64, 0, *the_stream>>>(
-        (size_t*)completion_buffer.address, num_times_started, credit_buffer_slot,
-        base_req.recv_buffer, buffer_size, (uint64_t*)(credit_trigger_cntr.gpu_mmio_addr),
-        1);
-    force_kernel();
+    /* The credit goes back from the waitall's wait_and_copy kernel */
     credit_trigger_cntr.up_use_count();
-    return WaitStatus::NOT_NEEDED;
+    return WaitStatus::CREDIT_FUSED;
+}
+
+GPUCreditCopy CXIRecvCredit::get_credit_copy()
+{
+    auto buffer_size = base_req.get_size_of_buffer();
+    return {
+        (char*)staging_buffers() +
+            (((num_times_started - 1) % Communication::MAX_CREDIT_SLACK) * buffer_size),
+        base_req.recv_buffer, buffer_size,
+        (uint64_t*)(credit_trigger_cntr.gpu_mmio_addr)};
 }
 
 void CXIQueue::enqueue_startall(std::vector<std::shared_ptr<Request>> requests)
@@ -544,6 +536,25 @@ void CXIQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
     GPUCompletions all_in_one;
     size_t         num_reqs        = 0;
     bool           has_collectives = false;
+    /* CREDIT receives are copied, and their credit returned, by the wait kernel */
+    GPUCreditCopies copies;
+    copies.actual_size = 0;
+    auto launch_waits  = [&](const char* which) {
+        all_in_one.actual_size = num_reqs;
+        if (0 == copies.actual_size)
+        {
+            Print::out("<E> Enqueuing wait_on_completions kernel", which);
+            wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
+        }
+        else
+        {
+            Print::out("<E> Enqueuing wait_and_copy kernel", which);
+            wait_and_copy<<<1, 1024, 0, *my_stream>>>(all_in_one, copies);
+        }
+        force_kernel();
+        num_reqs           = 0;
+        copies.actual_size = 0;
+    };
     for (auto& req : requests)
     {
         if (Communication::Operation::BARRIER <= req->operation)
@@ -556,30 +567,29 @@ void CXIQueue::enqueue_waitall(std::vector<std::shared_ptr<Request>> requests,
         {
             continue;
         }
-        if (WaitStatus::GLOBAL_KERNEL == found->second->wait_gpu(my_stream))
+        const WaitStatus wait = found->second->wait_gpu(my_stream);
+        if (WaitStatus::GLOBAL_KERNEL == wait || WaitStatus::CREDIT_FUSED == wait)
         {
             all_in_one.buffer[num_reqs] = found->second->get_gpu_completion();
             Print::out("Waiting on request:", req->getID(),
                        all_in_one.buffer[num_reqs].comp_addr,
                        all_in_one.buffer[num_reqs].goal_value);
             num_reqs++;
-            if (CompletionBufferFactory::MAX_GPU_COMPLETIONS == num_reqs)
+            if (WaitStatus::CREDIT_FUSED == wait)
             {
-                all_in_one.actual_size = num_reqs;
-                Print::out("<E> Enqueuing wait_on_completions kernel A");
-                wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
-                force_kernel();
-                num_reqs = 0;
+                copies.buffer[copies.actual_size++] = found->second->get_credit_copy();
+            }
+            if (CompletionBufferFactory::MAX_GPU_COMPLETIONS == num_reqs ||
+                GPUCreditCopies::MAX_COPIES == copies.actual_size)
+            {
+                launch_waits("A");
             }
         }
     }
 
     if (num_reqs > 0)
     {
-        all_in_one.actual_size = num_reqs;
-        Print::out("<E> Enqueuing wait_on_completions kernel B");
-        wait_on_completions<<<1, 1, 0, *my_stream>>>(all_in_one);
-        force_kernel();
+        launch_waits("B");
     }
 
     /* Collectives are offloaded to the CPU; point-to-point positions get empty statuses

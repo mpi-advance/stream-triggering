@@ -985,7 +985,8 @@ private:
     Match::Protocol::SelfBundle self_data;
 };
 
-/** @brief Implementation of Communication::Protocol::CREDIT for receive operations
+/** [UPDATE]
+ * @brief Implementation of Communication::Protocol::CREDIT for receive operations
  * @details In terms of libfabric deferred work queue entries, this class behaves
  * similarly to ::CXIRecvRndv. That is, there is one deferred work queue for the CTS and
  * one for the local completion. However, unlike that class, this class makes its own
@@ -1057,7 +1058,8 @@ public:
                                          comm_b);
     }
 
-    /** @brief Perform GPU actions related to waiting on the operation.
+    /** [UPDATE]
+     * @brief Perform GPU actions related to waiting on the operation.
      * @details This method first figures out which "credit" buffer this receive operation
      * will need to copy out from. It then enqueues the custom kernel that waits for the
      * data to come in, copies it over to the receive buffer, and then triggers the CTS
@@ -1065,12 +1067,16 @@ public:
      * @param [in] the_stream The GPU stream that should be enqueued to.
      * @return ::WaitStatus::NOT_NEEDED as this method created its own kernel to do the
      * waiting in.
-     * @sa ::credit_recv()
      */
     WaitStatus wait_gpu(hipStream_t* the_stream) override;
 
+    /** @brief [TODO]
+     * @return
+     */
+    GPUCreditCopy get_credit_copy() override;
+
 protected:
-    /**
+    /** [REVIEW]
      * @brief Prepares the deferred work queue items for the receiving side of the credit
      * protocol.
      * @details This method does not use any of the provided parameters (uses its own

@@ -130,7 +130,8 @@ public:
      */
     void enqueue_startall(std::vector<std::shared_ptr<Request>> requests) override;
 
-    /** @brief Enqueue kernel(s) to wait on the completion of operations.
+    /** [UPDATE]
+     * @brief Enqueue kernel(s) to wait on the completion of operations.
      * @details This function, like CXIQueue::enqueue_startall(), adds kernels related to
      * communication to the GPU stream. For all of the passed Communication::Request
      * objects, this function collects their completion buffers (and their goal

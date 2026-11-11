@@ -33,6 +33,8 @@ enum class WaitStatus
     NOT_NEEDED = 0,
     /** @brief The operation would like to be added to the "mega" wait kernel. */
     GLOBAL_KERNEL = 1,
+    /** @brief [TODO] */
+    CREDIT_FUSED = 2,
 };
 
 /** @brief Description of a single operation's completion. */
@@ -61,6 +63,37 @@ struct GPUCompletions
 
 /** @brief Helper alias to match ::GPUCompletionDescription for triggers. */
 using GPUTriggerDescription = uint64_t*;
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+struct GPUCreditCopy
+{
+    /** @brief [TODO] */
+    const void* temp_buffer;
+    /** @brief [TODO] */
+    void* user_buffer;
+    /** @brief [TODO] */
+    size_t size;
+    /** @brief [TODO] */
+    uint64_t* cntr;
+};
+
+/**
+ * @brief [TODO]
+ * @details
+ */
+struct GPUCreditCopies
+{
+    /** @brief [TODO] */
+    static constexpr size_t MAX_COPIES = 16;
+    /** @brief [TODO] */
+    GPUCreditCopy buffer[MAX_COPIES];
+    /** @brief [TODO] */
+    size_t actual_size;
+};
+
 /** @brief A set of triggering locations to be put in a kernel's parameter space.
  * @details This object is done this way to avoid an explicit call to copy the object into
  * GPU memory. Does not support specifying a triggered increase greater than 1.
@@ -205,6 +238,14 @@ public:
     virtual GPUTriggerDescription get_gpu_trigger()
     {
         throw std::runtime_error("Request was unable to offer trigger description");
+    }
+
+    /** @brief [TODO]
+     * @return
+     */
+    virtual GPUCreditCopy get_credit_copy()
+    {
+        throw std::runtime_error("Request has no credit copy");
     }
 
 protected:
