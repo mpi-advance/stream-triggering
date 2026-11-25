@@ -25,6 +25,9 @@ source "${ST_ROOT}/install_setup/st_env.sh"
 
 # One rank per node, to match the two-node allocation
 export ST_LAUNCHER_LAYOUT=${ST_LAUNCHER_LAYOUT-off-node}
+# GPU-aware Cray MPICH, as on Tuolumne: the collectives (allreduce, halo_and_allreduce) hand GPU
+# buffers to Cray MPICH. Without it allreduce hung (cxil_map: write error; Frontier, 2026-11-25).
+export MPICH_GPU_SUPPORT_ENABLED=1
 
 srun --ntasks-per-node=1 hostname
 st_run_ctest "${1:-${BACKEND}}"
