@@ -77,7 +77,7 @@ st_cluster_env() {
     elif [[ "$cluster" == *"frontier"* ]]; then
         export HSA_XNACK=1
         export LD_LIBRARY_PATH=${CRAY_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
-        export ST_LAUNCHER="${ST_LAUNCHER:-srun --network=job_vni,res_tles=1024 --gpus-per-task=1}"
+        export ST_LAUNCHER="${ST_LAUNCHER:-srun --network=single_node_vni,job_vni,res_tles=1024 -c7 --gpus-per-task=1 --gpu-bind=closest}"
     fi
 }
 
