@@ -296,6 +296,10 @@ private:
     struct fi_rma_ioc cts_details;
 };
 
+#if defined(USE_TIOGA)
+__global__ void flush_buffer();
+#endif
+
 /** @brief Implementation of Communication::Protocol::IPC send operations.
  * @details This class is designed as an optimization for on-node communications. As such,
  * it can leverage HIP IPC to move the data and avoid needing to go through the network
@@ -349,7 +353,7 @@ public:
     }
 
 protected:
-    /** @brief Carry out enqueueing the actions needed to perform an IPC-based send
+    /** [UPDATE] @brief Carry out enqueueing the actions needed to perform an IPC-based send
      * operation.
      * @details If this is the first time the operation is to be enqueued, open the IPC
      * handles to the peer's buffers. Then move the data, and a completion signal, as two
@@ -388,6 +392,13 @@ protected:
         void* peer_true_buffer = (char*)peer_buffer_ptr + ipc_data[0].offset;
         force_gpu(hipMemcpyDtoDAsync(peer_true_buffer, base_req.send_buffer,
                                      base_req.get_size_of_buffer(), *the_stream));
+
+#if defined(USE_TIOGA)
+        // gfx90a: HIP's peer copy above ends with an agent-scope release, which doesn't write
+        // back L2, so the count could reach the peer before the data (Frontier, 2026-11-26)
+        flush_buffer<<<1, 1, 0, *the_stream>>>();
+        force_kernel();
+#endif
 
         // Assuming that this stages "num_times_started", otherwise race condition!
         void* peer_true_completion = (char*)peer_completion_ptr + ipc_data[1].offset;
