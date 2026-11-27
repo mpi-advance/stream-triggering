@@ -395,9 +395,13 @@ protected:
 
 #if defined(USE_TIOGA)
         // gfx90a: HIP's peer copy above ends with an agent-scope release, which doesn't write
-        // back L2, so the count could reach the peer before the data (Frontier, 2026-11-26)
-        flush_buffer<<<1, 1, 0, *the_stream>>>();
-        force_kernel();
+        // back L2, so the count could reach the peer before the data (Frontier, 2026-11-26).
+        // Only coarse peer memory (MTYPE NC) is cached in our L2; fine (MTYPE UC) bypasses it.
+        if (base_req.needs_gpu_flush())
+        {
+            flush_buffer<<<1, 1, 0, *the_stream>>>();
+            force_kernel();
+        }
 #endif
 
         // Assuming that this stages "num_times_started", otherwise race condition!
