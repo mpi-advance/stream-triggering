@@ -7,15 +7,18 @@ __global__ void set_buffer(int* buffer, int value)
     *buffer = value;
 }
 
-__global__ void set_ready_values(int* buffer, int buffer_len)
+// Tell the peer we're ready. A kernel instead of a copy: gfx90a's copies don't write back
+// L2, so a coarse-grained flag (and data) can sit in our L2 forever (Frontier,
+// 2026-11-27). The first fence writes back the data, the second the flag itself.
+__global__ void signal_peer(int* peer_flag, int value)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= buffer_len)
-        return;
-
-    buffer[index] = index + 1;
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "");
+    __hip_atomic_store(peer_flag, value, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM);
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "");
 }
 
+// Wait for the peer, then drop any stale copy of its (coarse) buffer from our L2 before
+// the copy that pulls it.
 __global__ void wait_for_value(volatile int* location, int value)
 {
     int current_value = *location;
@@ -23,27 +26,19 @@ __global__ void wait_for_value(volatile int* location, int value)
     {
         current_value = *location;
     }
+    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "");
 }
 
 int main(int argc, char* argv[])
 {
     Benchmark::init_benchmark<false, false>(&argc, &argv);
 
-    // > Buffers for completion notifications
-    void*  ready_buffer       = nullptr;
-    int*   ready_value_buffer = nullptr;
-    size_t buffer_value_size  = std::max(Benchmark::num_warmups, Benchmark::num_iters);
+    // > Buffer for completion notifications
+    void* ready_buffer = nullptr;
     Common::allocate_gpu_memory(&ready_buffer, sizeof(int));
-    Common::allocate_gpu_memory((void**)&ready_value_buffer,
-                                   sizeof(int) * buffer_value_size);
 
     // Make sure ready_buffer is 0
     set_buffer<<<1, 1>>>((int*)ready_buffer, 0);
-    // Prepare all "ready" values
-    int _num_blocks =
-        (buffer_value_size + Benchmark::BLOCK_SIZE - 1) / Benchmark::BLOCK_SIZE;
-    set_ready_values<<<_num_blocks, Benchmark::BLOCK_SIZE>>>(ready_value_buffer,
-                                                             buffer_value_size);
     device_sync();
 
     // Exchange HipIPC information
@@ -78,9 +73,8 @@ int main(int argc, char* argv[])
                 // > Pack data to send
                 pack_buffer<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)send_buffer, BUFFER_SIZE, i);
-                // > Move the ready value to peer
-                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, &ready_value_buffer[i],
-                                             sizeof(int), bench_stream));
+                // > Tell the peer the data is ready
+                signal_peer<<<1, 1, 0, bench_stream>>>((int*)d_peer_ready_ptr, i + 1);
                 // > Wait for peer to finish packing
                 wait_for_value<<<1, 1, 0, bench_stream>>>((int*)ready_buffer, i + 1);
                 // > Get data back
@@ -104,8 +98,7 @@ int main(int argc, char* argv[])
                 pack_buffer2<<<NUM_BLOCKS, BLOCK_SIZE, 0, bench_stream>>>(
                     (int*)send_buffer, (int*)recv_buffer, BUFFER_SIZE);
                 // > Tell the other side we are ready
-                check_gpu(hipMemcpyDtoDAsync(d_peer_ready_ptr, &ready_value_buffer[i],
-                                             sizeof(int), bench_stream));
+                signal_peer<<<1, 1, 0, bench_stream>>>((int*)d_peer_ready_ptr, i + 1);
             }
         }
         stream_sync(bench_stream);
@@ -120,7 +113,6 @@ int main(int argc, char* argv[])
 
     Benchmark::cleanup();
     check_gpu(hipFree(ready_buffer));
-    check_gpu(hipFree(ready_value_buffer));
 
     return 0;
 }

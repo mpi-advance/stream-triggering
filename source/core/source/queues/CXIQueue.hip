@@ -423,6 +423,19 @@ __global__ void flush_buffer()
     asm volatile("buffer_wbl2");
 }
 
+#if defined(USE_TIOGA)
+/** @brief [TODO]
+ * @param [out] location [TODO]
+ * @param [in] value [TODO]
+ */
+__global__ void release_store(size_t* location, size_t value)
+{
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "");
+    __hip_atomic_store(location, value, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_SYSTEM);
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "");
+}
+#endif
+
 WaitStatus CXIRequest::wait_gpu(hipStream_t* the_stream)
 {
     return WaitStatus::GLOBAL_KERNEL;

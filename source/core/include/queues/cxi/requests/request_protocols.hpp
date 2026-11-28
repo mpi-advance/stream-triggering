@@ -297,7 +297,7 @@ private:
 };
 
 #if defined(USE_TIOGA)
-__global__ void flush_buffer();
+__global__ void release_store(size_t* location, size_t value);
 #endif
 
 /** @brief Implementation of Communication::Protocol::IPC send operations.
@@ -353,8 +353,8 @@ public:
     }
 
 protected:
-    /** [UPDATE] @brief Carry out enqueueing the actions needed to perform an IPC-based send
-     * operation.
+    /** [UPDATE] @brief Carry out enqueueing the actions needed to perform an IPC-based
+     * send operation.
      * @details If this is the first time the operation is to be enqueued, open the IPC
      * handles to the peer's buffers. Then move the data, and a completion signal, as two
      * separate, asynchronous HIP mem-copies on the provided HIP stream.
@@ -392,20 +392,24 @@ protected:
         void* peer_true_buffer = (char*)peer_buffer_ptr + ipc_data[0].offset;
         force_gpu(hipMemcpyDtoDAsync(peer_true_buffer, base_req.send_buffer,
                                      base_req.get_size_of_buffer(), *the_stream));
+        void* peer_true_completion = (char*)peer_completion_ptr + ipc_data[1].offset;
 
 #if defined(USE_TIOGA)
-        // gfx90a: HIP's peer copy above ends with an agent-scope release, which doesn't write
-        // back L2, so the count could reach the peer before the data (Frontier, 2026-11-26).
-        // Only coarse peer memory (MTYPE NC) is cached in our L2; fine (MTYPE UC) bypasses it.
+        // gfx90a: HIP's peer copies end with an agent-scope release, which doesn't write
+        // back L2, so coarse peer memory (MTYPE NC) can stay in our L2 and the count can
+        // reach the peer before the data, or not at all (Frontier, 2026-11-26/27). Fine
+        // (MTYPE UC) bypasses L2. release_store writes L2 back, stores the count, and
+        // writes it back.
         if (base_req.needs_gpu_flush())
         {
-            flush_buffer<<<1, 1, 0, *the_stream>>>();
+            release_store<<<1, 1, 0, *the_stream>>>((size_t*)peer_true_completion,
+                                                    num_times_started);
             force_kernel();
+            return TriggerStatus::DONE;
         }
 #endif
 
         // Assuming that this stages "num_times_started", otherwise race condition!
-        void* peer_true_completion = (char*)peer_completion_ptr + ipc_data[1].offset;
         force_gpu(hipMemcpyHtoDAsync(peer_true_completion, &num_times_started,
                                      sizeof(num_times_started), *the_stream));
 
