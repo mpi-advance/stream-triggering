@@ -34,13 +34,23 @@ def compile_test(program, output, defines, modules, st_base_path):
     # Determine compiler
     compiler="CC"
     extras=[]
-    for module in modules:
-        if "rocmcc" in module:
-            compiler="mpiamdclang++"
-            extras=["--offload-arch=gfx942", "-mllvm -amdgpu-early-inline-all=true",
-                    "-mllvm -amdgpu-function-calls=false", "-fhip-new-launch-api",
-                    "--driver-mode=g++" ]
-            break
+    link=[]
+    amd_flags=["-mllvm -amdgpu-early-inline-all=true", "-mllvm -amdgpu-function-calls=false",
+               "-fhip-new-launch-api"]
+    if any("rocmcc" in module for module in modules):
+        compiler="mpiamdclang++"
+        extras=["--offload-arch=gfx942", *amd_flags, "--driver-mode=g++"]
+    elif any("craype-accel-amd-gfx90a" in module for module in modules):
+        # Frontier: ROCm's amdclang++ (Cray CC's HIP compile has aborted since 2026-11-27).
+        # Not an MPI wrapper, so MPI and its GPU transport layer are linked by hand.
+        # USE_TIOGA as ST's CMake sets it for gfx90a.
+        compiler="amdclang++"
+        extras=["--offload-arch=gfx90a", "-DUSE_TIOGA", *amd_flags,
+                "-I${MPICH_DIR}/include"]
+        link=["-L${MPICH_DIR}/lib", "-lmpi",
+              "${PE_MPICH_GTL_DIR_amd_gfx90a}", "${PE_MPICH_GTL_LIBS_amd_gfx90a}",
+              "-L${ROCM_PATH}/lib", "-lamdhip64", "-Wl,-rpath,${MPICH_DIR}/lib",
+              "-Wl,-rpath,${PE_MPICH_GTL_DIR_amd_gfx90a#-L}", "-Wl,-rpath,${ROCM_PATH}/lib"]
 
     # Base compiler command
     cc_cmd = [
@@ -51,6 +61,7 @@ def compile_test(program, output, defines, modules, st_base_path):
     # Add defines and other arguments
     cc_cmd.extend(defines.split())
     cc_cmd.extend([program, f"{st_inc}", f"{st_lib}", "-o", output, libs])
+    cc_cmd.extend(link)
 
     cc_str = " ".join(cc_cmd)
 
